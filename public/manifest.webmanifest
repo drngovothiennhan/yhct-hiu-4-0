@@ -1,0 +1,11 @@
+{
+  "name":"YHCT HIU 4.0",
+  "short_name":"YHCT HIU",
+  "description":"Mạng xã hội Học thuật & Luyện thi Y học Cổ truyền",
+  "start_url":"/",
+  "display":"standalone",
+  "background_color":"#f7f2e8",
+  "theme_color":"#7b1e2b",
+  "lang":"vi",
+  "icons":[{"src":"/logo-clb-yhct-hiu.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}

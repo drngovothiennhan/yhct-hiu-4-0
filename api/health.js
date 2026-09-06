@@ -1,0 +1,1 @@
+export default function handler(_req,res){res.setHeader('Cache-Control','no-store');res.status(200).json({ok:true,app:'YHCT HIU 4.0',version:'4.0.0-final.4',apiVersion:'v1',webFirst:true,serverTime:new Date().toISOString()})}
