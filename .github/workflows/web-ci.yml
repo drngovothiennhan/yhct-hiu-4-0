@@ -1,7 +1,7 @@
 name: Web CI
 on:
   push:
-    branches: [main]
+    branches: [main, rc-platform-v1-20260907]
   pull_request:
     branches: [main]
 permissions:
