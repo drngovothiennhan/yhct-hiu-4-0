@@ -1,0 +1,9 @@
+import { App } from '@capacitor/app';
+import type { VersionManifest } from '../types';
+const REMOTE_VERSION_URL='https://raw.githubusercontent.com/drngovothiennhan/yhct-hiu-4-0/main/public/version.json';
+const cmp=(a:string,b:string)=>{const A=a.split(/[.-]/).map(x=>Number(x)||0),B=b.split(/[.-]/).map(x=>Number(x)||0);for(let i=0;i<Math.max(A.length,B.length);i++){if((A[i]||0)!==(B[i]||0))return (A[i]||0)>(B[i]||0)?1:-1}return 0};
+export async function getCurrentVersion(){try{return (await App.getInfo()).version}catch{return '4.0.0'}}
+export async function checkForUpdate(url=REMOTE_VERSION_URL):Promise<{available:boolean;manifest:VersionManifest}>{const r=await fetch(`${url}?t=${Date.now()}`,{cache:'no-store'});if(!r.ok)throw new Error('Không đọc được version manifest');const manifest=await r.json() as VersionManifest;const current=await getCurrentVersion();return {available:cmp(manifest.version,current)>0,manifest}}
+export async function verifySha256(blob:Blob,expected:string){if(!expected)return false;const digest=await crypto.subtle.digest('SHA-256',await blob.arrayBuffer());const hex=[...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');return hex.toLowerCase()===expected.toLowerCase()}
+export async function installContentPack(manifest:VersionManifest){if(!manifest.contentBundleUrl)throw new Error('Bản này không có gói nội dung OTA.');const r=await fetch(manifest.contentBundleUrl,{cache:'no-store'});if(!r.ok)throw new Error('Không tải được gói nội dung');const blob=await r.blob();if(!(await verifySha256(blob,manifest.sha256)))throw new Error('Checksum gói cập nhật không hợp lệ');const bytes=Array.from(new Uint8Array(await blob.arrayBuffer()));localStorage.setItem('yhct-hiu-content-pack',JSON.stringify({version:manifest.version,bytes,installedAt:new Date().toISOString()}));return true}
+export function openNativeUpdate(manifest:VersionManifest){window.location.href=manifest.playStoreUrl}
