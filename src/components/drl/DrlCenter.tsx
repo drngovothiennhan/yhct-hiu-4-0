@@ -1,5 +1,5 @@
 import { useEffect,useMemo,useState } from 'react';
-import { CheckCircle2,FileSpreadsheet,Lock,Plus,Search,ShieldCheck,Upload,X } from 'lucide-react';
+import { CheckCircle2,Download,FileSpreadsheet,Lock,Plus,Search,ShieldCheck,Upload,X } from 'lucide-react';
 import type { Member } from '../../types';
 import { roleAtLeast } from '../../types';
 import { supabase } from '../../services/authService';
@@ -13,9 +13,10 @@ type ExactSemester={student_code_masked:string;semester_code:string;semester_tit
 type HistoryRow={id:string;semester_code:string;semester_title:string;activity_name:string;points:number;note:string;occurred_at?:string|null;created_at:string};
 type Semester={id:string;code:string;title:string;lock_at?:string|null;locked_at?:string|null;is_locked:boolean;published_at?:string|null;published_by?:string|null;is_published:boolean;row_count:number;student_count:number};
 type ImportRow={mssv:string;ho_ten:string;ten_hoat_dong:string;hoc_ky:string;diem_cong:number|string;ghi_chu:string;occurred_at?:string};
+type RowError={row:number;field:'MSSV'|'Họ tên'|'Tên hoạt động'|'Học kỳ'|'Điểm cộng';value:string;message:string};
 type ImportMeta={format:'hiu_drl_proposal'|'flat';sheet_name:string;header_row:number;activity_name:string;semester_label:string;academic_year:string;occurred_at?:string;location:string;suggested_semester_code:string;suggested_semester_title:string};
-type WorkerResult={ok:boolean;rows?:ImportRow[];invalid?:number;duplicateStudentCodes?:number;duplicateRows?:number;meta?:ImportMeta;error?:string};
-type ParsedWorkbook={rows:ImportRow[];invalid:number;duplicateStudentCodes:number;duplicateRows:number;meta:ImportMeta};
+type WorkerResult={ok:boolean;rows?:ImportRow[];invalid?:number;duplicateStudentCodes?:number;duplicateRows?:number;rowErrors?:RowError[];meta?:ImportMeta;error?:string};
+type ParsedWorkbook={rows:ImportRow[];invalid:number;duplicateStudentCodes:number;duplicateRows:number;rowErrors:RowError[];meta:ImportMeta};
 type PublishDialog={semester:Semester;target:boolean;step:1|2};
 
 const MAX_FILE_BYTES=10*1024*1024;
@@ -28,7 +29,7 @@ function parseWorkbook(buffer:ArrayBuffer):Promise<ParsedWorkbook>{
   return new Promise((resolve,reject)=>{
     const worker=new Worker(new URL('../../workers/drlParseWorker.ts',import.meta.url),{type:'module'});
     const timer=window.setTimeout(()=>{worker.terminate();reject(new Error('Phân tích bảng tính quá thời gian 15 giây.'))},15000);
-    worker.onmessage=(event:MessageEvent<WorkerResult>)=>{window.clearTimeout(timer);worker.terminate();const x=event.data;if(!x.ok||!x.rows||!x.meta)return reject(new Error(x.error||'Không thể đọc bảng tính.'));resolve({rows:x.rows,invalid:Number(x.invalid||0),duplicateStudentCodes:Number(x.duplicateStudentCodes||0),duplicateRows:Number(x.duplicateRows||0),meta:x.meta})};
+    worker.onmessage=(event:MessageEvent<WorkerResult>)=>{window.clearTimeout(timer);worker.terminate();const x=event.data;if(!x.ok||!x.rows||!x.meta)return reject(new Error(x.error||'Không thể đọc bảng tính.'));resolve({rows:x.rows,invalid:Number(x.invalid||0),duplicateStudentCodes:Number(x.duplicateStudentCodes||0),duplicateRows:Number(x.duplicateRows||0),rowErrors:Array.isArray(x.rowErrors)?x.rowErrors:[],meta:x.meta})};
     worker.onerror=()=>{window.clearTimeout(timer);worker.terminate();reject(new Error('Worker đọc bảng tính gặp lỗi.'))};
     worker.postMessage(buffer,[buffer]);
   });
@@ -43,10 +44,11 @@ function normalizeExactRows(data:unknown):ExactSemester[]{
   if(!Array.isArray(data))return[];
   return data.map(row=>{const x=row as Omit<ExactSemester,'activities'>&{activities?:unknown};return{...x,total_points:x.total_points===null?null:Number(x.total_points),activities:Array.isArray(x.activities)?x.activities.map(a=>{const y=a as ExactActivity;return{...y,points:Number(y.points)}}):[]}});
 }
+function csvCell(value:unknown){let s=String(value??'');if(/^[=+\-@]/.test(s))s=`'${s}`;return `"${s.replace(/"/g,'""')}"`}
 
 export default function DrlCenter({member}:{member:Member|null}){
   const [q,setQ]=useState(''),[rows,setRows]=useState<PublicRow[]>([]),[exactRows,setExactRows]=useState<ExactSemester[]>([]),[history,setHistory]=useState<HistoryRow[]>([]),[semesters,setSemesters]=useState<Semester[]>([]),[file,setFile]=useState<File|null>(null),[preview,setPreview]=useState<ImportRow[]>([]),[checksum,setChecksum]=useState(''),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
-  const [importMeta,setImportMeta]=useState<ImportMeta|null>(null),[resolvedSemester,setResolvedSemester]=useState(''),[importStats,setImportStats]=useState({invalid:0,duplicateStudentCodes:0,duplicateRows:0}),[publishDialog,setPublishDialog]=useState<PublishDialog|null>(null);
+  const [importMeta,setImportMeta]=useState<ImportMeta|null>(null),[resolvedSemester,setResolvedSemester]=useState(''),[importStats,setImportStats]=useState({invalid:0,duplicateStudentCodes:0,duplicateRows:0}),[rowErrors,setRowErrors]=useState<RowError[]>([]),[publishDialog,setPublishDialog]=useState<PublishDialog|null>(null);
   const canManage=roleAtLeast(member?.role,'mod'),canPublish=roleAtLeast(member?.role,'admin'),canLock=roleAtLeast(member?.role,'admin');
 
   const reloadHistory=async()=>{if(!member){setHistory([]);return}const {data,error}=await supabase.rpc('drl_member_history_v1');if(error)throw error;setHistory((Array.isArray(data)?data:[]) as HistoryRow[])};
@@ -82,22 +84,29 @@ export default function DrlCenter({member}:{member:Member|null}){
 
   useEffect(()=>{if(!publishDialog)return;const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape'&&!busy)setPublishDialog(null)};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey)},[publishDialog,busy]);
 
+  const downloadRowErrors=()=>{
+    if(!rowErrors.length)return;
+    const lines=[['Dòng','Trường','Giá trị','Lỗi'].map(csvCell).join(','),...rowErrors.map(error=>[error.row,error.field,error.value,error.message].map(csvCell).join(','))];
+    const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`loi-drl-${(file?.name||'import').replace(/[^a-zA-Z0-9._-]+/g,'-')}-${new Date().toISOString().slice(0,10)}.csv`;a.click();window.setTimeout(()=>URL.revokeObjectURL(url),0);
+  };
+
   const parseFile=async(f:File)=>{
-    setBusy(true);setMsg('');setFile(null);setPreview([]);setChecksum('');setImportMeta(null);setResolvedSemester('');setImportStats({invalid:0,duplicateStudentCodes:0,duplicateRows:0});
+    setBusy(true);setMsg('');setFile(null);setPreview([]);setChecksum('');setImportMeta(null);setResolvedSemester('');setImportStats({invalid:0,duplicateStudentCodes:0,duplicateRows:0});setRowErrors([]);
     try{
       if(!/\.(xlsx|xls|csv)$/i.test(f.name))throw new Error('Chỉ hỗ trợ .xlsx, .xls hoặc .csv.');
       if(f.size<=0||f.size>MAX_FILE_BYTES)throw new Error('File bảng tính tối đa 10 MB.');
       const original=await f.arrayBuffer();const checksumValue=await sha256(original.slice(0));const parsed=await parseWorkbook(original);
       if(parsed.rows.length>MAX_ROWS)throw new Error(`Tối đa ${MAX_ROWS.toLocaleString('vi-VN')} dòng mỗi lần nhập.`);
       const matched=matchDetectedSemester(parsed.meta,semesters);const normalized=matched?parsed.rows.map(r=>({...r,hoc_ky:matched.code,mssv:r.mssv.toUpperCase()})):parsed.rows.map(r=>({...r,mssv:r.mssv.toUpperCase()}));
-      setFile(f);setPreview(normalized);setChecksum(checksumValue);setImportMeta(parsed.meta);setResolvedSemester(matched?.code||'');setImportStats({invalid:parsed.invalid,duplicateStudentCodes:parsed.duplicateStudentCodes,duplicateRows:parsed.duplicateRows});
+      setFile(f);setPreview(normalized);setChecksum(checksumValue);setImportMeta(parsed.meta);setResolvedSemester(matched?.code||'');setImportStats({invalid:parsed.invalid,duplicateStudentCodes:parsed.duplicateStudentCodes,duplicateRows:parsed.duplicateRows});setRowErrors(parsed.rowErrors);
       const notes=[`Đã đọc ${parsed.rows.length.toLocaleString('vi-VN')} dòng hợp lệ/khả dụng · header tự nhận ở dòng ${parsed.meta.header_row}.`];
       if(parsed.meta.format==='hiu_drl_proposal')notes.push(`Nhận diện mẫu HIU: ${parsed.meta.activity_name||'chưa rõ hoạt động'} · ${parsed.meta.semester_label||'chưa rõ học kỳ'}${parsed.meta.academic_year?` · ${parsed.meta.academic_year}`:''}.`);
-      if(parsed.invalid)notes.push(`${parsed.invalid} dòng không hợp lệ theo kiểm tra MSSV/tên/điểm.`);
+      if(parsed.invalid)notes.push(`${parsed.invalid} dòng không hợp lệ; commit bị khóa cho đến khi sửa hết lỗi.`);
       if(parsed.duplicateRows)notes.push(`Đã loại ${parsed.duplicateRows} dòng trùng khóa MSSV + Hoạt động + Học kỳ.`);
       if(parsed.duplicateStudentCodes)notes.push(`${parsed.duplicateStudentCodes} MSSV có nhiều hoạt động/dòng khác nhau.`);
       if(parsed.meta.format==='hiu_drl_proposal'&&!matched)notes.push('Chưa có học kỳ tương ứng trong hệ thống; cần tạo/ánh xạ học kỳ trước khi commit.');
       if(matched?.is_published)notes.push('Học kỳ này đã chốt điểm; phải gỡ công bố trước khi nhập hoặc chỉnh dữ liệu.');
+      if(!parsed.rows.length&&parsed.rowErrors.length)notes.push('Không có dòng hợp lệ để nhập. Hãy tải báo cáo lỗi và sửa file nguồn.');
       setMsg(notes.join(' '));
     }catch(error){setMsg(error instanceof Error?error.message:'Không thể đọc file.')}finally{setBusy(false)}
   };
@@ -114,13 +123,14 @@ export default function DrlCenter({member}:{member:Member|null}){
 
   const commit=async()=>{
     if(!file||!preview.length||!checksum)return;
+    if(rowErrors.length){setMsg(`File còn ${importStats.invalid.toLocaleString('vi-VN')} dòng lỗi. Hệ thống không cho commit từng phần; hãy sửa file và tải lại.`);return}
     if(structuredImport&&!resolvedSemester){setMsg('File đã được nhận diện nhưng chưa có học kỳ tương ứng. Hãy tạo/ánh xạ học kỳ trước khi commit.');return}
     setBusy(true);setMsg('');
     try{
       const {data,error}=await supabase.rpc('drl_admin_import_v1',{p_file_name:file.name,p_checksum_sha256:checksum,p_rows:preview});if(error)throw error;
       const x=data as {accepted?:number;rejected?:number;duplicates?:number};await reloadSemesters();
       setMsg(`Commit hoàn tất: ${x.accepted||0} nhận · ${x.rejected||0} loại · ${x.duplicates||0} trùng. Đây là dữ liệu nháp; chỉ Admin có quyền công bố điểm học kỳ.`);
-      setPreview([]);setFile(null);setChecksum('');setImportMeta(null);setResolvedSemester('');setImportStats({invalid:0,duplicateStudentCodes:0,duplicateRows:0});
+      setPreview([]);setFile(null);setChecksum('');setImportMeta(null);setResolvedSemester('');setImportStats({invalid:0,duplicateStudentCodes:0,duplicateRows:0});setRowErrors([]);
     }catch(error){setMsg(error instanceof Error?error.message:'Không thể commit điểm.')}finally{setBusy(false)}
   };
 
@@ -151,7 +161,8 @@ export default function DrlCenter({member}:{member:Member|null}){
 
     {canManage&&<section className="panel"><div className="row panel-title"><ShieldCheck/><div><h3>Quản trị DRL · Nháp → Công bố</h3><p>Parser Web Worker · chuẩn hóa MSSV · chống trùng MSSV + Hoạt động + Học kỳ · công bố chỉ dành cho Admin.</p></div></div><label className="upload-box"><FileSpreadsheet/><span>Chọn Excel/CSV · tối đa 10 MB / 5.000 dòng</span><input type="file" accept=".xlsx,.xls,.csv" disabled={busy} onChange={e=>{const f=e.target.files?.[0];if(f)void parseFile(f);e.currentTarget.value=''}}/></label>
       {structuredImport&&importMeta&&<div className="ai-note import-detected"><b>Đã nhận mẫu đề nghị ĐRL HIU</b><div className="data-list compact"><article><div><b>{importMeta.activity_name}</b><small>{importMeta.semester_label}{importMeta.academic_year?` · Năm học ${importMeta.academic_year}`:''}{importMeta.location?` · ${importMeta.location}`:''}</small></div><strong>Dòng {importMeta.header_row}</strong></article></div>{resolvedSemester?<small>Đã ánh xạ học kỳ hệ thống: <b>{resolvedSemester}</b>.</small>:importMeta.suggested_semester_code&&<button className="secondary" disabled={busy} onClick={()=>void createDetectedSemester()}><Plus/>Tạo học kỳ {importMeta.suggested_semester_code}</button>}</div>}
-      {preview.length>0&&<><div className="import-preview-meta"><b>{preview.length.toLocaleString('vi-VN')} dòng sẵn sàng</b><small>SHA-256 {checksum.slice(0,16)}… · {importStats.invalid} dòng lỗi · đã loại {importStats.duplicateRows} dòng trùng khóa logic · {importStats.duplicateStudentCodes} MSSV có nhiều dòng khác nhau.</small></div><div className="data-list import-preview">{preview.slice(0,12).map((x,i)=><article key={`${x.mssv}-${x.ten_hoat_dong}-${i}`}><div><b>{x.ho_ten}</b><small>{x.mssv} · {x.hoc_ky} · {x.ten_hoat_dong}</small></div><strong>{Number(x.diem_cong)>0?'+':''}{x.diem_cong}</strong></article>)}</div><button disabled={busy||(structuredImport&&!resolvedSemester)} onClick={()=>void commit()}><Upload/>Commit bản nháp {preview.length.toLocaleString('vi-VN')} dòng</button></>}
+      {rowErrors.length>0&&<div className="warning drl-import-errors" role="region" aria-label="Chi tiết lỗi file DRL"><div className="between"><div><b>{importStats.invalid.toLocaleString('vi-VN')} dòng không hợp lệ · {rowErrors.length.toLocaleString('vi-VN')} lỗi chi tiết</b><small>Commit bị khóa để tránh nhập thiếu dữ liệu. Sửa toàn bộ lỗi rồi tải lại file.</small></div><button type="button" className="secondary" onClick={downloadRowErrors}><Download/>Tải CSV lỗi</button></div><div className="data-list compact">{rowErrors.slice(0,100).map((error,index)=><article key={`${error.row}-${error.field}-${index}`}><div><b>Dòng {error.row} · {error.field}</b><small>{error.message}{error.value?` · Giá trị: ${error.value}`:''}</small></div><strong>Lỗi</strong></article>)}</div>{rowErrors.length>100&&<small className="muted">Đang hiển thị 100 lỗi đầu tiên. File CSV chứa đầy đủ {rowErrors.length.toLocaleString('vi-VN')} lỗi.</small>}</div>}
+      {preview.length>0&&<><div className="import-preview-meta"><b>{preview.length.toLocaleString('vi-VN')} dòng sẵn sàng</b><small>SHA-256 {checksum.slice(0,16)}… · {importStats.invalid} dòng lỗi · đã loại {importStats.duplicateRows} dòng trùng khóa logic · {importStats.duplicateStudentCodes} MSSV có nhiều dòng khác nhau.</small></div><div className="data-list import-preview">{preview.slice(0,12).map((x,i)=><article key={`${x.mssv}-${x.ten_hoat_dong}-${i}`}><div><b>{x.ho_ten}</b><small>{x.mssv} · {x.hoc_ky} · {x.ten_hoat_dong}</small></div><strong>{Number(x.diem_cong)>0?'+':''}{x.diem_cong}</strong></article>)}</div><button disabled={busy||rowErrors.length>0||(structuredImport&&!resolvedSemester)} onClick={()=>void commit()}><Upload/>Commit bản nháp {preview.length.toLocaleString('vi-VN')} dòng</button></>}
       <div className="semester-grid">{semesters.map(s=><article key={s.id}><b>{s.title}</b><small>{s.code} · {Number(s.row_count||0).toLocaleString('vi-VN')} dòng/{Number(s.student_count||0).toLocaleString('vi-VN')} SV · {s.is_published?'Đã chốt điểm':'Đang tổng hợp / Chờ duyệt'} · {s.is_locked?'Đã khóa':'Đang mở'}</small><div className="schedule-actions">{canPublish&&<button className={s.is_published?'secondary':''} disabled={busy||(!s.is_published&&Number(s.row_count||0)===0)} onClick={()=>setPublishDialog({semester:s,target:!s.is_published,step:1})}><ShieldCheck/>{s.is_published?'Gỡ công bố':'Công bố điểm học kỳ'}</button>}{canLock&&<button className="secondary" disabled={busy} onClick={()=>void toggleLock(s)}><Lock/>{s.is_locked?'Mở khóa':'Khóa sổ'}</button>}</div></article>)}</div></section>}
 
     {msg&&<div className="ai-note" role="status">{msg}</div>}
