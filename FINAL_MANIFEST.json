@@ -1,11 +1,12 @@
 {
   "project":"YHCT HIU 4.0",
-  "version":"4.0.0-final.4",
+  "version":"4.0.0-final.2.0",
+  "releaseName":"Final 2.0",
   "sourceOfTruth":"https://github.com/drngovothiennhan/yhct-hiu-4-0",
   "branch":"main",
   "webPriority":"P0",
   "backend":"Supabase v1 shared Web/Android",
   "androidAppId":"edu.hiu.yhct40",
-  "productionAnchor":"dpl_7BoA947RpMpKupN7KTy39GSAs7Qu",
-  "releasePolicy":"preview-health-runtime-gates-before-production"
+  "productionAnchor":"https://yhct-hiu-final4-stage.vercel.app",
+  "releasePolicy":"score-publication-gate-desktop-touch-drive-server-lock-ci-runtime-gates"
 }

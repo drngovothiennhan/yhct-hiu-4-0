@@ -4,6 +4,7 @@
 .news-rotator-heading p{margin:3px 0 0;color:var(--muted);font-size:11px}
 .news-rotator-refresh{width:42px;height:42px;padding:0;flex:0 0 42px}
 .news-rotator-stage{display:grid;gap:8px;min-width:0}
+html[data-viewport-mode="desktop"] .news-rotator-stage{touch-action:pan-y;overscroll-behavior-x:contain}
 .news-rotator-pair{display:grid;grid-template-columns:1fr;gap:9px;min-width:0}
 .news-rotator-card{display:grid;gap:6px;min-width:0;padding:11px 12px;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--text);text-decoration:none;box-shadow:0 5px 16px rgba(70,50,30,.05);animation:news-rotator-in .22s ease}
 .news-rotator-card:hover,.news-rotator-card:focus-visible{border-color:color-mix(in srgb,var(--primary) 32%,var(--line));box-shadow:0 9px 24px color-mix(in srgb,var(--primary) 11%,transparent);outline:none}
