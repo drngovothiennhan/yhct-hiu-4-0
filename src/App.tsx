@@ -62,7 +62,7 @@ export default function App(){
       {tab==='schedule'&&<ScheduleCenter member={member}/>} 
       {tab==='drl'&&<DrlCenter member={member}/>} 
       {tab==='exam'&&<ExamCenter/>} 
-      {tab==='admin'&&canAdmin&&<AdminControlCenter currentMember={member} theme={theme} onThemeChange={setTheme} onUpdate={m=>{if(member?.id===m.id)setMember(m)}}/>}
+      {tab==='admin'&&canAdmin&&<AdminControlCenter currentMember={member} onUpdate={m=>{if(member?.id===m.id)setMember(m)}}/>}
       {tab==='acc'&&canAcc&&<><AdminThemeControl theme={theme} onChange={setTheme}/><SystemAdminCenter/></>}
     </main>
 
