@@ -41,7 +41,7 @@ need(drl,['drl_public_lookup_v2','drl_public_search_v1','drl_admin_import_v1','d
 if(!drl.includes("roleAtLeast(member?.role,'admin')"))errors.push('DRL publication must require admin role in UI');
 
 const community=read('src/components/community/CommunitySidebar.tsx');
-need(community,["supabase.rpc('community_sidebar_v2')",'total_credits','credit_rank','ACTIVE_LIMIT=10','Đồng','Top 10 Tín dụng Cộng đồng'],'community credits UI');
+need(community,["supabase.rpc('community_sidebar_v2')",'total_credits','credit_rank','creditLevel','ACTIVE_LIMIT=10','Top 10 Tín dụng Cộng đồng'],'community credits UI');
 for(const token of ['student_code','email','phone'])if(community.includes(token))errors.push(`community sidebar exposes sensitive field ${token}`);
 
 const theme=read('src/theme.ts');
