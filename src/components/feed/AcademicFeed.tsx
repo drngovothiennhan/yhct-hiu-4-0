@@ -1,4 +1,4 @@
-import { useEffect,useMemo,useState } from 'react';
+import { lazy,Suspense,useEffect,useMemo,useState } from 'react';
 import { Hash,Plus,Search } from 'lucide-react';
 import type { AcademicPost,Member } from '../../types';
 import AcademicPostCard from './AcademicPostCard';
@@ -8,19 +8,22 @@ import AcademicComposer from './AcademicComposer';
 import { supabase } from '../../services/authService';
 import { addComment,createPost,deletePost,draftFromPost,repost,toggleBookmark,toggleFollow,toggleReaction,updatePost,type PostDraft } from '../../services/socialService';
 
+const DesktopAcademicWidgets=lazy(()=>import('../widgets/DesktopAcademicWidgets'));
 const empty=():PostDraft=>({title:'',chiefComplaint:'',fourExams:{vong:'',van:'',vanHoi:'',thiet:''},eightPrinciples:[],syndrome:'',treatmentPrinciple:'',formula:'',acupoints:[],tags:[],citations:[],postType:'research',specialty:'general',visibility:'public',media:[]});
 
 export default function AcademicFeed({posts,setPosts,member,reload,composeNonce=0}:{posts:AcademicPost[];setPosts:React.Dispatch<React.SetStateAction<AcademicPost[]>>;member:Member|null;reload:()=>Promise<void>;composeNonce?:number}){
-  const [q,setQ]=useState(''),[tag,setTag]=useState(''),[draft,setDraft]=useState<PostDraft|null>(null),[editId,setEditId]=useState<string|null>(null),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
+  const [q,setQ]=useState(''),[tag,setTag]=useState(''),[draft,setDraft]=useState<PostDraft|null>(null),[editId,setEditId]=useState<string|null>(null),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[wideDesktop,setWideDesktop]=useState(false);
   const tags=useMemo(()=>[...new Set(posts.flatMap(p=>p.tags))],[posts]);
   const shown=useMemo(()=>posts.filter(p=>(!tag||p.tags.includes(tag))&&(!q||`${p.title} ${p.syndrome} ${p.tags.join(' ')}`.toLowerCase().includes(q.toLowerCase()))),[posts,q,tag]);
+  useEffect(()=>{const mq=window.matchMedia('(min-width: 1500px)');const update=()=>setWideDesktop(mq.matches&&document.documentElement.dataset.viewportMode==='desktop');update();mq.addEventListener('change',update);const observer=new MutationObserver(update);observer.observe(document.documentElement,{attributes:true,attributeFilter:['data-viewport-mode']});return()=>{mq.removeEventListener('change',update);observer.disconnect()}},[]);
   useEffect(()=>{if(!composeNonce||!member)return;setEditId(null);setDraft(empty());window.setTimeout(()=>document.querySelector('.composer-editor')?.scrollIntoView({behavior:'smooth',block:'start'}),0)},[composeNonce,member]);
   const run=async(fn:()=>Promise<unknown>)=>{setBusy(true);setMsg('');try{await fn();await reload()}catch(e){setMsg((e as Error).message)}finally{setBusy(false)}};
   const save=async(files:File[])=>{if(!draft)return;await run(async()=>{if(editId)await updatePost(editId,draft,files);else await createPost(draft,files);setDraft(null);setEditId(null);setMsg('Bài viết đã được gửi vào hàng đợi kiểm duyệt. Chỉ bài đã duyệt mới xuất hiện trên Newsfeed.')})};
   const needMember=()=>{if(!member){setMsg('Vui lòng đăng nhập thành viên để tương tác.');return false}return true};
   const verifyPost=(post:AcademicPost,verified:boolean)=>run(async()=>{const {error}=await supabase.rpc('moderate_academic_post_v1',{p_post_id:post.id,p_action:verified?'approved':'pending'});if(error)throw error});
 
-  return <section className="feed-layout">
+  return <section className={`feed-layout ${wideDesktop?'with-widget-rail':''}`}>
+    {wideDesktop&&<Suspense fallback={<aside className="desktop-academic-widgets widget-loading" aria-label="Đang tải tiện ích desktop">Đang tải tiện ích…</aside>}><DesktopAcademicWidgets member={member}/></Suspense>}
     <div className="feed-main">
       <div className="between feed-toolbar"><div className="feed-tools"><div className="searchbox"><Search/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Tìm y án, thể bệnh, hashtag…" aria-label="Tìm trong bảng tin học thuật"/></div><div className="chips"><button className={!tag?'active':''} onClick={()=>setTag('')}>Tất cả</button>{tags.map(t=><button className={tag===t?'active':''} key={t} onClick={()=>setTag(t)}><Hash/>{t}</button>)}</div></div>{member&&<button className="desktop-compose-button" onClick={()=>{setEditId(null);setDraft(empty())}}><Plus/>Đăng bài học thuật</button>}</div>
       {msg&&<div className="ai-note">{msg}</div>}
