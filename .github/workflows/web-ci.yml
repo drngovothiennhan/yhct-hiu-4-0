@@ -15,8 +15,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: package.json
       - run: npm install --ignore-scripts --no-audit --no-fund
       - run: node scripts/acceptance-check.mjs
       - run: npm audit --omit=dev --audit-level=high
