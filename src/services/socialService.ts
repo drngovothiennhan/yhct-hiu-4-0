@@ -30,7 +30,11 @@ async function uploadAcademicImages(postId:string,files:File[],existing:PostMedi
   }catch(error){if(uploaded.length)await supabase.storage.from('academic-media').remove(uploaded).catch(()=>{});throw error}
 }
 
-export async function createPost(d:PostDraft,files:File[]=[]){validateCitationList(d.citations);enforceDebounce('create-post',1400);const {data,error}=await supabase.rpc('create_academic_post',{p_draft:payload(d),p_academic_score:0});if(error)throw error;const id=String(data);try{await uploadAcademicImages(id,files,d.media||[]);return id}catch(error){await supabase.rpc('delete_academic_post',{p_post_id:id}).catch(()=>{});throw error}}
+export async function createPost(d:PostDraft,files:File[]=[]){
+  validateCitationList(d.citations);enforceDebounce('create-post',1400);
+  const {data,error}=await supabase.rpc('create_academic_post',{p_draft:payload(d),p_academic_score:0});if(error)throw error;const id=String(data);
+  try{await uploadAcademicImages(id,files,d.media||[]);return id}catch(error){try{await supabase.rpc('delete_academic_post',{p_post_id:id})}catch{}throw error}
+}
 export async function updatePost(id:string,d:PostDraft,files:File[]=[]){validateCitationList(d.citations);const {data,error}=await supabase.rpc('update_academic_post',{p_post_id:id,p_draft:payload(d),p_academic_score:0});if(error)throw error;if(data!==true)return false;if(files.length)await uploadAcademicImages(id,files,d.media||[]);return true}
 export async function deletePost(id:string){const {data,error}=await supabase.rpc('delete_academic_post',{p_post_id:id});if(error)throw error;return Boolean(data)}
 export async function toggleFollow(me:Member,authorId:string){if(me.id===authorId)return false;const {data,error}=await supabase.from('member_follows').select('followed_member_id').eq('follower_id',me.id).eq('followed_member_id',authorId).maybeSingle();if(error)throw error;if(data){const r=await supabase.from('member_follows').delete().eq('follower_id',me.id).eq('followed_member_id',authorId);if(r.error)throw r.error;return false}const r=await supabase.from('member_follows').insert({follower_id:me.id,followed_member_id:authorId});if(r.error)throw r.error;return true}
