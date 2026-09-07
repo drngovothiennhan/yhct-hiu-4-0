@@ -5,6 +5,7 @@ import AppErrorBoundary from './components/system/AppErrorBoundary';
 import './styles.css';
 import './modules.css';
 import './mobile-audit.css';
+import './audit-release.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
