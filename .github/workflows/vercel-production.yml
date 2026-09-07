@@ -24,6 +24,7 @@ jobs:
     env:
       VERCEL_ORG_ID: team_zMTBj85c4Dh5QoDNIjWqQRTg
       VERCEL_PROJECT_ID: prj_7DWP3LX30CFALUD1KoNeOR8NlpsQ
+      VERCEL_TEAM_SLUG: hiu-yhct
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_CLI_VERSION: 59.11.7
     steps:
@@ -53,6 +54,33 @@ jobs:
       - name: Install pinned Vercel CLI
         run: npm install --global "vercel@${VERCEL_CLI_VERSION}"
 
+      - name: Verify Vercel token project access
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}?teamId=${VERCEL_ORG_ID}")"
+          if [ "$status" != "200" ]; then
+            detail="$(node - "$response_file" <<'NODE'
+          const fs=require('node:fs');
+          const file=process.argv[2];
+          try{
+            const body=JSON.parse(fs.readFileSync(file,'utf8'));
+            const error=body?.error||body;
+            process.stdout.write(String(error?.message||error?.code||'Access denied').slice(0,400));
+          }catch{process.stdout.write('Unable to read Vercel API error');}
+          NODE
+            )"
+            rm -f "$response_file"
+            echo "::error title=VERCEL_TOKEN scope mismatch::Vercel project probe returned HTTP ${status}: ${detail}"
+            exit 79
+          fi
+          rm -f "$response_file"
+          echo "Vercel token can access production project."
+
       - name: Link production project deterministically
         shell: bash
         run: |
@@ -68,17 +96,17 @@ jobs:
           NODE
 
       - name: Pull production environment
-        run: vercel pull --yes --environment=production
+        run: vercel pull --yes --environment=production --scope="$VERCEL_TEAM_SLUG"
 
       - name: Build production artifact
-        run: vercel build --prod
+        run: vercel build --prod --scope="$VERCEL_TEAM_SLUG"
 
       - name: Deploy prebuilt artifact to production
         id: deploy
         shell: bash
         run: |
           set -euo pipefail
-          url="$(vercel deploy --prebuilt --prod)"
+          url="$(vercel deploy --prebuilt --prod --scope="$VERCEL_TEAM_SLUG")"
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Production URL: $url"
 
