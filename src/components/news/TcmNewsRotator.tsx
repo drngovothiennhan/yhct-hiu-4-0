@@ -11,13 +11,23 @@ const ROTATE_MS=8000;
 const REFRESH_MS=5*60*1000;
 const NEWS_CACHE_KEY='tcm-news-feed-v1';
 const NEWS_CACHE_TTL=10*60*1000;
+const DRAG_THRESHOLD_PX=5;
 
 function shortDate(value?:string|null){if(!value)return'Chưa rõ ngày';const d=new Date(value);return Number.isNaN(d.getTime())?'Chưa rõ ngày':d.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit'})}
-function desktopViewport(){return typeof document!=='undefined'&&document.documentElement.dataset.viewportMode==='desktop'}
+function desktopInteractionEnabled(){
+  if(typeof window==='undefined')return false;
+  return window.matchMedia('(hover:hover) and (pointer:fine)').matches||window.matchMedia('(min-width:761px)').matches;
+}
+function normalizedWheelDelta(event:WheelEvent,track:HTMLElement){
+  const raw=Math.abs(event.deltaY)>=Math.abs(event.deltaX)?event.deltaY:event.deltaX;
+  if(event.deltaMode===WheelEvent.DOM_DELTA_LINE)return raw*18;
+  if(event.deltaMode===WheelEvent.DOM_DELTA_PAGE)return raw*Math.max(1,track.clientWidth*.9);
+  return raw;
+}
 
 export default function TcmNewsRotator(){
   const [items,setItems]=useState<News[]>([]),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[paused,setPaused]=useState(false),[dragging,setDragging]=useState(false),[page,setPage]=useState(0);
-  const trackRef=useRef<HTMLDivElement|null>(null),dragRef=useRef<DragState|null>(null),suppressClickRef=useRef(false);
+  const trackRef=useRef<HTMLDivElement|null>(null),dragRef=useRef<DragState|null>(null),suppressClickRef=useRef(false),suppressTimerRef=useRef<number|null>(null);
 
   const load=async()=>{
     setBusy(true);setMsg('');
@@ -34,6 +44,7 @@ export default function TcmNewsRotator(){
   };
 
   useEffect(()=>{void load();const id=window.setInterval(()=>void load(),REFRESH_MS);return()=>window.clearInterval(id)},[]);
+  useEffect(()=>()=>{if(suppressTimerRef.current!==null)window.clearTimeout(suppressTimerRef.current)},[]);
 
   const getStep=()=>trackRef.current?.clientWidth||0;
   const scrollByPage=(direction:number,behavior:ScrollBehavior='smooth')=>{
@@ -46,18 +57,20 @@ export default function TcmNewsRotator(){
 
   useEffect(()=>{
     const track=trackRef.current;if(!track)return;
+    let raf=0,pending=0;
+    const flush=()=>{raf=0;if(!pending)return;track.scrollLeft+=pending;pending=0};
     const onWheel=(event:WheelEvent)=>{
-      if(!desktopViewport())return;
-      const dominant=Math.abs(event.deltaY)>=Math.abs(event.deltaX)?event.deltaY:event.deltaX;
-      if(!dominant)return;
+      if(!desktopInteractionEnabled()||track.scrollWidth<=track.clientWidth+1)return;
+      const delta=normalizedWheelDelta(event,track);if(!delta)return;
       const max=Math.max(0,track.scrollWidth-track.clientWidth);
-      const canConsume=dominant>0?track.scrollLeft<max-1:track.scrollLeft>1;
+      const canConsume=delta>0?track.scrollLeft<max-1:track.scrollLeft>1;
       if(!canConsume)return;
       event.preventDefault();
-      track.scrollLeft+=dominant;
+      pending+=delta;
+      if(!raf)raf=window.requestAnimationFrame(flush);
     };
     track.addEventListener('wheel',onWheel,{passive:false});
-    return()=>track.removeEventListener('wheel',onWheel);
+    return()=>{track.removeEventListener('wheel',onWheel);if(raf)window.cancelAnimationFrame(raf)};
   },[items.length]);
 
   useEffect(()=>{
@@ -73,14 +86,14 @@ export default function TcmNewsRotator(){
   };
 
   const onMouseDown=(event:React.MouseEvent<HTMLDivElement>)=>{
-    if(event.button!==0||!desktopViewport()||!trackRef.current)return;
+    if(event.button!==0||!desktopInteractionEnabled()||!trackRef.current)return;
     dragRef.current={startX:event.clientX,startScrollLeft:trackRef.current.scrollLeft,moved:false};
     setDragging(true);setPaused(true);
   };
   const onMouseMove=(event:React.MouseEvent<HTMLDivElement>)=>{
     const drag=dragRef.current,track=trackRef.current;if(!drag||!track)return;
     const dx=event.clientX-drag.startX;
-    if(!drag.moved&&Math.abs(dx)>5)drag.moved=true;
+    if(!drag.moved&&Math.abs(dx)>DRAG_THRESHOLD_PX)drag.moved=true;
     if(!drag.moved)return;
     event.preventDefault();
     track.scrollLeft=drag.startScrollLeft-dx;
@@ -88,14 +101,20 @@ export default function TcmNewsRotator(){
   const finishMouseDrag=()=>{
     const drag=dragRef.current;if(!drag)return;
     dragRef.current=null;setDragging(false);setPaused(false);
-    if(drag.moved){suppressClickRef.current=true;window.setTimeout(()=>{suppressClickRef.current=false},220)}
+    if(drag.moved){
+      suppressClickRef.current=true;
+      if(suppressTimerRef.current!==null)window.clearTimeout(suppressTimerRef.current);
+      suppressTimerRef.current=window.setTimeout(()=>{suppressClickRef.current=false;suppressTimerRef.current=null},220);
+    }
   };
   const onClickCapture=(event:React.MouseEvent<HTMLDivElement>)=>{
     if(!suppressClickRef.current)return;
-    suppressClickRef.current=false;event.preventDefault();event.stopPropagation();
+    suppressClickRef.current=false;
+    if(suppressTimerRef.current!==null){window.clearTimeout(suppressTimerRef.current);suppressTimerRef.current=null}
+    event.preventDefault();event.stopPropagation();
   };
 
-  const pageCount=Math.max(1,Math.ceil(items.length/(desktopViewport()?2:1)));
+  const pageCount=Math.max(1,Math.ceil(items.length/(desktopInteractionEnabled()?2:1)));
 
   return <section className="news-rotator" aria-label="Điểm tin Y học cổ truyền tự động">
     <div className="news-rotator-heading">
