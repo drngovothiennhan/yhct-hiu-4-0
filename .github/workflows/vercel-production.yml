@@ -24,35 +24,24 @@ jobs:
     env:
       VERCEL_ORG_ID: team_zMTBj85c4Dh5QoDNIjWqQRTg
       VERCEL_PROJECT_ID: prj_7DWP3LX30CFALUD1KoNeOR8NlpsQ
-      VERCEL_TEAM_SLUG: hiu-yhct
+      VERCEL_PROJECT_NAME: yhct-hiu-final4-stage
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_CLI_VERSION: 59.11.7
+      GIT_REPO_OWNER: drngovothiennhan
+      GIT_REPO_NAME: yhct-hiu-4-0
+      CI_PASSED_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
       - name: Require production deployment credential
         shell: bash
         run: |
           set -euo pipefail
           if [ -z "${VERCEL_TOKEN:-}" ]; then
-            echo "::error title=Missing VERCEL_TOKEN::Production deploy is fail-closed. Add the VERCEL_TOKEN secret to the GitHub production environment or repository Actions secrets."
+            echo "::error title=Missing VERCEL_TOKEN::Production deploy is fail-closed."
             exit 78
           fi
-
-      - name: Checkout CI-passed commit
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          fetch-depth: 1
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Install dependencies
-        run: npm install --ignore-scripts --no-audit --no-fund
-
-      - name: Install pinned Vercel CLI
-        run: npm install --global "vercel@${VERCEL_CLI_VERSION}"
+          if ! [[ "$CI_PASSED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error title=Invalid CI commit::Unexpected commit SHA."
+            exit 78
+          fi
 
       - name: Verify Vercel token project access
         shell: bash
@@ -67,11 +56,13 @@ jobs:
             detail="$(node - "$response_file" <<'NODE'
           const fs=require('node:fs');
           const file=process.argv[2];
-          try{
+          try {
             const body=JSON.parse(fs.readFileSync(file,'utf8'));
             const error=body?.error||body;
             process.stdout.write(String(error?.message||error?.code||'Access denied').slice(0,400));
-          }catch{process.stdout.write('Unable to read Vercel API error');}
+          } catch {
+            process.stdout.write('Unable to read Vercel API error');
+          }
           NODE
             )"
             rm -f "$response_file"
@@ -81,39 +72,129 @@ jobs:
           rm -f "$response_file"
           echo "Vercel token can access production project."
 
-      - name: Link production project deterministically
+      - name: Create production deployment from CI-passed commit
+        id: create
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf .vercel
-          mkdir -p .vercel
-          node <<'NODE'
-          const fs = require('node:fs');
-          const orgId = process.env.VERCEL_ORG_ID;
-          const projectId = process.env.VERCEL_PROJECT_ID;
-          if (!orgId || !projectId) throw new Error('Missing Vercel project identifiers');
-          fs.writeFileSync('.vercel/project.json', `${JSON.stringify({ orgId, projectId }, null, 2)}\n`);
+          request_file="$(mktemp)"
+          response_file="$(mktemp)"
+          node - "$request_file" <<'NODE'
+          const fs=require('node:fs');
+          const output=process.argv[2];
+          const sha=process.env.CI_PASSED_SHA;
+          const owner=process.env.GIT_REPO_OWNER;
+          const repo=process.env.GIT_REPO_NAME;
+          const body={
+            name:process.env.VERCEL_PROJECT_NAME,
+            project:process.env.VERCEL_PROJECT_ID,
+            target:'production',
+            gitSource:{type:'github',org:owner,repo,ref:sha},
+            gitMetadata:{
+              remoteUrl:`https://github.com/${owner}/${repo}`,
+              commitRef:'main',
+              commitSha:sha,
+              ci:true,
+              ciType:'github-actions',
+              ciGitProviderUsername:owner,
+              ciGitRepoVisibility:'public'
+            }
+          };
+          fs.writeFileSync(output,JSON.stringify(body));
           NODE
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data-binary "@${request_file}" \
+            "https://api.vercel.com/v13/deployments?teamId=${VERCEL_ORG_ID}&forceNew=1")"
+          rm -f "$request_file"
+          if [[ "$status" != "200" && "$status" != "201" && "$status" != "202" ]]; then
+            detail="$(node - "$response_file" <<'NODE'
+          const fs=require('node:fs');
+          try {
+            const body=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+            const error=body?.error||body;
+            process.stdout.write(String(error?.message||error?.code||'Deployment create failed').slice(0,600));
+          } catch {
+            process.stdout.write('Unable to read Vercel deployment error');
+          }
+          NODE
+            )"
+            rm -f "$response_file"
+            echo "::error title=Vercel deployment creation failed::HTTP ${status}: ${detail}"
+            exit 80
+          fi
+          readarray -t values < <(node - "$response_file" <<'NODE'
+          const fs=require('node:fs');
+          const body=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(!body.id) process.exit(2);
+          console.log(body.id);
+          console.log(body.url||'');
+          NODE
+          )
+          rm -f "$response_file"
+          deployment_id="${values[0]}"
+          deployment_url="${values[1]}"
+          echo "deployment_id=$deployment_id" >> "$GITHUB_OUTPUT"
+          echo "deployment_url=$deployment_url" >> "$GITHUB_OUTPUT"
+          echo "Created deployment: $deployment_id"
 
-      - name: Pull production environment
-        run: vercel pull --yes --environment=production --scope="$VERCEL_TEAM_SLUG"
-
-      - name: Build production artifact
-        run: vercel build --prod --scope="$VERCEL_TEAM_SLUG"
-
-      - name: Deploy prebuilt artifact to production
-        id: deploy
+      - name: Wait for Vercel production readiness
+        id: ready
         shell: bash
+        env:
+          DEPLOYMENT_ID: ${{ steps.create.outputs.deployment_id }}
         run: |
           set -euo pipefail
-          url="$(vercel deploy --prebuilt --prod --scope="$VERCEL_TEAM_SLUG")"
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "Production URL: $url"
+          response_file="$(mktemp)"
+          for attempt in $(seq 1 120); do
+            status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v13/deployments/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}")"
+            if [ "$status" != "200" ]; then
+              echo "::warning::Deployment status probe HTTP ${status}; retrying."
+              sleep 5
+              continue
+            fi
+            readarray -t values < <(node - "$response_file" <<'NODE'
+            const fs=require('node:fs');
+            const body=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+            console.log(body.readyState||body.status||'UNKNOWN');
+            console.log(body.url||'');
+            console.log(body?.meta?.githubCommitSha||'');
+            NODE
+            )
+            state="${values[0]}"
+            url="${values[1]}"
+            deployed_sha="${values[2]}"
+            echo "Vercel state: $state"
+            if [[ "$state" == "ERROR" || "$state" == "CANCELED" ]]; then
+              rm -f "$response_file"
+              echo "::error title=Vercel production failed::Deployment ${DEPLOYMENT_ID} entered ${state}."
+              exit 81
+            fi
+            if [ "$state" = "READY" ]; then
+              rm -f "$response_file"
+              if [ -n "$deployed_sha" ] && [ "$deployed_sha" != "$CI_PASSED_SHA" ]; then
+                echo "::error title=Commit mismatch::Vercel built ${deployed_sha}, expected ${CI_PASSED_SHA}."
+                exit 82
+              fi
+              echo "url=https://${url}" >> "$GITHUB_OUTPUT"
+              echo "Production READY: https://${url}"
+              exit 0
+            fi
+            sleep 5
+          done
+          rm -f "$response_file"
+          echo "::error title=Vercel production timeout::Deployment did not reach READY within 10 minutes."
+          exit 83
 
       - name: Publish deployment summary
         run: |
           {
             echo "### Vercel production deployment"
-            echo "- Commit: \`${{ github.event.workflow_run.head_sha }}\`"
-            echo "- URL: ${{ steps.deploy.outputs.url }}"
+            echo "- Commit: \`${CI_PASSED_SHA}\`"
+            echo "- Deployment: \`${{ steps.create.outputs.deployment_id }}\`"
+            echo "- URL: ${{ steps.ready.outputs.url }}"
           } >> "$GITHUB_STEP_SUMMARY"
