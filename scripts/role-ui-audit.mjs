@@ -38,7 +38,7 @@ const checks=[
     ['Mini AI present',has(files.app,'PersonalCopilotWidget member={member}')&&has(files.mini,'visualViewport')]
   ]],
   ['USER',[
-    ['PC news wheel + mouse drag + mobile-safe arrows',has(files.news,'ROTATE_MS=8000','tcm_news_feed_v1',"addEventListener('wheel'",'{passive:false}','scrollLeft+=dominant','onMouseDown','onMouseMove','suppressClickRef')&&has(files.css,'overflow-x:auto','cursor:grab','touch-action:pan-x pan-y','.news-rotator-nav')],
+    ['PC news wheel + mouse drag + mobile-safe arrows',has(files.news,'ROTATE_MS=8000','tcm_news_feed_v1',"addEventListener('wheel'",'{passive:false}','pending+=delta','desktopInteractionEnabled','onMouseDown','onMouseMove','suppressClickRef')&&has(files.css,'overflow-x:auto','cursor:grab','touch-action:auto','.news-rotator-nav')],
     ['3-line linked news cards',has(files.css,'-webkit-line-clamp:3')&&has(files.news,'target="_blank"','Đọc nguồn')],
     ['public community credits sidebar',has(files.community,"supabase.rpc('community_sidebar_v2')",'PAGE_SIZE=3','ACTIVE_LIMIT=10','total_credits','credit_rank')&&not(files.community,'student_code','email','phone')],
     ['lifetime credit labels',has(files.community,'Top 10 Tín dụng Cộng đồng','cộng dồn trọn đời')&&has(files.social,'enforceDebounce')],
