@@ -24,8 +24,9 @@ const checks=[
     ['Mini AI present',has(files.app,'PersonalCopilotWidget member={member}')&&has(files.mini,'visualViewport')]
   ]],
   ['USER',[
-    ['pure native news horizontal scroll',has(files.css,'overflow-x:auto!important','scroll-snap-type:x mandatory','-webkit-overflow-scrolling:touch','touch-action:auto!important')&&not(files.css,'touch-action:pan-y')&&not(files.news,'setPointerCapture','releasePointerCapture','onPointerMove=','dragRef')],
+    ['Android news horizontal gesture',has(files.css,'overflow-x:auto!important','scroll-snap-type:x mandatory','touch-action:pan-y pinch-zoom!important','scroll-snap-stop:normal!important')&&has(files.news,"addEventListener('touchmove'",'passive:false','preventDefault()','touchRef')&&not(files.news,'setPointerCapture','releasePointerCapture','dragRef')],
     ['news progress indicator',has(files.news,'news-progress','onScroll={updateProgress}')],
+    ['Kho YHCT Drive link',has(files.mini,'1IjoX3TwCz-mp4g6tE72OnWv2rH00m1NX','Kho YHCT','Google Drive')],
     ['public DRL lookup',has(files.drl,'drl_public_search_v1','Tra cứu công khai')],
     ['persistent viewport choice',has(files.viewport,'localStorage.setItem(VIEWPORT_MODE_KEY','dataset.viewportMode')&&has(files.boot,'dataset.viewportMode')]
   ]]

@@ -7,6 +7,7 @@ import { HerbIcon } from '../icons/YhctIcons';
 import SystemBrandMark,{type SystemBrandVariant} from '../branding/SystemBrandMark';
 
 type News={id:string;title:string;canonical_url:string;publisher:string;publisher_domain:string;published_at?:string|null;summary:string;tags:string[];trust_score:number;ai_provider:string;image_url?:string|null};
+type TouchTrack={startX:number;startY:number;startScrollLeft:number;axis:'pending'|'x'|'y';moved:boolean};
 const DEFAULT_NEWS_MARKS:SystemBrandVariant[]=['herb','decoction','mortar','acupuncture','five','taiji'];
 
 function fallbackVariant(seed:string){let hash=0;for(let i=0;i<seed.length;i++)hash=(hash*31+seed.charCodeAt(i))>>>0;return DEFAULT_NEWS_MARKS[hash%DEFAULT_NEWS_MARKS.length]}
@@ -24,7 +25,7 @@ function NewsVisual({item}:{item:News}){
 export default function TcmNewsCenter({member,compact=false}:{member:Member|null;compact?:boolean}){
   const [items,setItems]=useState<News[]>([]),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[activeIndex,setActiveIndex]=useState(0);
   const canReview=roleAtLeast(member?.role,'mod');
-  const railRef=useRef<HTMLDivElement|null>(null),rafRef=useRef(0);
+  const railRef=useRef<HTMLDivElement|null>(null),rafRef=useRef(0),touchRef=useRef<TouchTrack|null>(null);
 
   const load=async()=>{setBusy(true);setMsg('');try{const {data,error}=await supabase.rpc('tcm_news_feed_v1',{p_limit:10});if(error)throw error;setItems(((data||[]) as News[]).slice(0,10));setActiveIndex(0)}catch(e){setMsg((e as Error).message)}finally{setBusy(false)}};
   useEffect(()=>{void load();return()=>{if(rafRef.current)window.cancelAnimationFrame(rafRef.current)}},[]);
@@ -41,6 +42,18 @@ export default function TcmNewsCenter({member,compact=false}:{member:Member|null
     });
   };
 
+  useEffect(()=>{
+    const rail=railRef.current;if(!compact||!rail)return;
+    const start=(event:TouchEvent)=>{if(event.touches.length!==1){touchRef.current=null;return}const touch=event.touches[0];touchRef.current={startX:touch.clientX,startY:touch.clientY,startScrollLeft:rail.scrollLeft,axis:'pending',moved:false}};
+    const move=(event:TouchEvent)=>{const state=touchRef.current;if(!state||event.touches.length!==1)return;const touch=event.touches[0],dx=touch.clientX-state.startX,dy=touch.clientY-state.startY;if(state.axis==='pending'){if(Math.abs(dx)<6&&Math.abs(dy)<6)return;state.axis=Math.abs(dx)>Math.abs(dy)*1.08?'x':'y'}if(state.axis!=='x')return;if(event.cancelable)event.preventDefault();const max=Math.max(0,rail.scrollWidth-rail.clientWidth);rail.scrollLeft=Math.min(max,Math.max(0,state.startScrollLeft-dx));state.moved=true};
+    const finish=()=>{const state=touchRef.current;touchRef.current=null;if(!state?.moved)return;const cards=Array.from(rail.querySelectorAll<HTMLElement>('.news-card'));if(!cards.length)return;let nearest=cards[0],best=Number.POSITIVE_INFINITY;for(const card of cards){const distance=Math.abs(card.offsetLeft-rail.scrollLeft);if(distance<best){best=distance;nearest=card}}rail.scrollTo({left:Math.max(0,nearest.offsetLeft),behavior:'smooth'});updateProgress()};
+    rail.addEventListener('touchstart',start,{passive:true});
+    rail.addEventListener('touchmove',move,{passive:false});
+    rail.addEventListener('touchend',finish,{passive:true});
+    rail.addEventListener('touchcancel',finish,{passive:true});
+    return()=>{rail.removeEventListener('touchstart',start);rail.removeEventListener('touchmove',move);rail.removeEventListener('touchend',finish);rail.removeEventListener('touchcancel',finish);touchRef.current=null};
+  },[compact,items.length]);
+
   const onRailKeyDown=(e:ReactKeyboardEvent<HTMLDivElement>)=>{
     if(!compact||(e.key!=='ArrowLeft'&&e.key!=='ArrowRight'))return;
     e.preventDefault();
@@ -56,7 +69,7 @@ export default function TcmNewsCenter({member,compact=false}:{member:Member|null
     {msg&&<div className="error" role="alert">{msg}</div>}
     {items.length===0?<section className="panel empty-state"><HerbIcon/><h3>Chưa có tin đã qua ngưỡng tin cậy</h3><p>Pipeline giữ nội dung chưa đủ điểm tin cậy trong hàng chờ thay vì tự động công bố.</p></section>:
       <>
-        <div ref={railRef} className="news-grid" tabIndex={compact?0:undefined} role={compact?'region':undefined} aria-label="10 tin Y học cổ truyền mới nhất. Vuốt ngang hoặc dùng phím mũi tên để xem thêm." onScroll={updateProgress} onKeyDown={onRailKeyDown}>
+        <div ref={railRef} className="news-grid" tabIndex={compact?0:undefined} role={compact?'region':undefined} aria-label={`${items.length} tin Y học cổ truyền mới nhất. Vuốt ngang hoặc dùng phím mũi tên để xem thêm.`} onScroll={updateProgress} onKeyDown={onRailKeyDown}>
           {items.map(n=>compact?<article className="news-card" key={n.id}>
             <NewsVisual item={n}/><div className="news-copy"><h3 className="news-title-clamp">{n.title}</h3><p className="news-summary-clamp">{n.summary||'Tóm tắt đang được cập nhật.'}</p><div className="news-compact-meta"><span title={n.publisher||n.publisher_domain}>{n.publisher||n.publisher_domain||'Nguồn tổng hợp'}</span><time dateTime={n.published_at||undefined}>{shortDate(n.published_at)}</time><a href={n.canonical_url} target="_blank" rel="noreferrer noopener" aria-label={`Đọc nguồn: ${n.title}`}><ExternalLink/></a></div></div>
           </article>:<article className="news-card" key={n.id}>
