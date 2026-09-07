@@ -1,7 +1,7 @@
 name: Web CI
 on:
   push:
-    branches: [main, rc-platform-v1-20260907]
+    branches: [main, rc-platform-v1-20260907, audit-mobile-hotfix-20260907]
   pull_request:
     branches: [main]
 permissions:
@@ -9,11 +9,16 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package.json
       - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: node scripts/acceptance-check.mjs
+      - run: npm audit --omit=dev --audit-level=high
       - run: npm run build
-      - run: node -e "const fs=require('fs'); if(!fs.existsSync('dist/index.html')) process.exit(1)"
+      - run: node -e "const fs=require('fs'); for(const f of ['dist/index.html','dist/manifest.webmanifest','dist/service-worker.js']) if(!fs.existsSync(f)){console.error('missing '+f);process.exit(1)}"
