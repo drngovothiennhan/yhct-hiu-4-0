@@ -4,6 +4,7 @@ import type { Member } from '../../types';
 import { roleAtLeast } from '../../types';
 import { supabase } from '../../services/authService';
 import { HerbIcon } from '../icons/YhctIcons';
+import SystemBrandMark,{type SystemBrandVariant} from '../branding/SystemBrandMark';
 
 type News={
   id:string;
@@ -19,7 +20,21 @@ type News={
   image_url?:string|null;
 };
 
-const FALLBACK_IMAGE='/logo-clb-yhct-hiu.jpg';
+const DEFAULT_NEWS_MARKS:SystemBrandVariant[]=['herb','decoction','mortar','acupuncture','five','taiji'];
+function fallbackVariant(seed:string){
+  let hash=0;
+  for(let i=0;i<seed.length;i++)hash=(hash*31+seed.charCodeAt(i))>>>0;
+  return DEFAULT_NEWS_MARKS[hash%DEFAULT_NEWS_MARKS.length];
+}
+
+function NewsVisual({item}:{item:News}){
+  const [failed,setFailed]=useState(!item.image_url);
+  useEffect(()=>setFailed(!item.image_url),[item.image_url]);
+  return <div className={`news-media ${failed?'is-fallback':''}`}>
+    {!failed&&item.image_url&&<img src={item.image_url} alt={item.title} loading="lazy" decoding="async" onError={()=>setFailed(true)}/>} 
+    {failed&&<div className="news-media-default"><SystemBrandMark variant={fallbackVariant(`${item.id}:${item.title}`)} size="clamp(54px,20vw,78px)" label="Biểu trưng Y học cổ truyền mặc định"/></div>}
+  </div>;
+}
 
 export default function TcmNewsCenter({member,compact=false}:{member:Member|null;compact?:boolean}){
   const [items,setItems]=useState<News[]>([]),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
@@ -45,9 +60,7 @@ export default function TcmNewsCenter({member,compact=false}:{member:Member|null
     {items.length===0?<section className="panel empty-state"><HerbIcon/><h3>Chưa có tin đã qua ngưỡng tin cậy</h3><p>Pipeline giữ nội dung chưa đủ điểm tin cậy trong hàng chờ thay vì tự động công bố.</p></section>:
       <div className="news-grid" aria-label="10 tin Y học cổ truyền mới nhất">
         {items.map(n=><article className="news-card" key={n.id}>
-          <div className="news-media">
-            <img src={n.image_url||FALLBACK_IMAGE} alt={n.image_url?n.title:'Ảnh nhận diện Y học cổ truyền'} loading="lazy" decoding="async" onError={e=>{const img=e.currentTarget;if(img.dataset.fallback==='1')return;img.dataset.fallback='1';img.src=FALLBACK_IMAGE}}/>
-          </div>
+          <NewsVisual item={n}/>
           <div className="news-meta"><span>{n.publisher||n.publisher_domain||'Nguồn tổng hợp'}</span><time dateTime={n.published_at||undefined}>{n.published_at?new Date(n.published_at).toLocaleString('vi-VN'):'Chưa rõ thời gian'}</time></div>
           <h3 className="news-title-clamp">{n.title}</h3>
           <p className="news-summary-clamp">{n.summary}</p>
