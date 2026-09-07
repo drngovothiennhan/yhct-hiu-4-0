@@ -1,10 +1,8 @@
-/* Android-safe news gesture layer. Loaded after viewport-news-final.css. */
-html[data-viewport-mode="mobile"] .news-center-compact .news-grid{cursor:auto!important;touch-action:pan-y pinch-zoom!important;overscroll-behavior-inline:contain!important;overflow-x:auto!important;overflow-y:hidden!important;-webkit-overflow-scrolling:touch!important;scroll-behavior:auto!important}
-html[data-viewport-mode="mobile"] .news-center-compact .news-card{scroll-snap-stop:normal!important}
+/* Final viewport hardening. The retired horizontal-news gesture layer was removed. */
 html[data-viewport-mode="desktop"],html[data-viewport-mode="desktop"] body,html[data-viewport-mode="desktop"] #root{max-width:none!important;overflow-x:hidden!important}
 html[data-viewport-mode="desktop"] .app{max-width:none!important;overflow-x:visible!important}
 
-/* Final mobile rhythm + system-brand scaling. This file loads last on purpose. */
+/* Final mobile rhythm + system-brand scaling. This file loads before news-rotator.css. */
 html[data-viewport-mode="mobile"]{--mobile-module-gap:clamp(10px,3.2vw,14px)}
 .system-brand-mark{max-inline-size:100%;max-block-size:100%}
 .system-brand-mark__icon{max-width:100%;max-height:100%}

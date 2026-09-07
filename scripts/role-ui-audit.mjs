@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 const read=file=>fs.readFileSync(file,'utf8');
-const files={app:read('src/App.tsx'),boot:read('index.html'),viewport:read('src/components/system/ViewportModeToggle.tsx'),css:read('src/viewport-news-final.css')+read('src/viewport-native-hotfix.css'),news:read('src/components/news/TcmNewsCenter.tsx'),admin:read('src/components/admin/SystemAdminCenter.tsx'),moderation:read('src/components/admin/ModerationOpsPanel.tsx'),drl:read('src/components/drl/DrlCenter.tsx'),feed:read('src/components/feed/AcademicFeed.tsx'),post:read('src/components/feed/AcademicPostCard.tsx'),mini:read('src/components/ai/PersonalCopilotWidget.tsx'),docx:read('src/components/feed/DocxImportPanel.tsx'),types:read('src/types/index.ts')};
+const files={app:read('src/App.tsx'),boot:read('index.html'),viewport:read('src/components/system/ViewportModeToggle.tsx'),css:read('src/viewport-native-hotfix.css')+read('src/news-rotator.css'),news:read('src/components/news/TcmNewsRotator.tsx'),admin:read('src/components/admin/SystemAdminCenter.tsx'),moderation:read('src/components/admin/ModerationOpsPanel.tsx'),drl:read('src/components/drl/DrlCenter.tsx'),worker:read('src/workers/drlParseWorker.ts'),feed:read('src/components/feed/AcademicFeed.tsx'),post:read('src/components/feed/AcademicPostCard.tsx'),mini:read('src/components/ai/PersonalCopilotWidget.tsx'),docx:read('src/components/feed/DocxImportPanel.tsx'),types:read('src/types/index.ts')};
 const has=(file,...tokens)=>tokens.every(token=>file.includes(token));
 const not=(file,...tokens)=>tokens.every(token=>!file.includes(token));
 const checks=[
@@ -19,13 +19,14 @@ const checks=[
   ]],
   ['MOD',[
     ['Excel worker upload',has(files.drl,'.xlsx','.xls','.csv','drlParseWorker','drl_admin_import_v1','SHA-256')],
+    ['HIU DRL template auto-detect',has(files.worker,'header:1','diem_de_xuat_drl','hiu_drl_proposal','suggested_semester_code','duplicateStudentCodes')&&has(files.drl,'matchDetectedSemester','drl_admin_upsert_semester_v1','Đã nhận mẫu đề nghị ĐRL HIU')],
     ['post edit permission',has(files.post,"roleAtLeast(member.role,'mod')",'onEdit(post)')],
     ['Word summary import',has(files.feed,'DocxImportPanel')&&has(files.docx,'docx')],
     ['Mini AI present',has(files.app,'PersonalCopilotWidget member={member}')&&has(files.mini,'visualViewport')]
   ]],
   ['USER',[
-    ['Android news horizontal gesture',has(files.css,'overflow-x:auto!important','scroll-snap-type:x mandatory','touch-action:pan-y pinch-zoom!important','scroll-snap-stop:normal!important')&&has(files.news,"addEventListener('touchmove'",'passive:false','preventDefault()','touchRef')&&not(files.news,'setPointerCapture','releasePointerCapture','dragRef')],
-    ['news progress indicator',has(files.news,'news-progress','onScroll={updateProgress}')],
+    ['2-item auto news rotator',has(files.news,'PAGE_SIZE=2','ROTATE_MS=8000','visibleItems','tcm_news_feed_v1')&&not(files.news,'touchmove','scrollLeft','scrollBy(','scrollTo(','onScroll=')],
+    ['3-line linked news cards',has(files.css,'-webkit-line-clamp:3','grid-template-columns:repeat(2,minmax(0,1fr))')&&has(files.news,'target="_blank"','Đọc nguồn')],
     ['Kho YHCT Drive link',has(files.mini,'1IjoX3TwCz-mp4g6tE72OnWv2rH00m1NX','Kho YHCT','Google Drive')],
     ['mobile spacing and system mark scaling',has(files.css,'--mobile-module-gap','clamp(34px,10vw,40px)','.auth-brand-mark')],
     ['public DRL lookup',has(files.drl,'drl_public_search_v1','Tra cứu công khai')],
