@@ -22,6 +22,7 @@ function nearestRight(row:unknown[],from:number){for(let j=from+1;j<Math.min(row
 function metaValue(matrix:unknown[][],end:number,labels:string[]){for(let i=0;i<end;i++){const row=matrix[i]||[];for(let j=0;j<row.length;j++)if(labels.includes(key(row[j])))return nearestRight(row,j)}return''}
 function toIsoDate(value:string){const m=value.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);if(!m)return'';const d=Number(m[1]),mo=Number(m[2]),y=Number(m[3]);if(d<1||d>31||mo<1||mo>12)return'';return`${y.toString().padStart(4,'0')}-${mo.toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}T00:00:00+07:00`}
 function semesterCode(label:string,year:string){const n=(label.match(/\d+/)||[])[0]||'';const y=(year.match(/20\d{2}\s*[-–]\s*20\d{2}/)||[])[0]?.replace(/\s/g,'').replace('–','-')||'';return n&&y?`HK${n}-${y}`:''}
+function logicalKey(mssv:string,activity:string,semester:string){return`${mssv}|${key(activity)}|${key(semester)}`}
 
 self.onmessage=(event:MessageEvent<ArrayBuffer>)=>{
   try{
@@ -38,17 +39,19 @@ self.onmessage=(event:MessageEvent<ArrayBuffer>)=>{
     const structured=Boolean(activityMeta&&semesterMeta&&map.activity<0&&map.semester<0);
     const suggestedCode=semesterCode(semesterMeta,academicYear);
     const suggestedTitle=[semesterMeta,academicYear?`Năm học ${academicYear}`:''].filter(Boolean).join(' · ');
-    const rows:ImportRow[]=[];let invalid=0,duplicateRows=0;const seen=new Set<string>(),duplicateCodes=new Set<string>();
+    const rows:ImportRow[]=[];let invalid=0,duplicateRows=0;
+    const seenCodes=new Set<string>(),duplicateCodes=new Set<string>(),seenLogical=new Set<string>();
+
     for(let i=headerIndex+1;i<matrix.length;i++){
       const row=matrix[i]||[];
-      const mssv=text(row[map.mssv],20).replace(/\s/g,'');
+      const mssv=text(row[map.mssv],20).replace(/\s/g,'').toUpperCase();
       const name=text(row[map.name],160);
       const points=text(row[map.points],40).replace(',','.');
       const stt=map.stt>=0?text(row[map.stt],20):'';
       if(!mssv&&!name&&!points)continue;
       if(!mssv&&stt&&!/^\d+$/.test(stt))continue;
       const activity=map.activity>=0?text(row[map.activity],240):text(activityMeta,240);
-      const semester=map.semester>=0?text(row[map.semester],80):text(semesterMeta,80);
+      const semester=(map.semester>=0?text(row[map.semester],80):text(semesterMeta,80)).toUpperCase();
       const noteParts:string[]=[];
       const note=map.note>=0?text(row[map.note],500):'';if(note)noteParts.push(note);
       const faculty=map.faculty>=0?text(row[map.faculty],120):'';if(faculty)noteParts.push(`Khoa: ${faculty}`);
@@ -57,8 +60,13 @@ self.onmessage=(event:MessageEvent<ArrayBuffer>)=>{
       const occurred=toIsoDate(occurredRaw)||text(occurredRaw,64);
       const item:ImportRow={mssv,ho_ten:name,ten_hoat_dong:activity,hoc_ky:semester,diem_cong:points,ghi_chu:noteParts.join(' · ')};
       if(occurred)item.occurred_at=occurred;
-      if(!/^\d{8,14}$/.test(mssv)||!name||!activity||!semester||!Number.isFinite(Number(points)))invalid++;
-      if(mssv){if(seen.has(mssv)){duplicateRows++;duplicateCodes.add(mssv)}else seen.add(mssv)}
+
+      if(!/^\d{8,14}$/.test(mssv)||!name||!activity||!semester||!Number.isFinite(Number(points))){invalid++;rows.push(item);continue}
+
+      if(seenCodes.has(mssv))duplicateCodes.add(mssv);else seenCodes.add(mssv);
+      const identity=logicalKey(mssv,activity,semester);
+      if(seenLogical.has(identity)){duplicateRows++;continue}
+      seenLogical.add(identity);
       rows.push(item);
       if(rows.length>5000)throw new Error('Tối đa 5.000 dòng mỗi lần nhập.');
     }

@@ -1,0 +1,35 @@
+/* Final 4.0 V2: DRL publication UI, lifetime community credits and zero-reload 2D YHCT theme. */
+html[data-theme='tcm-cartoon-2d']{
+  --primary:#159a84;--primary-2:#20b69a;--accent:#c8554f;--accent-2:#d96559;--gold:#f5c453;
+  --bg:#fff7e6;--surface:#fffdf7;--surface-2:#f6edd7;--text:#25443c;--muted:#6a746d;--line:#e2c992;
+  --nav:#177d6e;--nav-2:#1ea58d;--success:#278c68;--danger:#bd4c47;
+  --shadow:0 10px 0 rgba(217,130,74,.10),0 16px 38px rgba(93,66,30,.10);--radius:22px;--radius-sm:14px;
+  --cartoon-jade:#159a84;--cartoon-apricot:#f5c453;--cartoon-cinnabar:#c8554f;--cartoon-cinnamon:#d9824a;
+}
+html[data-theme='tcm-cartoon-2d'] body{background:radial-gradient(circle at 18% 12%,rgba(245,196,83,.18),transparent 26%),radial-gradient(circle at 88% 7%,rgba(21,154,132,.12),transparent 24%),var(--bg)}
+html[data-theme='tcm-cartoon-2d'] .panel,
+html[data-theme='tcm-cartoon-2d'] .post-card,
+html[data-theme='tcm-cartoon-2d'] .community-block,
+html[data-theme='tcm-cartoon-2d'] .news-rotator-card{border-width:2px;border-radius:22px}
+html[data-theme='tcm-cartoon-2d'] .panel,
+html[data-theme='tcm-cartoon-2d'] .post-card{background:linear-gradient(155deg,#fffdf8,var(--surface));box-shadow:var(--shadow)}
+html[data-theme='tcm-cartoon-2d'] button{border-radius:15px}
+html[data-theme='tcm-cartoon-2d'] aside{background:linear-gradient(180deg,var(--nav),var(--nav-2));box-shadow:10px 0 0 rgba(245,196,83,.13)}
+html[data-theme='tcm-cartoon-2d'] .badge{background:var(--cartoon-cinnabar);box-shadow:0 5px 0 rgba(151,56,52,.13)}
+html[data-theme='tcm-cartoon-2d'] .rank,
+html[data-theme='tcm-cartoon-2d'] .tags span{border:1px solid color-mix(in srgb,var(--cartoon-jade) 24%,transparent)}
+
+.top{isolation:isolate}.top-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;position:relative;z-index:2}.theme-quick-toggle{min-height:38px;padding:7px 10px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:12px;font-weight:800}.theme-quick-toggle svg{width:17px;height:17px}.theme-quick-toggle.active{background:var(--primary);border-color:var(--primary);color:#fff}.mobile-theme-action{width:100%;background:var(--surface-2);color:var(--text);border-color:var(--line)}.mobile-theme-action.active{background:color-mix(in srgb,var(--primary) 13%,var(--surface));border-color:var(--primary);color:var(--primary)}
+
+.tcm-cartoon-decor{display:none;pointer-events:none;position:absolute;inset:0;overflow:hidden;z-index:-1;opacity:.28}
+html[data-theme='tcm-cartoon-2d'] .tcm-cartoon-decor{display:block}
+.tcm-motif{position:absolute;width:42px;height:42px;fill:color-mix(in srgb,var(--cartoon-apricot) 68%,#fff);stroke:var(--cartoon-cinnabar);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.tcm-gourd{right:18%;top:1px;transform:rotate(8deg)}.tcm-leaf{right:8%;top:22px;fill:color-mix(in srgb,var(--cartoon-jade) 35%,#fff);stroke:var(--cartoon-jade);transform:rotate(-10deg)}.tcm-ginseng{left:44%;top:2px;fill:color-mix(in srgb,var(--cartoon-apricot) 35%,#fff);stroke:var(--cartoon-cinnamon);transform:rotate(7deg)}.tcm-mortar{left:62%;top:34px;fill:color-mix(in srgb,var(--cartoon-cinnabar) 18%,#fff);stroke:var(--cartoon-cinnabar);transform:scale(.82)}
+
+.drl-public-semesters{display:grid;gap:12px;margin-top:14px}.drl-public-semester{padding:14px;border:1px solid var(--line);border-radius:15px;background:var(--surface-2)}.drl-public-semester header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.drl-public-semester header b,.drl-public-semester header small{display:block}.drl-public-semester header small{margin-top:3px;color:var(--muted)}.drl-public-semester.is-published{background:color-mix(in srgb,var(--success) 7%,var(--surface));border-color:color-mix(in srgb,var(--success) 28%,var(--line))}.drl-public-semester.is-waiting{background:color-mix(in srgb,var(--gold) 9%,var(--surface));border-color:color-mix(in srgb,var(--gold) 35%,var(--line))}.drl-public-status{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;background:var(--surface);font-size:11px;font-weight:800;white-space:nowrap}.drl-public-status svg{width:14px;height:14px}.drl-public-total{display:block;margin:12px 0 6px;color:var(--primary);font-size:24px}.drl-publish-dialog{position:relative;width:min(500px,100%);padding:26px;background:var(--surface);border:1px solid var(--line);border-radius:22px;box-shadow:0 28px 80px rgba(0,0,0,.28)}.drl-publish-dialog h3{margin:10px 42px 10px 0}.drl-publish-dialog>button:not(.close){background:var(--primary);color:#fff}.drl-publish-dialog .schedule-actions{justify-content:flex-end}.drl-publish-dialog .schedule-actions button:not(.secondary){background:var(--primary);color:#fff}.drl-publish-icon{width:34px;height:34px;color:var(--primary)}
+
+.community-credit-badge{display:flex;align-items:center;gap:3px;min-width:0;padding:4px 6px;border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--muted);white-space:nowrap}.community-credit-badge svg{width:12px!important;height:12px!important;margin:0!important;color:currentColor!important}.community-credit-badge strong{font-size:9px!important;color:currentColor!important}.community-credit-badge.level-1{color:#9a6d3a;border-color:#c79c69}.community-credit-badge.level-2{color:#4e8b61;border-color:#7ebd8d}.community-credit-badge.level-3{color:#3d7892;border-color:#7aa8bc}.community-credit-badge.level-4{color:#9a4c43;border-color:#c98279}.community-credit-badge.level-5{color:#7b4c9f;border-color:#a77dc5;background:color-mix(in srgb,#a77dc5 8%,var(--surface))}
+
+@media(max-width:760px){.top-actions{gap:5px}.theme-quick-toggle{width:40px;height:40px;min-height:40px;padding:0;border-radius:50%}.theme-quick-toggle span,.top-actions>.badge{display:none}.tcm-gourd{right:25%;top:2px}.tcm-leaf{right:6%;top:10px}.tcm-ginseng,.tcm-mortar{display:none}.drl-public-semester header{display:grid}.drl-public-status{justify-self:start}.drl-publish-dialog{padding:22px 18px}.community-credit-badge{padding:3px 5px}}
+
+@media(prefers-reduced-motion:reduce){html[data-theme='tcm-cartoon-2d'] body,html[data-theme='tcm-cartoon-2d'] button{transition:none}}

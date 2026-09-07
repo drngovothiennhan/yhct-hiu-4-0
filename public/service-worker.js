@@ -1,5 +1,44 @@
-const CACHE='yhct-hiu-4-final2-ui12-final2-publication-touch-drive-lock-static';
+const CACHE='yhct-hiu-4-final4-v2-offline';
 const SHELL=['/','/manifest.webmanifest','/yhct-system-mark.svg'];
-self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
-self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE&&k.startsWith('yhct-hiu-4-')).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
-self.addEventListener('fetch',event=>{const req=event.request;if(req.method!=='GET')return;const url=new URL(req.url);if(url.origin!==self.location.origin||url.pathname.startsWith('/api/'))return;const isNavigation=req.mode==='navigate';event.respondWith((async()=>{const cached=await caches.match(req);if(isNavigation){try{const fresh=await fetch(req);if(fresh.ok){const copy=fresh.clone();void caches.open(CACHE).then(c=>c.put(req,copy));return fresh}}catch{}return cached||Response.error()}const network=fetch(req).then(res=>{if(res.ok&&res.type==='basic'){const copy=res.clone();void caches.open(CACHE).then(c=>c.put(req,copy))}return res}).catch(()=>cached);return cached||network})())});
+const NAV_TIMEOUT_MS=4500;
+
+self.addEventListener('install',event=>{
+  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
+});
+
+self.addEventListener('activate',event=>{
+  event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE&&key.startsWith('yhct-hiu-4-')).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));
+});
+
+async function fetchWithTimeout(request,timeoutMs){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  try{return await fetch(request,{signal:controller.signal})}finally{clearTimeout(timer)}
+}
+
+async function navigationResponse(request){
+  try{
+    const fresh=await fetchWithTimeout(request,NAV_TIMEOUT_MS);
+    if(fresh.ok){const copy=fresh.clone();void caches.open(CACHE).then(cache=>cache.put(request,copy));void caches.open(CACHE).then(cache=>cache.put('/',fresh.clone()));return fresh}
+  }catch{}
+  return (await caches.match(request))||(await caches.match('/'))||Response.error();
+}
+
+async function staticResponse(request){
+  const cached=await caches.match(request);
+  const update=fetch(request).then(response=>{
+    if(response.ok&&response.type==='basic'){const copy=response.clone();void caches.open(CACHE).then(cache=>cache.put(request,copy))}
+    return response;
+  }).catch(()=>null);
+  if(cached){void update;return cached}
+  return (await update)||Response.error();
+}
+
+self.addEventListener('fetch',event=>{
+  const request=event.request;
+  if(request.method!=='GET')return;
+  const url=new URL(request.url);
+  if(url.origin!==self.location.origin||url.pathname.startsWith('/api/'))return;
+  if(request.mode==='navigate'){event.respondWith(navigationResponse(request));return}
+  event.respondWith(staticResponse(request));
+});
