@@ -1,2 +1,100 @@
 .modal{z-index:120!important}
-@media(max-width:760px){.modal{padding-bottom:calc(88px + env(safe-area-inset-bottom))}}
+
+html,body,#root,.app{max-width:100%;overflow-x:hidden}
+main,main>section,.feed-layout,.feed-main,.news-rail,.panel,.post-card{min-width:0}
+
+.system-brand-mark{position:relative;display:inline-grid;place-items:center;flex:0 0 auto;aspect-ratio:1;border-radius:24%;overflow:hidden;color:var(--primary);background:linear-gradient(145deg,color-mix(in srgb,var(--surface) 92%,#fff),color-mix(in srgb,var(--gold) 18%,var(--surface-2)));border:1px solid color-mix(in srgb,var(--gold) 36%,var(--line));box-shadow:0 8px 22px rgba(60,40,20,.10);isolation:isolate}
+.system-brand-mark__halo{position:absolute;inset:12%;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--gold) 18%,transparent),transparent 68%);z-index:-1}
+.system-brand-mark__icon{width:68%!important;height:68%!important;stroke-width:1.7!important}
+.system-brand-mark--herb{color:#476c4f}.system-brand-mark--decoction{color:#7b3a2f}.system-brand-mark--mortar{color:#8b6b36}.system-brand-mark--acupuncture{color:#5c5146}.system-brand-mark--five{color:#8b1e2d}.system-brand-mark--taiji{color:#174c3c}
+.brand-logo--system{display:grid!important;place-items:center!important;padding:6px!important;background:rgba(255,250,241,.96)!important}
+.brand-logo--system>.system-brand-mark{width:100%!important;height:100%!important;border:0;box-shadow:none;background:transparent}
+.auth-brand-mark{margin:0 auto 4px}
+.auth>.system-brand-mark+ h2{margin-top:4px}
+
+.news-media.is-fallback{display:grid;place-items:center;background:radial-gradient(circle at 78% 18%,color-mix(in srgb,var(--gold) 24%,transparent),transparent 33%),linear-gradient(145deg,color-mix(in srgb,var(--surface) 94%,#fff),color-mix(in srgb,var(--primary) 7%,var(--surface-2)))}
+.news-media-default{position:absolute;inset:0;display:grid;place-items:center;padding:16px}
+.news-media-default .system-brand-mark{box-shadow:0 8px 20px rgba(66,45,25,.08)}
+
+.feed-layout{column-gap:22px}
+.feed-main>.post-card{margin-top:18px}
+.news-card{min-width:0}
+
+@media(max-width:980px){
+  body{padding-bottom:calc(86px + env(safe-area-inset-bottom))}
+  .app{display:block!important;min-height:100dvh}
+  aside{position:fixed!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;width:100%!important;height:calc(78px + env(safe-area-inset-bottom))!important;padding:7px 9px env(safe-area-inset-bottom)!important;border-radius:20px 20px 0 0!important;display:block!important;z-index:80!important;box-shadow:0 -12px 36px rgba(30,22,16,.20)!important}
+  aside .brand,aside footer{display:none!important}
+  aside nav{display:grid!important;grid-auto-flow:column;grid-auto-columns:minmax(76px,1fr);gap:5px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;scrollbar-width:none;padding:1px 2px 3px}
+  aside nav::-webkit-scrollbar{display:none}
+  aside nav button{scroll-snap-align:center;width:100%!important;min-width:72px!important;height:62px!important;min-height:62px!important;padding:6px!important;display:flex!important;flex-direction:column!important;gap:4px!important;justify-content:center!important;align-items:center!important;white-space:nowrap;font-size:10px!important;line-height:1.08;border-radius:13px!important}
+  aside nav button svg{width:21px!important;height:21px!important;flex:0 0 21px}
+  aside nav button.active{box-shadow:inset 0 3px 0 var(--gold)!important}
+
+  main{width:100%!important;max-width:100%!important;margin:0!important;padding:16px 14px calc(112px + env(safe-area-inset-bottom))!important}
+  .top{top:0!important;z-index:60!important;padding:8px 0 14px!important;align-items:flex-start;gap:10px;margin-bottom:2px}
+  .top h1{font-size:clamp(23px,5.8vw,31px);line-height:1.08}
+  .top p{font-size:12px;line-height:1.4;margin-top:5px}
+  .top .badge{display:none!important}
+  .mobile-account-button{display:inline-flex!important;flex:0 0 48px;width:48px;height:48px;padding:0;border-radius:50%;background:var(--primary);color:#fff}
+
+  .feed-layout{grid-template-columns:1fr!important;gap:18px!important}
+  .feed-main{min-width:0}
+  .feed-main>.between{gap:12px;margin-bottom:4px;align-items:flex-start}
+  .feed-tools{width:100%;margin-top:0!important}
+  .feed-main>.between>button{margin-left:auto}
+  .news-rail{position:static!important;order:-1;max-height:none!important;overflow:visible!important;margin:2px 0 8px!important;padding:0!important}
+  .news-center-compact .news-heading{margin-bottom:10px}
+  .news-center-compact .news-heading h2{margin:0;font-size:19px}
+  .news-center-compact .news-grid{display:grid!important;grid-template-columns:none!important;grid-auto-flow:column;grid-auto-columns:minmax(260px,76vw);gap:12px!important;overflow-x:auto!important;overflow-y:hidden!important;scroll-snap-type:x mandatory;padding:2px 2px 8px;margin:0!important;overscroll-behavior-inline:contain}
+  .news-center-compact .news-card{scroll-snap-align:start;margin:0!important;padding:12px!important;gap:9px!important;border-radius:15px!important}
+  .news-center-compact .news-media{border-radius:12px}
+  .news-center-compact .news-card footer{padding-top:8px}
+
+  .between{align-items:flex-start;flex-wrap:wrap;row-gap:12px}
+  .panel-title{align-items:flex-start}
+  .panel,.post-card{margin-top:16px!important;padding:16px!important;border-radius:16px!important}
+  .feed-main>.post-card{margin-top:17px!important}
+  .post-card header{align-items:flex-start;flex-wrap:wrap;row-gap:8px}
+  .post-card footer{gap:8px 10px;padding-top:13px;margin-top:16px}
+  .data-list,.log-list{gap:10px}
+  .data-list article,.log-list article{gap:10px;padding:13px}
+  .searchbox{min-height:50px;margin-bottom:10px}
+  .searchbox input{min-width:0;min-height:48px}
+  .chips{overflow-x:auto;flex-wrap:nowrap;padding:1px 0 7px;scrollbar-width:none;overscroll-behavior-inline:contain}
+  .chips::-webkit-scrollbar{display:none}
+  .chips button{flex:0 0 auto;white-space:nowrap;min-height:44px}
+  button{min-height:48px}
+
+  .admin-grid,.theme-grid,.research-grid,.profile-grid,.acc-grid,.semester-grid,.acc-ops-grid{grid-template-columns:1fr!important;gap:14px!important}
+  .news-grid:not(.news-center-compact .news-grid){grid-template-columns:1fr!important;gap:14px!important}
+  .schedule-list{gap:14px}
+  .schedule-card{padding:15px}
+  .diagnostic-output{max-height:48dvh}
+  .log-list{max-height:55dvh}
+
+  .copilot-v2 .copilot-panel{left:0!important;right:0!important;top:auto!important;bottom:0!important;width:100%!important;max-width:none!important;max-height:min(72dvh,680px)!important;border-radius:24px 24px 0 0!important;padding:18px 15px calc(20px + env(safe-area-inset-bottom))!important;box-shadow:0 -24px 72px rgba(0,0,0,.30)!important}
+  .copilot-v2.is-open .copilot-fab{opacity:0;pointer-events:none}
+  .copilot-panel header{top:-18px!important;padding-top:11px!important}
+  .copilot-actions{gap:10px!important}
+  .copilot-actions button{flex:1 1 calc(50% - 5px)}
+
+  .modal{padding:18px 14px calc(96px + env(safe-area-inset-bottom))!important}
+  .auth{max-height:calc(100dvh - 120px);overflow:auto;padding:24px 20px}
+}
+
+@media(max-width:620px){
+  main{padding:14px 12px calc(108px + env(safe-area-inset-bottom))!important}
+  .four,.two{grid-template-columns:1fr!important;gap:10px!important}
+  .post-card footer{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px!important}
+  .post-card footer button{min-width:0;width:100%;font-size:11px;padding:7px 4px}
+  .news-center-compact .news-grid{grid-auto-columns:minmax(250px,84vw)}
+  .panel,.post-card{padding:15px!important}
+}
+
+@media(max-width:390px){
+  main{padding-left:10px!important;padding-right:10px!important}
+  aside nav{grid-auto-columns:minmax(70px,1fr)}
+  .news-center-compact .news-grid{grid-auto-columns:minmax(238px,88vw)}
+  .top h1{font-size:22px}
+}
