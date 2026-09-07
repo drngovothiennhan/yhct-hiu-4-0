@@ -1,10 +1,10 @@
-import { useEffect,useMemo,useState,type ReactNode } from 'react';
+import { useEffect,useMemo,useRef,useState,type PointerEvent as ReactPointerEvent,type ReactNode } from 'react';
 import { Award,Copy,ShieldCheck,Users,X } from 'lucide-react';
 import { supabase } from '../../services/authService';
 
 type GroupKey='leadership'|'management'|'active';
 type CommunityEntry={group_key:GroupKey;rank_no:number;member_id:string;full_name:string;position_title:string;avatar_url:string|null;total_credits:number;credit_rank:string};
-const PAGE_SIZE=3,ROTATE_MS=8000,REFRESH_MS=5*60*1000,ACTIVE_LIMIT=10;
+const PAGE_SIZE=3,ROTATE_MS=8000,REFRESH_MS=5*60*1000,ACTIVE_LIMIT=10,SWIPE_PX=42;
 const initials=(name:string)=>name.trim().split(/\s+/).slice(-2).map(part=>part[0]?.toUpperCase()||'').join('').slice(0,2)||'YH';
 function visiblePage(items:CommunityEntry[],page:number){if(items.length<=PAGE_SIZE)return items;const start=(page*PAGE_SIZE)%items.length;return Array.from({length:PAGE_SIZE},(_,index)=>items[(start+index)%items.length])}
 function displayTitle(item:CommunityEntry){if(item.group_key==='leadership')return item.rank_no===1?'Chủ nhiệm':'Phó Chủ nhiệm';if(item.group_key==='management')return item.position_title||'Ban quản lý';return item.credit_rank||'Chưa xếp hạng'}
@@ -19,8 +19,13 @@ function MemberRow({item,showRank=false,onOpen}:{item:CommunityEntry;showRank?:b
   </button>;
 }
 
-function Block({title,subtitle,items,icon,showRank=false,onOpen}:{title:string;subtitle:string;items:CommunityEntry[];icon:ReactNode;showRank?:boolean;onOpen:(item:CommunityEntry)=>void}){
-  return <section className="community-block"><header><div className="row">{icon}<div><h3>{title}</h3><small>{subtitle}</small></div></div></header><div className="community-member-list">{items.length?items.map(item=><MemberRow key={`${item.group_key}-${item.member_id}`} item={item} showRank={showRank} onOpen={onOpen}/>):<div className="community-empty">Chưa có dữ liệu.</div>}</div></section>;
+function Block({title,subtitle,items,icon,showRank=false,onOpen,onPrev,onNext}:{title:string;subtitle:string;items:CommunityEntry[];icon:ReactNode;showRank?:boolean;onOpen:(item:CommunityEntry)=>void;onPrev?:()=>void;onNext?:()=>void}){
+  const drag=useRef<{id:number;x:number;y:number;horizontal:boolean}|null>(null);
+  const onPointerDown=(event:ReactPointerEvent<HTMLElement>)=>{if(event.pointerType==='mouse'&&event.button!==0)return;drag.current={id:event.pointerId,x:event.clientX,y:event.clientY,horizontal:false}};
+  const onPointerMove=(event:ReactPointerEvent<HTMLElement>)=>{const state=drag.current;if(!state||state.id!==event.pointerId)return;const dx=event.clientX-state.x,dy=event.clientY-state.y;if(!state.horizontal&&Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)*1.25){state.horizontal=true;event.currentTarget.setPointerCapture?.(event.pointerId)}if(state.horizontal)event.preventDefault()};
+  const finish=(event:ReactPointerEvent<HTMLElement>)=>{const state=drag.current;if(!state||state.id!==event.pointerId)return;const dx=event.clientX-state.x;drag.current=null;try{event.currentTarget.releasePointerCapture?.(event.pointerId)}catch{}if(Math.abs(dx)<SWIPE_PX)return;if(dx<0)onNext?.();else onPrev?.()};
+  const cancel=(event:ReactPointerEvent<HTMLElement>)=>{if(drag.current?.id===event.pointerId)drag.current=null;try{event.currentTarget.releasePointerCapture?.(event.pointerId)}catch{}};
+  return <section className="community-block community-pointer-surface" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={finish} onPointerCancel={cancel}><header><div className="row">{icon}<div><h3>{title}</h3><small>{subtitle}</small></div></div></header><div className="community-member-list">{items.length?items.map(item=><MemberRow key={`${item.group_key}-${item.member_id}`} item={item} showRank={showRank} onOpen={onOpen}/>):<div className="community-empty">Chưa có dữ liệu.</div>}</div></section>;
 }
 
 function MemberDialog({item,onClose}:{item:CommunityEntry;onClose:()=>void}){
@@ -45,14 +50,15 @@ export default function CommunitySidebar(){
   const leadership=useMemo(()=>rows.filter(item=>item.group_key==='leadership').slice(0,PAGE_SIZE),[rows]);
   const management=useMemo(()=>rows.filter(item=>item.group_key==='management'),[rows]);
   const active=useMemo(()=>rows.filter(item=>item.group_key==='active').slice(0,ACTIVE_LIMIT),[rows]);
-  useEffect(()=>{setManagementPage(page=>management.length?Math.min(page,Math.ceil(management.length/PAGE_SIZE)-1):0)},[management.length]);
-  useEffect(()=>{setActivePage(page=>active.length?Math.min(page,Math.ceil(active.length/PAGE_SIZE)-1):0)},[active.length]);
-  useEffect(()=>{if(management.length<=PAGE_SIZE)return;const id=window.setInterval(()=>setManagementPage(page=>(page+1)%Math.ceil(management.length/PAGE_SIZE)),ROTATE_MS);return()=>window.clearInterval(id)},[management.length]);
-  useEffect(()=>{if(active.length<=PAGE_SIZE)return;const id=window.setInterval(()=>setActivePage(page=>(page+1)%Math.ceil(active.length/PAGE_SIZE)),ROTATE_MS);return()=>window.clearInterval(id)},[active.length]);
+  const managementPages=Math.max(1,Math.ceil(management.length/PAGE_SIZE)),activePages=Math.max(1,Math.ceil(active.length/PAGE_SIZE));
+  useEffect(()=>{setManagementPage(page=>management.length?Math.min(page,managementPages-1):0)},[management.length,managementPages]);
+  useEffect(()=>{setActivePage(page=>active.length?Math.min(page,activePages-1):0)},[active.length,activePages]);
+  useEffect(()=>{if(management.length<=PAGE_SIZE)return;const id=window.setInterval(()=>setManagementPage(page=>(page+1)%managementPages),ROTATE_MS);return()=>window.clearInterval(id)},[management.length,managementPages]);
+  useEffect(()=>{if(active.length<=PAGE_SIZE)return;const id=window.setInterval(()=>setActivePage(page=>(page+1)%activePages),ROTATE_MS);return()=>window.clearInterval(id)},[active.length,activePages]);
   return <><aside className="community-sidebar" aria-label="Thông tin cộng đồng YHCT HIU">
     {msg&&<div className="community-load-note" role="status">Không thể làm mới · đang giữ dữ liệu gần nhất.</div>}
-    <Block title="Ban chủ nhiệm" subtitle="Cơ cấu điều hành · tín dụng chỉ là hoạt động cộng đồng" items={leadership} icon={<ShieldCheck/>} onOpen={setSelected}/>
-    <Block title="Ban quản lý" subtitle="Tự động chuyển · 3 thành viên/lượt" items={visiblePage(management,managementPage)} icon={<Users/>} onOpen={setSelected}/>
-    <Block title="Thành viên tích cực" subtitle="Top 10 Tín dụng Cộng đồng · cộng dồn trọn đời" items={visiblePage(active,activePage)} icon={<Award/>} showRank onOpen={setSelected}/>
+    <Block title="Ban chủ nhiệm" subtitle="Cơ cấu điều hành · chạm/vuốt không khóa cuộn dọc" items={leadership} icon={<ShieldCheck/>} onOpen={setSelected}/>
+    <Block title="Ban quản lý" subtitle="Vuốt ngang để chuyển · 3 thành viên/lượt" items={visiblePage(management,managementPage)} icon={<Users/>} onOpen={setSelected} onPrev={()=>setManagementPage(page=>(page-1+managementPages)%managementPages)} onNext={()=>setManagementPage(page=>(page+1)%managementPages)}/>
+    <Block title="Thành viên tích cực" subtitle="Vuốt ngang · Top 10 Tín dụng Cộng đồng" items={visiblePage(active,activePage)} icon={<Award/>} showRank onOpen={setSelected} onPrev={()=>setActivePage(page=>(page-1+activePages)%activePages)} onNext={()=>setActivePage(page=>(page+1)%activePages)}/>
   </aside>{selected&&<MemberDialog item={selected} onClose={()=>setSelected(null)}/>}</>;
 }
