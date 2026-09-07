@@ -1,0 +1,2 @@
+.modal{z-index:120!important}
+@media(max-width:760px){.modal{padding-bottom:calc(88px + env(safe-area-inset-bottom))}}
