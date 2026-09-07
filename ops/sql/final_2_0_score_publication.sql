@@ -1,4 +1,4 @@
--- Production migration already applied as: final_2_0_score_publication_gate
+-- Production migrations already applied as: final_2_0_score_publication_gate + final_2_0_publication_guard_hardening
 -- YHCT HIU Final 2.0: explicit Mod/Admin publication gate for DRL scores.
 
 alter table public.drl_semesters
@@ -16,17 +16,35 @@ security definer
 set search_path='public','pg_catalog'
 as $$
 declare
-  v_semester_id uuid;
-  v_published_at timestamptz;
+  v_old_published_at timestamptz;
+  v_new_published_at timestamptz;
 begin
-  if tg_op='DELETE' then v_semester_id:=old.semester_id; else v_semester_id:=new.semester_id; end if;
-  select s.published_at into v_published_at from public.drl_semesters s where s.id=v_semester_id for share;
-  if v_published_at is not null then
-    raise exception 'Published semester is read-only. Unpublish scores before changing data.';
+  if tg_op in ('UPDATE','DELETE') then
+    select s.published_at into v_old_published_at
+    from public.drl_semesters s
+    where s.id=old.semester_id
+    for share;
+    if v_old_published_at is not null then
+      raise exception 'Published semester is read-only. Unpublish scores before changing data.';
+    end if;
   end if;
+
+  if tg_op in ('INSERT','UPDATE') then
+    select s.published_at into v_new_published_at
+    from public.drl_semesters s
+    where s.id=new.semester_id
+    for share;
+    if v_new_published_at is not null then
+      raise exception 'Published semester is read-only. Unpublish scores before changing data.';
+    end if;
+  end if;
+
   if tg_op='DELETE' then return old; end if;
   return new;
 end $$;
+
+comment on function private.guard_drl_published_semester()
+is 'Final 2.0 hardening: blocks INSERT into published semester and UPDATE/DELETE from published semester, including attempts to move rows across semesters.';
 
 revoke all on function private.guard_drl_published_semester() from public;
 drop trigger if exists drl_activities_publication_guard on public.drl_activities;
