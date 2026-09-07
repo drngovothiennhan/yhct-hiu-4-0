@@ -1,5 +1,8 @@
 const CACHE='yhct-hiu-4-final4-v2-offline';
-const SHELL=['/','/manifest.webmanifest','/yhct-system-mark.svg'];
+const SCOPE_URL=new URL(self.registration.scope);
+const ROOT=SCOPE_URL.pathname.endsWith('/')?SCOPE_URL.pathname:`${SCOPE_URL.pathname}/`;
+const path=name=>new URL(name,self.registration.scope).pathname;
+const SHELL=[path('./'),path('manifest.webmanifest'),path('yhct-system-mark.svg')];
 const NAV_TIMEOUT_MS=4500;
 
 self.addEventListener('install',event=>{
@@ -19,9 +22,9 @@ async function fetchWithTimeout(request,timeoutMs){
 async function navigationResponse(request){
   try{
     const fresh=await fetchWithTimeout(request,NAV_TIMEOUT_MS);
-    if(fresh.ok){const copy=fresh.clone();void caches.open(CACHE).then(cache=>cache.put(request,copy));void caches.open(CACHE).then(cache=>cache.put('/',fresh.clone()));return fresh}
+    if(fresh.ok){const copy=fresh.clone();void caches.open(CACHE).then(cache=>cache.put(request,copy));void caches.open(CACHE).then(cache=>cache.put(ROOT,fresh.clone()));return fresh}
   }catch{}
-  return (await caches.match(request))||(await caches.match('/'))||Response.error();
+  return (await caches.match(request))||(await caches.match(ROOT))||Response.error();
 }
 
 async function staticResponse(request){
@@ -38,7 +41,7 @@ self.addEventListener('fetch',event=>{
   const request=event.request;
   if(request.method!=='GET')return;
   const url=new URL(request.url);
-  if(url.origin!==self.location.origin||url.pathname.startsWith('/api/'))return;
+  if(url.origin!==self.location.origin||url.pathname.startsWith('/api/')||url.pathname.startsWith(`${ROOT}api/`))return;
   if(request.mode==='navigate'){event.respondWith(navigationResponse(request));return}
   event.respondWith(staticResponse(request));
 });
