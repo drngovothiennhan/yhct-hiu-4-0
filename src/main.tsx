@@ -16,14 +16,7 @@ import './news-rotator.css';
 import './desktop-community.css';
 import './final4-v2.css';
 import './desktop-interaction-profile.css';
+import './academic-production.css';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode><AppErrorBoundary><App/></AppErrorBoundary></React.StrictMode>
-);
-
-if('serviceWorker' in navigator&&import.meta.env.PROD){
-  window.addEventListener('load',()=>{
-    const base=import.meta.env.BASE_URL||'/';
-    void navigator.serviceWorker.register(`${base}service-worker.js`).catch(()=>{});
-  });
-}
+ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><AppErrorBoundary><App/></AppErrorBoundary></React.StrictMode>);
+if('serviceWorker' in navigator&&import.meta.env.PROD){window.addEventListener('load',()=>{const base=import.meta.env.BASE_URL||'/';void navigator.serviceWorker.register(`${base}service-worker.js`).catch(()=>{})})}
