@@ -125,17 +125,9 @@ jobs:
             echo "::error title=Vercel deployment creation failed::HTTP ${status}: ${detail}"
             exit 80
           fi
-          readarray -t values < <(node - "$response_file" <<'NODE'
-          const fs=require('node:fs');
-          const body=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
-          if(!body.id) process.exit(2);
-          console.log(body.id);
-          console.log(body.url||'');
-          NODE
-          )
+          deployment_id="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));if(!b.id)process.exit(2);process.stdout.write(b.id)" "$response_file")"
+          deployment_url="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.url||'')" "$response_file")"
           rm -f "$response_file"
-          deployment_id="${values[0]}"
-          deployment_url="${values[1]}"
           echo "deployment_id=$deployment_id" >> "$GITHUB_OUTPUT"
           echo "deployment_url=$deployment_url" >> "$GITHUB_OUTPUT"
           echo "Created deployment: $deployment_id"
@@ -148,6 +140,7 @@ jobs:
         run: |
           set -euo pipefail
           response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
           for attempt in $(seq 1 120); do
             status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
               --header "Authorization: Bearer ${VERCEL_TOKEN}" \
@@ -157,25 +150,15 @@ jobs:
               sleep 5
               continue
             fi
-            readarray -t values < <(node - "$response_file" <<'NODE'
-            const fs=require('node:fs');
-            const body=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
-            console.log(body.readyState||body.status||'UNKNOWN');
-            console.log(body.url||'');
-            console.log(body?.meta?.githubCommitSha||'');
-            NODE
-            )
-            state="${values[0]}"
-            url="${values[1]}"
-            deployed_sha="${values[2]}"
+            state="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.readyState||b.status||'UNKNOWN')" "$response_file")"
+            url="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.url||'')" "$response_file")"
+            deployed_sha="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b?.meta?.githubCommitSha||'')" "$response_file")"
             echo "Vercel state: $state"
             if [[ "$state" == "ERROR" || "$state" == "CANCELED" ]]; then
-              rm -f "$response_file"
               echo "::error title=Vercel production failed::Deployment ${DEPLOYMENT_ID} entered ${state}."
               exit 81
             fi
             if [ "$state" = "READY" ]; then
-              rm -f "$response_file"
               if [ -n "$deployed_sha" ] && [ "$deployed_sha" != "$CI_PASSED_SHA" ]; then
                 echo "::error title=Commit mismatch::Vercel built ${deployed_sha}, expected ${CI_PASSED_SHA}."
                 exit 82
@@ -186,7 +169,6 @@ jobs:
             fi
             sleep 5
           done
-          rm -f "$response_file"
           echo "::error title=Vercel production timeout::Deployment did not reach READY within 10 minutes."
           exit 83
 
