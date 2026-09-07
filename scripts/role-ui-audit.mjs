@@ -10,7 +10,7 @@ const checks=[
  ['viewport desktop/mobile toggle',has(files.viewport,'dataset.viewportMode','width=1280, viewport-fit=cover','Xem bản Desktop','Xem bản Mobile')&&has(files.boot,'yhct-viewport-mode-v1','width=1280,viewport-fit=cover')],
  ['news edit/delete/pin RPC',has(files.admin,'tcm_news_admin_update_v1','tcm_news_admin_delete_v1','tcm_news_admin_set_pinned_v1')],
  ['host-neutral diagnostic/weather edge routes',has(files.admin,"edgeUrl('acc-diagnostics')","edgeUrl('public-weather')",'SUPABASE_PUBLISHABLE_KEY','diagnostic-output')&&not(files.admin,"fetch('/api/ai/diagnostics'","fetch(`/api/weather")],
- ['admin-only DRL publication + lock',has(files.drl,"canPublish=roleAtLeast(member?.role,'admin')","canLock=roleAtLeast(member?.role,'admin')",'drl_admin_publish_semester_v1','Công bố điểm học kỳ','step:1|2','Xác nhận công bố')]
+ ['admin-only DRL publication + lock',has(files.drl,"canPublish=roleAtLeast(member?.role,'admin')","canLock=roleAtLeast(member?.role,'admin')",'drl_admin_publish_semester_v1','drl_admin_lock_semester_v1','Công bố điểm học kỳ','Mở khóa','step:1|2','Xác nhận công bố')]
 ]],
 ['SUPER_MOD',[
  ['hierarchy super_mod > mod',has(files.types,'super_mod:3','mod:2')],
@@ -23,8 +23,8 @@ const checks=[
 ]],
 ['MOD',[
  ['Excel worker upload',has(files.drl,'.xlsx','.xls','.csv','drlParseWorker','drl_admin_import_v1','SHA-256')],
- ['HIU DRL template auto-detect',has(files.worker,'header:1','diem_de_xuat_drl','hiu_drl_proposal','suggested_semester_code','duplicateStudentCodes','logicalKey')&&has(files.drl,'matchDetectedSemester','drl_admin_upsert_semester_v1','Đã nhận mẫu đề nghị ĐRL HIU')],
- ['partial valid-row import allowed but publish not delegated',has(files.drl,"canManage=roleAtLeast(member?.role,'mod')","canPublish=roleAtLeast(member?.role,'admin')",'Ghi nhận', 'dòng không hợp lệ đã bị loại')&&not(files.drl,'Hệ thống không cho commit từng phần','Commit bị khóa để tránh nhập thiếu dữ liệu')],
+ ['HIU DRL template required',has(files.worker,'header:1','diem_de_xuat_drl','hiu_drl_proposal','suggested_semester_code','duplicateStudentCodes','logicalKey','STT, MSSV, Họ và tên, Khoa, Vai trò tham gia, Điểm đề xuất ĐRL','Tên hoạt động','Năm học','Thời gian tổ chức','Địa điểm')&&has(files.drl,'matchDetectedSemester','drl_admin_upsert_semester_v1','Đã nhận mẫu đề nghị ĐRL HIU')],
+ ['partial valid-row import allowed but publish not delegated',has(files.drl,"canManage=roleAtLeast(member?.role,'mod')","canPublish=roleAtLeast(member?.role,'admin')",'Ghi nhận','dòng không hợp lệ đã bị loại')&&not(files.drl,'Hệ thống không cho commit từng phần','Commit bị khóa để tránh nhập thiếu dữ liệu')],
  ['post edit permission',has(files.post,"roleAtLeast(member.role,'mod')",'onEdit(post)')],
  ['Word summary import',has(files.feed,'DocxImportPanel')&&has(files.docx,'docx')],
  ['Mini AI present',has(files.app,'PersonalCopilotWidget member={member}')&&has(files.mini,'visualViewport')]
@@ -41,4 +41,4 @@ const checks=[
  ['Mini AI direct Drive blocked',has(files.mini,'Kho YHCT','API bảo mật','không mở liên kết/thư mục Drive trực tiếp')&&not(files.mini,'window.open(','drive.google.com/drive/folders/','YHCT_RESEARCH_DRIVE_URL')&&has(files.driveApi,"memberAccess(req,'admin')",'process.env.YHCT_DRIVE_FOLDER_ID')&&not(files.driveApi,'req.query?.folderId','webViewLink')],
  ['DRL exact MSSV publication status',has(files.drl,'drl_public_lookup_v2','Đã chốt điểm','Đang tổng hợp / Chờ duyệt','total_points')]
 ]]];
-let failed=0;for(const [role,items] of checks){const bad=items.filter(([,ok])=>!ok);if(bad.length){failed++;console.error(`role-audit ${role} FAIL: ${bad.map(([name])=>name).join('; ')}`)}else console.log(`role-audit ${role} PASS: ${items.map(([name])=>name).join('; ')}`)}if(failed)process.exit(1);console.log('role-audit-ok: frozen mobile, portable hosting, Supabase edge ACC, desktop pointer UX, profile/password, DRL RBAC and ACC-only 2D/3D contracts passed');
+let failed=0;for(const [role,items] of checks){const bad=items.filter(([,ok])=>!ok);if(bad.length){failed++;console.error(`role-audit ${role} FAIL: ${bad.map(([name])=>name).join('; ')}`)}else console.log(`role-audit ${role} PASS: ${items.map(([name])=>name).join('; ')}`)}if(failed)process.exit(1);console.log('role-audit-ok: frozen mobile, portable hosting, Supabase edge ACC, desktop pointer UX, profile/password, HIU DRL template/unlock, RBAC and ACC-only 2D/3D contracts passed');
