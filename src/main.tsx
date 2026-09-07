@@ -16,6 +16,7 @@ import './news-rotator.css';
 import './desktop-community.css';
 import './final4-v2.css';
 import './desktop-interaction-profile.css';
+import './academic-production.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode><AppErrorBoundary><App/></AppErrorBoundary></React.StrictMode>
