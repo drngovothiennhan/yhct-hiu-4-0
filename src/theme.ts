@@ -8,4 +8,4 @@ export const THEME_OPTIONS:{id:ThemeName;name:string;description:string;swatches
 ];
 const KEY='yhct-hiu-ui-theme-v1';
 export function readTheme():ThemeName{if(typeof window==='undefined')return'duoc-ngoc';const v=window.localStorage.getItem(KEY);return THEME_OPTIONS.some(x=>x.id===v)?v as ThemeName:'duoc-ngoc'}
-export function applyTheme(theme:ThemeName){if(typeof document!=='undefined')document.documentElement.dataset.theme=theme;if(typeof window!=='undefined')window.localStorage.setItem(KEY,theme)}
+export function applyTheme(theme:ThemeName,persist=true){if(typeof document!=='undefined')document.documentElement.dataset.theme=theme;if(persist&&typeof window!=='undefined')window.localStorage.setItem(KEY,theme)}
