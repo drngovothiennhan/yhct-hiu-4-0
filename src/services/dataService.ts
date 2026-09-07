@@ -1,12 +1,13 @@
 import type { AcademicPost,AppointmentTitle,Member,MemberStatus,SystemRole } from '../types';
 import { mapMember,supabase } from './authService';
+import { cacheGet,cachePut } from './offlineCache';
 
+const FEED_CACHE_KEY='academic-feed-v1';
+const FEED_CACHE_TTL=10*60*1000;
 const asStrings=(v:unknown):string[]=>Array.isArray(v)?v.map(x=>typeof x==='string'?x:JSON.stringify(x)).filter(Boolean):[];
 const asObject=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{};
 
-export async function fetchAcademicFeed(limit=50):Promise<AcademicPost[]>{
-  const {data,error}=await supabase.rpc('academic_feed_v1',{p_limit:limit});
-  if(error)throw error;
+function mapAcademicRows(data:unknown):AcademicPost[]{
   if(!Array.isArray(data))return [];
   return data.map((row:any)=>{
     const authorRow=asObject(row.author);
@@ -27,6 +28,21 @@ export async function fetchAcademicFeed(limit=50):Promise<AcademicPost[]>{
       likes:Number(row.likes||0),agrees:0,comments:Number(row.comments||0)
     } as AcademicPost;
   });
+}
+
+export async function fetchAcademicFeed(limit=50):Promise<AcademicPost[]>{
+  const normalizedLimit=Math.max(1,Math.min(100,Math.trunc(limit)||50));
+  try{
+    const {data,error}=await supabase.rpc('academic_feed_v1',{p_limit:normalizedLimit});
+    if(error)throw error;
+    const posts=mapAcademicRows(data);
+    void cachePut(`${FEED_CACHE_KEY}:${normalizedLimit}`,posts,FEED_CACHE_TTL);
+    return posts;
+  }catch(error){
+    const cached=await cacheGet<AcademicPost[]>(`${FEED_CACHE_KEY}:${normalizedLimit}`,{allowStale:true});
+    if(cached)return cached;
+    throw error;
+  }
 }
 
 export async function searchMembersRemote(query:string,limit=12):Promise<Member[]>{
