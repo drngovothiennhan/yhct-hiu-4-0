@@ -11,6 +11,7 @@ import './mobile-social.css';
 import './mobile-social-compat.css';
 import './mini-ai.css';
 import './viewport-news-final.css';
+import './viewport-native-hotfix.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode><AppErrorBoundary><App/></AppErrorBoundary></React.StrictMode>

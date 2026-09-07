@@ -1,0 +1,5 @@
+/* Final native-scroll and viewport safety layer. Must load after viewport-news-final.css. */
+html[data-viewport-mode="mobile"] .news-center-compact .news-grid{cursor:auto!important;touch-action:auto!important;overscroll-behavior-inline:contain!important}
+html[data-viewport-mode="mobile"] .news-center-compact .news-grid.is-dragging{cursor:auto!important;scroll-snap-type:x mandatory!important}
+html[data-viewport-mode="desktop"],html[data-viewport-mode="desktop"] body,html[data-viewport-mode="desktop"] #root{max-width:none!important;overflow-x:hidden!important}
+html[data-viewport-mode="desktop"] .app{max-width:none!important;overflow-x:visible!important}

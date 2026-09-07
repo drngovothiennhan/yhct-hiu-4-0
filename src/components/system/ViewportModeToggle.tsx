@@ -4,7 +4,7 @@ export type ViewportMode='desktop'|'mobile';
 export const VIEWPORT_MODE_KEY='yhct-viewport-mode-v1';
 const LEGACY_KEY='yhct-mobile-ui-v2';
 const MOBILE_VIEWPORT='width=device-width, initial-scale=1, viewport-fit=cover';
-const DESKTOP_VIEWPORT='width=1280, initial-scale=1, viewport-fit=cover';
+const DESKTOP_VIEWPORT='width=1280, viewport-fit=cover';
 
 export function readViewportMode():ViewportMode{
   try{
@@ -38,11 +38,11 @@ export function applyViewportMode(mode:ViewportMode){
   });
 }
 
-export default function ViewportModeToggle({mode,onChange,className='' }:{mode:ViewportMode;onChange:(mode:ViewportMode)=>void;className?:string}){
+export default function ViewportModeToggle({mode,onChange,className=''}:{mode:ViewportMode;onChange:(mode:ViewportMode)=>void;className?:string}){
   const next:ViewportMode=mode==='mobile'?'desktop':'mobile';
   const label=next==='desktop'?'Xem bản Desktop':'Xem bản Mobile';
   const Icon=next==='desktop'?Monitor:Smartphone;
-  return <button type="button" className={`viewport-mode-toggle ${className}`.trim()} onClick={()=>onChange(next)} title={label} aria-label={label} aria-pressed={mode===next}>
+  return <button type="button" className={`viewport-mode-toggle ${className}`.trim()} onClick={()=>onChange(next)} title={label} aria-label={label} data-current-mode={mode} data-target-mode={next}>
     <Icon aria-hidden="true"/><span>{label}</span>
   </button>;
 }

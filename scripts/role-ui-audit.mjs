@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 const read=file=>fs.readFileSync(file,'utf8');
-const files={app:read('src/App.tsx'),viewport:read('src/components/system/ViewportModeToggle.tsx'),css:read('src/viewport-news-final.css'),news:read('src/components/news/TcmNewsCenter.tsx'),admin:read('src/components/admin/SystemAdminCenter.tsx'),moderation:read('src/components/admin/ModerationOpsPanel.tsx'),drl:read('src/components/drl/DrlCenter.tsx'),feed:read('src/components/feed/AcademicFeed.tsx'),post:read('src/components/feed/AcademicPostCard.tsx'),mini:read('src/components/ai/PersonalCopilotWidget.tsx'),docx:read('src/components/feed/DocxImportPanel.tsx'),types:read('src/types/index.ts')};
+const files={app:read('src/App.tsx'),boot:read('index.html'),viewport:read('src/components/system/ViewportModeToggle.tsx'),css:read('src/viewport-news-final.css')+read('src/viewport-native-hotfix.css'),news:read('src/components/news/TcmNewsCenter.tsx'),admin:read('src/components/admin/SystemAdminCenter.tsx'),moderation:read('src/components/admin/ModerationOpsPanel.tsx'),drl:read('src/components/drl/DrlCenter.tsx'),feed:read('src/components/feed/AcademicFeed.tsx'),post:read('src/components/feed/AcademicPostCard.tsx'),mini:read('src/components/ai/PersonalCopilotWidget.tsx'),docx:read('src/components/feed/DocxImportPanel.tsx'),types:read('src/types/index.ts')};
 const has=(file,...tokens)=>tokens.every(token=>file.includes(token));
 const not=(file,...tokens)=>tokens.every(token=>!file.includes(token));
 const checks=[
   ['ADMIN',[
     ['ACC admin gate',has(files.app,"canAcc=roleAtLeast(member?.role,'admin')")],
-    ['viewport desktop/mobile toggle',has(files.viewport,'dataset.viewportMode','width=1280','Xem bản Desktop','Xem bản Mobile')],
+    ['viewport desktop/mobile toggle',has(files.viewport,'dataset.viewportMode','width=1280, viewport-fit=cover','Xem bản Desktop','Xem bản Mobile')&&has(files.boot,'yhct-viewport-mode-v1','width=1280,viewport-fit=cover')],
     ['news edit/delete/pin RPC',has(files.admin,'tcm_news_admin_update_v1','tcm_news_admin_delete_v1','tcm_news_admin_set_pinned_v1')],
     ['diagnostic terminal',has(files.admin,"fetch('/api/ai/diagnostics'",'diagnostic-output')]
   ]],
@@ -24,10 +24,10 @@ const checks=[
     ['Mini AI present',has(files.app,'PersonalCopilotWidget member={member}')&&has(files.mini,'visualViewport')]
   ]],
   ['USER',[
-    ['native news horizontal scroll',has(files.css,'overflow-x:auto!important','scroll-snap-type:x mandatory','-webkit-overflow-scrolling:touch','touch-action:auto!important')&&not(files.css,'touch-action:pan-y')],
+    ['pure native news horizontal scroll',has(files.css,'overflow-x:auto!important','scroll-snap-type:x mandatory','-webkit-overflow-scrolling:touch','touch-action:auto!important')&&not(files.css,'touch-action:pan-y')&&not(files.news,'setPointerCapture','releasePointerCapture','onPointerMove=','dragRef')],
     ['news progress indicator',has(files.news,'news-progress','onScroll={updateProgress}')],
     ['public DRL lookup',has(files.drl,'drl_public_search_v1','Tra cứu công khai')],
-    ['persistent viewport choice',has(files.viewport,'localStorage.setItem(VIEWPORT_MODE_KEY','dataset.viewportMode')]
+    ['persistent viewport choice',has(files.viewport,'localStorage.setItem(VIEWPORT_MODE_KEY','dataset.viewportMode')&&has(files.boot,'dataset.viewportMode')]
   ]]
 ];
 let failed=0;
