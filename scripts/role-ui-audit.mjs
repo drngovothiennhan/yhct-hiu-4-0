@@ -24,7 +24,7 @@ const checks=[
 ['MOD',[
  ['Excel worker upload',has(files.drl,'.xlsx','.xls','.csv','drlParseWorker','drl_admin_import_v1','SHA-256')],
  ['HIU DRL template auto-detect',has(files.worker,'header:1','diem_de_xuat_drl','hiu_drl_proposal','suggested_semester_code','duplicateStudentCodes','logicalKey')&&has(files.drl,'matchDetectedSemester','drl_admin_upsert_semester_v1','Đã nhận mẫu đề nghị ĐRL HIU')],
- ['draft import allowed but publish not delegated',has(files.drl,"canManage=roleAtLeast(member?.role,'mod')","canPublish=roleAtLeast(member?.role,'admin')",'Commit bản nháp')],
+ ['partial valid-row import allowed but publish not delegated',has(files.drl,"canManage=roleAtLeast(member?.role,'mod')","canPublish=roleAtLeast(member?.role,'admin')",'Ghi nhận', 'dòng không hợp lệ đã bị loại')&&not(files.drl,'Hệ thống không cho commit từng phần','Commit bị khóa để tránh nhập thiếu dữ liệu')],
  ['post edit permission',has(files.post,"roleAtLeast(member.role,'mod')",'onEdit(post)')],
  ['Word summary import',has(files.feed,'DocxImportPanel')&&has(files.docx,'docx')],
  ['Mini AI present',has(files.app,'PersonalCopilotWidget member={member}')&&has(files.mini,'visualViewport')]
