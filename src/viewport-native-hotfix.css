@@ -3,3 +3,26 @@ html[data-viewport-mode="mobile"] .news-center-compact .news-grid{cursor:auto!im
 html[data-viewport-mode="mobile"] .news-center-compact .news-card{scroll-snap-stop:normal!important}
 html[data-viewport-mode="desktop"],html[data-viewport-mode="desktop"] body,html[data-viewport-mode="desktop"] #root{max-width:none!important;overflow-x:hidden!important}
 html[data-viewport-mode="desktop"] .app{max-width:none!important;overflow-x:visible!important}
+
+/* Final mobile rhythm + system-brand scaling. This file loads last on purpose. */
+html[data-viewport-mode="mobile"]{--mobile-module-gap:clamp(10px,3.2vw,14px)}
+.system-brand-mark{max-inline-size:100%;max-block-size:100%}
+.system-brand-mark__icon{max-width:100%;max-height:100%}
+html[data-viewport-mode="mobile"] .mobile-top-mark{width:clamp(34px,10vw,40px)!important;height:clamp(34px,10vw,40px)!important;flex:0 0 clamp(34px,10vw,40px)!important}
+html[data-viewport-mode="mobile"] .auth-brand-mark{width:clamp(82px,24vw,96px)!important;height:clamp(82px,24vw,96px)!important}
+html[data-viewport-mode="mobile"] main>.top+*{margin-top:var(--mobile-module-gap)!important}
+html[data-viewport-mode="mobile"] .feed-layout{gap:var(--mobile-module-gap)!important}
+html[data-viewport-mode="mobile"] .feed-toolbar{margin-bottom:var(--mobile-module-gap)!important}
+html[data-viewport-mode="mobile"] .panel{margin:var(--mobile-module-gap) 0!important}
+html[data-viewport-mode="mobile"] .post-card{margin:0 0 var(--mobile-module-gap)!important}
+html[data-viewport-mode="mobile"] .admin-grid,
+html[data-viewport-mode="mobile"] .theme-grid,
+html[data-viewport-mode="mobile"] .research-grid,
+html[data-viewport-mode="mobile"] .profile-grid,
+html[data-viewport-mode="mobile"] .acc-grid,
+html[data-viewport-mode="mobile"] .semester-grid,
+html[data-viewport-mode="mobile"] .schedule-list,
+html[data-viewport-mode="mobile"] .data-list,
+html[data-viewport-mode="mobile"] .log-list{gap:var(--mobile-module-gap)!important}
+html[data-viewport-mode="mobile"] .mobile-more-grid{gap:10px!important}
+html[data-viewport-mode="mobile"] .mobile-ui-choice{margin-top:14px!important}
