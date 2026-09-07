@@ -24,31 +24,50 @@ jobs:
     env:
       VERCEL_ORG_ID: team_zMTBj85c4Dh5QoDNIjWqQRTg
       VERCEL_PROJECT_ID: prj_7DWP3LX30CFALUD1KoNeOR8NlpsQ
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_CLI_VERSION: 59.11.7
     steps:
+      - name: Require production deployment credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "::error title=Missing VERCEL_TOKEN::Production deploy is fail-closed. Add the VERCEL_TOKEN secret to the GitHub production environment or repository Actions secrets."
+            exit 78
+          fi
+
       - name: Checkout CI-passed commit
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 1
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
+
       - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
+
+      - name: Install pinned Vercel CLI
+        run: npm install --global "vercel@${VERCEL_CLI_VERSION}"
+
       - name: Pull production environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
       - name: Build production artifact
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
       - name: Deploy prebuilt artifact to production
         id: deploy
+        shell: bash
         run: |
           set -euo pipefail
-          url="$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})"
+          url="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Production URL: $url"
+
       - name: Publish deployment summary
         run: |
           {
