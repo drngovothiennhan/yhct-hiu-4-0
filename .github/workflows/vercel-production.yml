@@ -53,6 +53,20 @@ jobs:
       - name: Install pinned Vercel CLI
         run: npm install --global "vercel@${VERCEL_CLI_VERSION}"
 
+      - name: Link production project deterministically
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .vercel
+          mkdir -p .vercel
+          node <<'NODE'
+          const fs = require('node:fs');
+          const orgId = process.env.VERCEL_ORG_ID;
+          const projectId = process.env.VERCEL_PROJECT_ID;
+          if (!orgId || !projectId) throw new Error('Missing Vercel project identifiers');
+          fs.writeFileSync('.vercel/project.json', `${JSON.stringify({ orgId, projectId }, null, 2)}\n`);
+          NODE
+
       - name: Pull production environment
         run: vercel pull --yes --environment=production
 
