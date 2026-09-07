@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "audit:source": "node scripts/acceptance-check.mjs",
+    "audit:roles": "node scripts/role-ui-audit.mjs",
     "audit:sim6h": "node scripts/simulate-6h.mjs",
-    "prebuild": "npm run audit:source && npm run audit:sim6h",
+    "prebuild": "npm run audit:source && npm run audit:roles && npm run audit:sim6h",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "android:sync": "npm run build && npx cap sync android",
