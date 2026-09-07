@@ -22,5 +22,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 );
 
 if('serviceWorker' in navigator&&import.meta.env.PROD){
-  window.addEventListener('load',()=>{void navigator.serviceWorker.register('/service-worker.js').catch(()=>{})});
+  window.addEventListener('load',()=>{
+    const base=import.meta.env.BASE_URL||'/';
+    void navigator.serviceWorker.register(`${base}service-worker.js`).catch(()=>{});
+  });
 }
