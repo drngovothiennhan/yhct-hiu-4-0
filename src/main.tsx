@@ -7,6 +7,8 @@ import './modules.css';
 import './mobile-audit.css';
 import './audit-release.css';
 import './final-hotfix.css';
+import './mobile-social.css';
+import './mobile-social-compat.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
