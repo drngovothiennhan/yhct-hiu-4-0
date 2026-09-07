@@ -54,17 +54,17 @@ jobs:
         run: npm install --global "vercel@${VERCEL_CLI_VERSION}"
 
       - name: Pull production environment
-        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+        run: vercel pull --yes --environment=production
 
       - name: Build production artifact
-        run: vercel build --prod --token="$VERCEL_TOKEN"
+        run: vercel build --prod
 
       - name: Deploy prebuilt artifact to production
         id: deploy
         shell: bash
         run: |
           set -euo pipefail
-          url="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
+          url="$(vercel deploy --prebuilt --prod)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Production URL: $url"
 
