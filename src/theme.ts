@@ -11,48 +11,65 @@ export const THEME_OPTIONS:{id:ThemeName;name:string;description:string;swatches
   {id:'tcm-cloud-2d',name:'Vân Lam 2D',description:'Xanh trời sáng, hồng dược hoa và nền trắng sạch; hiện đại, nhẹ mắt, phù hợp nội dung học thuật.',swatches:['#376F9F','#D76A7F','#F4F9FD','#E4B85D']},
   {id:'tcm-mint-modern',name:'Mint YHCT Modern',description:'Xanh mint hiện đại, tương phản rõ, khối giao diện sạch và nhẹ; ưu tiên hiệu năng và khả năng đọc.',swatches:['#0F766E','#F06F57','#F5FAF8','#E6B84E']}
 ];
-const KEY='yhct-hiu-ui-theme-v1';
+
+const DEFAULT_THEME:ThemeName='duoc-ngoc';
+const LEGACY_THEME_KEY='yhct-hiu-ui-theme-v1';
+const SYSTEM_META_ATTR='data-yhct-system-theme';
 const isThemeName=(value:unknown):value is ThemeName=>typeof value==='string'&&THEME_OPTIONS.some(x=>x.id===value);
 const primaryFor=(theme:ThemeName)=>THEME_OPTIONS.find(x=>x.id===theme)?.swatches[0]||'#174C3C';
 
-export function readTheme():ThemeName{if(typeof window==='undefined')return'duoc-ngoc';const v=window.localStorage.getItem(KEY);return isThemeName(v)?v:'duoc-ngoc'}
+export function readTheme():ThemeName{
+  if(typeof document==='undefined')return DEFAULT_THEME;
+  const value=document.documentElement.dataset.theme;
+  return isThemeName(value)?value:DEFAULT_THEME;
+}
 
-function syncManifestHint(theme:ThemeName){
-  if(typeof document==='undefined'||typeof window==='undefined')return;
+function normalizeManifestLink(){
+  if(typeof document==='undefined')return;
   const link=document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
-  if(!link||link.dataset.themeHint===theme)return;
-  try{
-    const url=new URL(link.getAttribute('href')||'/manifest.webmanifest',window.location.href);
-    url.searchParams.set('theme',theme);
-    url.searchParams.set('sync','1');
-    link.href=url.toString();
-    link.dataset.themeHint=theme;
-  }catch{}
+  if(!link)return;
+  link.setAttribute('href','./api/manifest');
+  link.removeAttribute('data-theme-hint');
 }
 
 function syncBrowserChrome(theme:ThemeName){
   if(typeof document==='undefined')return;
   const primary=primaryFor(theme);
-  document.documentElement.style.setProperty('--system-chrome-color',primary);
-  document.documentElement.style.setProperty('--system-status-color',primary);
-  document.querySelectorAll('meta[name="theme-color"]').forEach(node=>node.remove());
-  const meta=document.createElement('meta');meta.name='theme-color';meta.content=primary;document.head.appendChild(meta);
-  syncManifestHint(theme);
+  const root=document.documentElement;
+  root.style.setProperty('--system-chrome-color',primary);
+  root.style.setProperty('--system-status-color',primary);
+
+  const metas=Array.from(document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]'));
+  let meta=metas.find(node=>node.getAttribute(SYSTEM_META_ATTR)==='1')||metas[0]||null;
+  for(const node of metas)if(node!==meta)node.remove();
+  if(!meta){meta=document.createElement('meta');meta.name='theme-color';document.head.appendChild(meta)}
+  meta.setAttribute(SYSTEM_META_ATTR,'1');
+  meta.content=primary;
+  normalizeManifestLink();
 }
 
-export function applyTheme(theme:ThemeName,persist=true){
-  if(typeof document!=='undefined'){
-    document.documentElement.dataset.theme=theme;
-    syncBrowserChrome(theme);
+export function clearLegacyThemeState(){
+  if(typeof window!=='undefined'){
+    window.localStorage.removeItem(LEGACY_THEME_KEY);
+    window.sessionStorage.removeItem(LEGACY_THEME_KEY);
   }
-  if(persist&&typeof window!=='undefined')window.localStorage.setItem(KEY,theme)
+  if(typeof document!=='undefined'){
+    delete document.documentElement.dataset.theme;
+    applyTheme(DEFAULT_THEME);
+  }
+}
+
+export function applyTheme(theme:ThemeName){
+  if(typeof document==='undefined')return;
+  document.documentElement.dataset.theme=theme;
+  syncBrowserChrome(theme);
 }
 
 export async function fetchSystemTheme():Promise<ThemeName>{
   const {data,error}=await supabase.rpc('system_theme_get_v1');
   if(error)throw error;
-  const next=isThemeName((data as {theme?:unknown}|null)?.theme)?(data as {theme:ThemeName}).theme:'duoc-ngoc';
-  applyTheme(next,true);
+  const next=isThemeName((data as {theme?:unknown}|null)?.theme)?(data as {theme:ThemeName}).theme:DEFAULT_THEME;
+  applyTheme(next);
   return next;
 }
 
@@ -60,8 +77,19 @@ export async function saveSystemTheme(theme:ThemeName):Promise<ThemeName>{
   const {data,error}=await supabase.rpc('system_theme_set_v1',{p_theme:theme});
   if(error)throw error;
   const next=isThemeName((data as {theme?:unknown}|null)?.theme)?(data as {theme:ThemeName}).theme:theme;
-  applyTheme(next,true);
+  applyTheme(next);
   return next;
 }
 
-export function resyncThemeChrome(){syncBrowserChrome(readTheme())}
+export function watchSystemTheme(onTheme:(theme:ThemeName)=>void){
+  const channel=supabase
+    .channel('system-theme-global-v2')
+    .on('broadcast',{event:'theme.changed'},message=>{
+      const next=(message as {payload?:{theme?:unknown}})?.payload?.theme;
+      if(!isThemeName(next))return;
+      applyTheme(next);
+      onTheme(next);
+    })
+    .subscribe();
+  return ()=>{void supabase.removeChannel(channel)};
+}
