@@ -8,6 +8,7 @@ const ok=message=>console.log(`OK: ${message}`);
 const requireText=(text,needle,label)=>text.includes(needle)?ok(label):fail(`${label} (missing ${needle})`);
 
 const gateway=read('api/ai/assistant.js');
+const health=read('api/ai/health.js');
 const runtime=read('src/services/aiRuntimeService.ts');
 const mini=read('src/components/ai/UnifiedAiMini.tsx');
 const research=read('src/components/research/ResearchCenter.tsx');
@@ -23,6 +24,12 @@ requireText(gateway,'sourceIds','AI output cites source IDs instead of arbitrary
 requireText(gateway,'allowed=new Map','server validates citations against supplied source whitelist');
 requireText(gateway,"safety:'needs_source_check'",'degraded path explicitly requires source checking');
 requireText(gateway,"console.info(JSON.stringify({event:'ai_gateway'",'AI gateway emits prompt-free operational telemetry');
+
+requireText(health,"req.method!=='GET'",'AI readiness endpoint is read-only');
+requireText(health,'cloudAiEnabled()','AI readiness uses the same cloud feature gate as runtime');
+requireText(health,"mode:cloudReady?'cloud+local':'local-only'",'AI readiness exposes cloud-vs-local mode without secrets');
+requireText(health,'localFallback:true','AI readiness confirms local fallback is always present');
+if(/process\.env\.[A-Z0-9_]+\s*[,}]/.test(health))fail('AI readiness must not serialize environment variable values');else ok('AI readiness does not serialize secret/env values');
 
 requireText(runtime,"fetch('/api/ai/assistant'",'client routes cloud AI through the server gateway');
 requireText(runtime,'Authorization:`Bearer ${session.access_token}`','client authenticates AI gateway requests');
