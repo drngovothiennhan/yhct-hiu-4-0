@@ -3,6 +3,7 @@ import {memberRpc,roleAtLeast} from './member-access.js';
 const MAX_TOOL_OUTPUT_CHARS=12000;
 const MAX_MEMBER_HISTORY=40;
 const MAX_RESEARCH_ITEMS=8;
+const MAX_KNOWLEDGE_ITEMS=6;
 
 const EMPTY_SCHEMA={type:'object',properties:{},required:[],additionalProperties:false};
 
@@ -22,6 +23,14 @@ const TOOL_REGISTRY={
     parameters:{type:'object',properties:{limit:{type:'integer',minimum:1,maximum:MAX_RESEARCH_ITEMS}},required:['limit'],additionalProperties:false},
     rpcArgs:args=>({p_limit:Math.min(MAX_RESEARCH_ITEMS,Math.max(1,Number(args.limit)||6))}),
     normalize:data=>Array.isArray(data)?data.slice(0,MAX_RESEARCH_ITEMS):[]
+  },
+  search_yhct_knowledge:{
+    minRole:'member',
+    rpc:'ai_knowledge_search_v2',
+    description:'Tìm kho tri thức YHCT tập trung theo dược liệu, phương tễ hoặc huyệt vị. Kết quả chỉ đọc và có thể kèm citation PubMed cùng liên kết đối chiếu Google Scholar.',
+    parameters:{type:'object',properties:{query:{type:'string',minLength:2,maxLength:180},kinds:{type:'array',items:{type:'string',enum:['formula','herb','acupoint']},maxItems:3},limit:{type:'integer',minimum:1,maximum:MAX_KNOWLEDGE_ITEMS}},required:['query','kinds','limit'],additionalProperties:false},
+    rpcArgs:args=>({p_query:String(args.query||'').slice(0,180),p_kinds:Array.isArray(args.kinds)?args.kinds.filter(kind=>['formula','herb','acupoint'].includes(kind)).slice(0,3):[],p_limit:Math.min(MAX_KNOWLEDGE_ITEMS,Math.max(1,Number(args.limit)||4))}),
+    normalize:data=>Array.isArray(data)?data.slice(0,MAX_KNOWLEDGE_ITEMS):[]
   },
   list_drl_semesters:{
     minRole:'mod',
