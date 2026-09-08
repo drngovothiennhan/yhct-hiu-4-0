@@ -7,6 +7,7 @@ const fail=message=>{console.error(`AI-RUNTIME FAIL: ${message}`);process.exitCo
 const ok=message=>console.log(`OK: ${message}`);
 const requireText=(text,needle,label)=>text.includes(needle)?ok(label):fail(`${label} (missing ${needle})`);
 
+const access=read('api/_lib/member-access.js');
 const gateway=read('api/ai/assistant.js');
 const health=read('api/ai/health.js');
 const runtime=read('src/services/aiRuntimeService.ts');
@@ -14,6 +15,10 @@ const mini=read('src/components/ai/UnifiedAiMini.tsx');
 const research=read('src/components/research/ResearchCenter.tsx');
 const gemini=read('src/services/geminiByok.ts');
 const envExample=read('.env.example');
+
+requireText(access,"DEFAULT_OPENAI_MODEL='gpt-5.6-luna'",'AI server has a production-safe default OpenAI model');
+requireText(access,'cloudAiModel', 'AI server centralizes model selection');
+requireText(access,'cloudAiConfigured', 'AI server centralizes cloud readiness');
 
 requireText(gateway,"memberAccess(req,'member')",'AI gateway requires approved member auth');
 requireText(gateway,'new AbortController()','AI gateway has provider timeout cancellation');
@@ -24,9 +29,12 @@ requireText(gateway,'sourceIds','AI output cites source IDs instead of arbitrary
 requireText(gateway,'allowed=new Map','server validates citations against supplied source whitelist');
 requireText(gateway,"safety:'needs_source_check'",'degraded path explicitly requires source checking');
 requireText(gateway,"console.info(JSON.stringify({event:'ai_gateway'",'AI gateway emits prompt-free operational telemetry');
+requireText(gateway,'model=cloudAiModel()','AI gateway uses shared server-side model selection');
+requireText(gateway,"res.setHeader('X-AI-Model',model)",'AI gateway exposes non-secret model observability');
 
 requireText(health,"req.method!=='GET'",'AI readiness endpoint is read-only');
-requireText(health,'cloudAiEnabled()','AI readiness uses the same cloud feature gate as runtime');
+requireText(health,'cloudAiConfigured()','AI readiness uses the same cloud readiness contract as runtime');
+requireText(health,'cloudAiModel()','AI readiness reports the effective non-secret model');
 requireText(health,"mode:cloudReady?'cloud+local':'local-only'",'AI readiness exposes cloud-vs-local mode without secrets');
 requireText(health,'localFallback:true','AI readiness confirms local fallback is always present');
 if(/process\.env\.[A-Z0-9_]+\s*[,}]/.test(health))fail('AI readiness must not serialize environment variable values');else ok('AI readiness does not serialize secret/env values');
@@ -48,6 +56,7 @@ if(gemini.includes('localStorage.setItem(KEY_STORAGE'))fail('Gemini API key must
 requireText(gemini,'session().setItem(KEY_STORAGE','Gemini BYOK secret is session-scoped');
 requireText(gemini,'purgeLegacySecret','legacy persisted BYOK secrets are actively purged');
 requireText(envExample,'ENABLE_CLOUD_AI=false','handoff env documents fail-closed cloud AI flag');
+requireText(envExample,'OPENAI_MODEL=gpt-5.6-luna','handoff env documents the default OpenAI model override');
 
 const srcFiles=[];
 function walk(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const full=path.join(dir,entry.name);if(entry.isDirectory())walk(full);else if(/\.(ts|tsx|js|jsx)$/.test(entry.name))srcFiles.push(full)}}
