@@ -1,0 +1,24 @@
+/* Theme runtime authority: switching is a replacement transaction, never a cross-fade/overlay. */
+html[data-theme-switching='1'],
+html[data-theme-switching='1'] *,
+html[data-theme-switching='1'] *::before,
+html[data-theme-switching='1'] *::after{
+  transition:none!important;
+  animation:none!important;
+  scroll-behavior:auto!important;
+}
+
+html[data-theme-applied='1'],
+html[data-theme-applied='1'] body,
+html[data-theme-applied='1'] #root{
+  background-color:var(--bg);
+  color:var(--text);
+}
+
+/* Old theme-only visual layers are forcibly absent once their owner theme is not active. */
+html:not([data-theme='tcm-cartoon-2d']) .tcm-cartoon-decor{display:none!important}
+
+/* Keep browser tap feedback neutral; no UA tint may momentarily reveal a previous theme color. */
+html[data-theme-applied='1'] button,
+html[data-theme-applied='1'] a,
+html[data-theme-applied='1'] [role='button']{-webkit-tap-highlight-color:transparent}
