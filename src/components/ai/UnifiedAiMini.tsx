@@ -1,66 +1,72 @@
 import {useEffect,useMemo,useState} from 'react';
-import {Bot,ChevronDown,History,MessageSquarePlus,Send,Sparkles,X} from 'lucide-react';
+import {Bot,Check,ChevronDown,History,Languages,MessageSquarePlus,Send,Sparkles,X} from 'lucide-react';
 import type {Member} from '../../types';
 import {supabase} from '../../services/authService';
-import {askServerAi,renderAiAnswer} from '../../services/aiRuntimeService';
+import {askServerAi,renderAiAnswer,type AiSource} from '../../services/aiRuntimeService';
 import {buildResearchLinks,checkDrlConversation} from '../../services/miniAiEngine';
-import {referenceLabel,searchKnowledge} from '../../services/centralKnowledgeService';
+import {searchKnowledge,type CentralKnowledgeHit} from '../../services/centralKnowledgeService';
 import {searchOpenAlex,type ResearchWork} from '../../services/researchService';
+import {searchDriveRag} from '../../services/driveRagService';
+import {translateAcademic} from '../../services/academicTranslationService';
 import {askGemini,getGeminiStatus} from '../../services/geminiByok';
 
 type HistoryItem={id:string;query:string;answer:string;at:string};
 type StoredHistory={day:string;items:HistoryItem[]};
 type Mode='assistant'|'feedback';
+type PendingAction={type:'message';recipientId:string;recipientName:string;body:string}|{type:'reminder';dueAt:string;body:string};
+type Provenance={label:string;url?:string|null};
 const HISTORY_KEY='yhct-ai-mini-visible-history-v1';
 const localDay=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const safeHistory=():StoredHistory=>{const day=localDay();try{const raw=JSON.parse(localStorage.getItem(HISTORY_KEY)||'null') as StoredHistory|null;if(raw?.day===day&&Array.isArray(raw.items))return{day,items:raw.items.slice(0,3)};localStorage.removeItem(HISTORY_KEY)}catch{localStorage.removeItem(HISTORY_KEY)}return{day,items:[]}};
 const clean=(value:string)=>value.replace(/\s+/g,' ').trim();
 const academicIntent=(value:string)=>/(openalex|pubmed|y\s*văn|nghiên\s*cứu|bài\s*báo|bằng\s*chứng|systematic|meta[- ]?analysis|randomi[sz]ed|clinical\s*trial|study|doi|journal)/i.test(value);
-const openAlexSources=(works:ResearchWork[])=>works.slice(0,6).map(w=>({id:`OpenAlex:${w.id}`,title:w.title,text:`${w.abstract||w.title} ${w.authors.join(', ')} ${w.source} ${w.year||''}`.slice(0,4200),url:w.url}));
-const openAlexFallback=(works:ResearchWork[])=>works.length?`OpenAlex tìm thấy ${works.length} công trình phù hợp:\n${works.slice(0,5).map((w,i)=>`${i+1}. ${w.title}${w.year?` (${w.year})`:''} · ${w.source}\n${w.url}`).join('\n')}\n\nA.I cloud chưa khả dụng nên tôi chỉ hiển thị dữ liệu OpenAlex gốc để bạn kiểm chứng.`:'OpenAlex chưa trả về công trình phù hợp cho truy vấn này.';
-
+const openAlexSources=(works:ResearchWork[]):AiSource[]=>works.slice(0,5).map(w=>({id:`OpenAlex:${w.id}`,title:w.title,text:`${w.abstract||w.title} ${w.authors.join(', ')} ${w.source} ${w.year||''}`.slice(0,4200),url:w.url}));
+const openAlexFallback=(works:ResearchWork[])=>works.length?`OpenAlex tìm thấy ${works.length} công trình: ${works.slice(0,3).map((w,i)=>`${i+1}. ${w.title}${w.year?` (${w.year})`:''}`).join(' · ')}. Mở nguồn để kiểm chứng.`:'OpenAlex chưa trả về công trình phù hợp.';
+const centralSources=(hits:CentralKnowledgeHit[]):AiSource[]=>hits.filter(h=>h.source==='central').slice(0,4).map(h=>{const refs=[...h.evidence.map(e=>`${e.title} PMID ${e.pmid}`),...h.authoritySources.map(a=>`${a.provider.toUpperCase()}: ${a.title}`)].join(' | ');return{id:`central:${h.record.id}`,title:h.record.name,text:`${JSON.stringify(h.record).slice(0,3200)} ${refs}`.slice(0,4200),url:h.evidence[0]?.pubmedUrl||h.authoritySources[0]?.sourceUrl||null}});
+const uniqueSources=(items:AiSource[])=>[...new Map(items.map(x=>[x.id,x])).values()].slice(0,6);
 function formatDrl(result:Awaited<ReturnType<typeof checkDrlConversation>>){if(!result)return'';if(result.mode==='mine')return result.items.length?`${result.semesterTitle||'Học kỳ hiện tại'}: ${result.total} điểm. ${result.items.slice(0,4).map(x=>`${x.label} ${x.points>=0?'+':''}${x.points}`).join(' · ')}`:`${result.semesterTitle||'Học kỳ hiện tại'}: chưa có hoạt động được công bố.`;const top=result.candidates?.[0];return top?`${top.full_name} · ${top.student_code_masked} · ${top.semester_title}: ${top.total_points} điểm.`:'Không tìm thấy kết quả điểm phù hợp.'}
+function translationCommand(text:string){const m=text.match(/^dịch(?:\s+sang\s+(tiếng\s+việt|tiếng\s+anh|english|vietnamese))?\s*[:\-]\s*([\s\S]+)/i);if(!m)return null;const target=/anh|english/i.test(m[1]||'')?'en':'vi';return{target,text:m[2].trim()}}
+function messageCommand(text:string){const m=text.match(/^gửi\s+(?:tin\s+nhắn|tin)\s+(?:cho\s+)?([^:]{2,80})\s*:\s*(.{1,2000})$/i);return m?{name:clean(m[1]),body:m[2].trim()}:null}
+function reminderDelay(text:string){const m=text.match(/nhắc(?:\s+tôi)?\s+tưới(?:\s+cây)?(?:\s+sau\s+(\d{1,3})\s*(phút|giờ))?/i);if(!m)return null;const n=Math.max(1,Number(m[1]||0));return m[1]?n*(/giờ/i.test(m[2])?3600000:60000):0}
 
 export default function UnifiedAiMini({member,onLogin}:{member:Member|null;onLogin:()=>void}){
   const [open,setOpen]=useState(false),[mode,setMode]=useState<Mode>('assistant'),[query,setQuery]=useState(''),[busy,setBusy]=useState(false),[answer,setAnswer]=useState(''),[message,setMessage]=useState('');
-  const [history,setHistory]=useState<StoredHistory>(()=>safeHistory());
+  const [history,setHistory]=useState<StoredHistory>(()=>safeHistory()),[provenance,setProvenance]=useState<Provenance[]>([]),[pending,setPending]=useState<PendingAction|null>(null);
   const [feedbackKind,setFeedbackKind]=useState<'suggestion'|'bug'|'other'>('suggestion'),[feedback,setFeedback]=useState('');
-  const greeting=useMemo(()=>`Xin chào ${member?.herbalAlias||member?.fullName||'bạn'}! A.I Mini đã sẵn sàng. Khi bạn hỏi dữ liệu học thuật, thành viên sẽ được tra OpenAlex trực tiếp và dùng kết quả làm nguồn cho A.I.`,[member?.herbalAlias,member?.fullName]);
+  const greeting=useMemo(()=>`Xin chào ${member?.herbalAlias||member?.fullName||'bạn'}! A.I Mini ưu tiên Cloud + Kho Drive YHCT + Central RAG, trả lời ngắn gọn và hiển thị nguồn.`,[member?.herbalAlias,member?.fullName]);
   useEffect(()=>{const id=window.setInterval(()=>{const day=localDay();setHistory(current=>{if(current.day===day)return current;localStorage.removeItem(HISTORY_KEY);setAnswer('');return{day,items:[]}})},60000);return()=>window.clearInterval(id)},[]);
   useEffect(()=>{if(open)setMessage('')},[open]);
   const saveHistory=(item:HistoryItem)=>setHistory(current=>{const day=localDay(),next:{day:string;items:HistoryItem[]}={day,items:[item,...(current.day===day?current.items:[])].slice(0,3)};localStorage.setItem(HISTORY_KEY,JSON.stringify(next));return next});
-  const ask=async()=>{const text=clean(query);if(!text||busy)return;setBusy(true);setMessage('');try{
+  const stageMessage=async(name:string,body:string)=>{if(!member){onLogin();return true}const {data,error}=await supabase.rpc('message_recipients_v1',{p_query:name,p_limit:5});if(error)throw error;const rows=Array.isArray(data)?data:[];if(rows.length!==1){setAnswer(rows.length?`Tìm thấy ${rows.length} người khớp “${name}”. Hãy nhập tên cụ thể hơn trước khi gửi.`:`Không tìm thấy người nhận “${name}”.`);return true}const r=rows[0] as {id:string;full_name:string};setPending({type:'message',recipientId:r.id,recipientName:r.full_name,body});setAnswer(`Chuẩn bị gửi cho ${r.full_name}: “${body}”. Bấm Xác nhận gửi để thực hiện.`);setProvenance([{label:'Danh bạ thành viên · message_recipients_v1'}]);return true};
+  const stageWaterReminder=async(delay:number)=>{if(!member){onLogin();return true}const {data,error}=await supabase.rpc('herb_garden_ai_status_v1');if(error)throw error;const plants=Array.isArray((data as any)?.plants)?(data as any).plants:[],waterable=plants.filter((p:any)=>p?.status==='growing'&&p?.can_water),nextDates=plants.map((p:any)=>Date.parse(String(p?.next_water_at||''))).filter((n:number)=>Number.isFinite(n)&&n>Date.now());const due=delay?new Date(Date.now()+delay):waterable.length?new Date(Date.now()+60000):new Date(nextDates.length?Math.min(...nextDates):Date.now()+3600000);const body=waterable.length?`Gia Viên hiện có ${waterable.length} cây đến lượt tưới. Nhắc kiểm tra tưới cây.`:'Đã đến thời điểm kiểm tra chu kỳ tưới tiếp theo của Gia Viên.';setPending({type:'reminder',dueAt:due.toISOString(),body});setAnswer(`Sẽ tạo nhắc tưới lúc ${due.toLocaleString('vi-VN')}. Bấm Xác nhận để lưu nhắc việc.`);setProvenance([{label:'Gia Viên · herb_garden_ai_status_v1'}]);return true};
+  const confirmAction=async()=>{if(!pending||busy)return;setBusy(true);setMessage('');try{if(pending.type==='message'){const {error}=await supabase.rpc('messages_send_v1',{p_recipient_id:pending.recipientId,p_body:pending.body});if(error)throw error;setAnswer(`Đã gửi tin nhắn cho ${pending.recipientName}.`)}else{const {error}=await supabase.rpc('ai_assistant_reminder_create_v1',{p_kind:'garden_water',p_due_at:pending.dueAt,p_payload:{body:pending.body}});if(error)throw error;setAnswer(`Đã lưu nhắc tưới lúc ${new Date(pending.dueAt).toLocaleString('vi-VN')}. Thông báo sẽ được phát bởi hệ thống.`)}setPending(null)}catch(e){setMessage((e as Error).message)}finally{setBusy(false)}};
+  const ask=async()=>{const text=clean(query);if(!text||busy)return;setBusy(true);setMessage('');setPending(null);setProvenance([]);try{
+    const t=translationCommand(text);if(t){if(!member){onLogin();return}const translated=await translateAcademic(t.text,t.target);const output=translated.text||translated.note||'Chưa dịch được nội dung.';setAnswer(output);setMessage(`Dịch: ${translated.provider}${translated.degraded?' · degraded':''}`);setProvenance([{label:`Translation · ${translated.provider}`}]);saveHistory({id:crypto.randomUUID(),query:text,answer:output,at:new Date().toISOString()});setQuery('');return}
+    const msgCmd=messageCommand(text);if(msgCmd&&await stageMessage(msgCmd.name,msgCmd.body)){setQuery('');return}
+    const delay=reminderDelay(text);if(delay!==null&&await stageWaterReminder(delay)){setQuery('');return}
     let output='',runtimeStatus='';
-    try{const drl=await checkDrlConversation(text,member);if(drl)output=formatDrl(drl)}catch(e){if(/đăng nhập/i.test((e as Error).message)){setMessage((e as Error).message);onLogin();return}}
-    if(!output&&academicIntent(text)){
-      if(!member){output='Tra cứu OpenAlex bằng A.I Mini dành cho thành viên đã đăng nhập. Khách có thể dùng Trung tâm nghiên cứu với hạn mức 3 lượt tra cứu y văn trong chu kỳ 24 giờ.';runtimeStatus='OpenAlex A.I yêu cầu đăng nhập thành viên.'}
-      else try{const works=await searchOpenAlex(text,6);if(works.length){try{const result=await askServerAi(text,'research',openAlexSources(works));output=result.degraded?openAlexFallback(works):renderAiAnswer(result);runtimeStatus=result.degraded?`OpenAlex live · ${works.length} kết quả · fallback local`:`OpenAlex live + A.I · ${works.length} nguồn · ${Math.round(result.latencyMs)} ms`}catch{output=openAlexFallback(works);runtimeStatus=`OpenAlex live · ${works.length} kết quả · A.I cloud fallback`}}}catch(e){runtimeStatus=`OpenAlex chưa phản hồi: ${(e as Error).message}`}
+    try{const drl=await checkDrlConversation(text,member);if(drl){output=formatDrl(drl);setProvenance([{label:'Điểm hoạt động · dữ liệu tài khoản'}])}}catch(e){if(/đăng nhập/i.test((e as Error).message)){setMessage((e as Error).message);onLogin();return}}
+    if(!output&&member){
+      const [drive,hits,oa]=await Promise.all([searchDriveRag(text,4),searchKnowledge(text,'all',5),academicIntent(text)?searchOpenAlex(text,5).catch(()=>[]):Promise.resolve([] as ResearchWork[])]);
+      const sources=uniqueSources([...drive.sources,...centralSources(hits),...openAlexSources(oa)]);
+      if(sources.length){try{const result=await askServerAi(`Trả lời ngắn gọn, trực tiếp câu hỏi sau và chỉ dùng nguồn được cung cấp khi nêu dữ kiện: ${text}`,'fast',sources);if(!result.degraded){output=renderAiAnswer(result);runtimeStatus=`Cloud A.I · Drive ${drive.sources.length} · Central ${hits.filter(h=>h.source==='central').length} · OpenAlex ${oa.length} · ${Math.round(result.latencyMs)} ms`;setProvenance(sources.map(s=>({label:s.title,url:s.url})).slice(0,5))}else runtimeStatus='Cloud A.I degraded; chuyển fallback có nguồn.'}catch(e){runtimeStatus=(e as Error).message}
+        if(!output){const first=sources.slice(0,3);output=`Nguồn phù hợp: ${first.map((s,i)=>`${i+1}. ${s.title}`).join(' · ')}. Cloud A.I đang tạm gián đoạn; mở nguồn để kiểm chứng.`;setProvenance(first.map(s=>({label:s.title,url:s.url})))}
+      }else if(academicIntent(text)&&oa.length){output=openAlexFallback(oa);setProvenance(oa.slice(0,3).map(w=>({label:w.title,url:w.url})))}
     }
-    if(!output){
-      const hits=await searchKnowledge(text,'all',5);
-      if(hits.length){
-        const names=hits.slice(0,4).map(h=>`${h.record.name} (${h.record.kind})`).join(' · '),central=hits.some(h=>h.source==='central');
-        const evidence=hits.flatMap(h=>h.evidence),authoritySources=hits.flatMap(h=>h.authoritySources),citations=referenceLabel(evidence,authoritySources,4);
-        output=central
-          ?`Kết quả kho YHCT tập trung: ${names}. ${citations?`Nguồn đối chiếu đã xác minh: ${citations}.`:'Các mục khớp hiện chưa có nguồn authority/citation gắn trực tiếp.'} Nội dung dùng cho học tập; không thay thế đánh giá hoặc chỉ định lâm sàng.`
-          :`Kết quả dữ liệu YHCT offline: ${names}. Đang dùng kho cục bộ vì Central RAG không khả dụng hoặc chưa có kết quả. Nội dung dùng cho học tập; hãy kiểm tra nguồn chuyên môn trước khi áp dụng lâm sàng.`;
-        runtimeStatus=central?'Central RAG · PubMed/DOI + WHO/NCCIH/Cochrane':'Offline knowledge fallback';
-      }
-    }
-    if(!output&&member){try{const result=await askServerAi(text,'fast');if(!result.degraded){output=renderAiAnswer(result);runtimeStatus=`A.I cloud · ${result.provider} · ${Math.max(0,Math.round(result.latencyMs))} ms`}else runtimeStatus='A.I cloud đang ở chế độ degraded; tiếp tục fallback an toàn.'}catch(e){runtimeStatus=(e as Error).message}}
-    if(!output&&getGeminiStatus().configured){try{const result=await askGemini(text);output=`${result.text}\n\nNguồn AI: Gemini BYOK fallback. Cần kiểm tra tài liệu chuyên môn trước khi áp dụng.`;runtimeStatus=`Gemini BYOK fallback · ${result.model}`}catch{}}
-    if(!output){const links=buildResearchLinks(text);output=`Chưa có câu trả lời đủ chắc chắn. Tôi đã chuẩn bị hướng tra cứu: ${links.slice(0,3).map(x=>x.provider).join(', ')}. Mở Trung tâm nghiên cứu để kiểm tra nguồn.`}
+    if(!output&&member){try{const result=await askServerAi(`Trả lời ngắn gọn: ${text}`,'fast');if(!result.degraded){output=renderAiAnswer(result);runtimeStatus=`Cloud A.I · ${result.provider} · ${Math.max(0,Math.round(result.latencyMs))} ms`;setProvenance(result.citations.map(c=>({label:c.label,url:c.url})))}else runtimeStatus='Cloud A.I degraded; tiếp tục fallback.'}catch(e){runtimeStatus=(e as Error).message}}
+    if(!output&&getGeminiStatus().configured){try{const result=await askGemini(text);output=`${result.text}\n\nNguồn AI: Gemini BYOK fallback. Cần kiểm tra tài liệu chuyên môn.`;runtimeStatus=`Gemini BYOK · ${result.model}`;setProvenance([{label:'Gemini BYOK fallback'}])}catch{}}
+    if(!output){const links=buildResearchLinks(text);output=`Chưa có câu trả lời đủ chắc chắn. Hướng tra cứu: ${links.slice(0,3).map(x=>x.provider).join(', ')}. Mở Trung tâm nghiên cứu để kiểm tra nguồn.`}
     setAnswer(output);if(runtimeStatus)setMessage(runtimeStatus);saveHistory({id:crypto.randomUUID(),query:text,answer:output,at:new Date().toISOString()});setQuery('');
   }catch(e){setMessage((e as Error).message||'A.I Mini chưa thể xử lý yêu cầu.')}finally{setBusy(false)}};
   const submitFeedback=async()=>{const body=clean(feedback);if(!member){onLogin();return}if(body.length<5){setMessage('Góp ý cần ít nhất 5 ký tự.');return}setBusy(true);setMessage('');try{const {error}=await supabase.rpc('feedback_submit_v1',{p_kind:feedbackKind,p_body:body,p_context:{surface:'ai-mini',path:location.pathname,day:localDay()}});if(error)throw error;setFeedback('');setMessage('Đã gửi góp ý tới Admin. Cảm ơn bạn.')}catch(e){setMessage((e as Error).message)}finally{setBusy(false)}};
   return <div className={`ai-mini-unified ${open?'is-open':''}`}>
-    {open&&<section className="ai-mini-panel" role="dialog" aria-label="A.I Mini"><header><div className="row"><Bot/><div><b>A.I Mini</b><small>OpenAlex academic search · Central RAG · offline fallback</small></div></div><button className="icon-btn" onClick={()=>setOpen(false)} aria-label="Đóng A.I Mini"><X/></button></header>
+    {open&&<section className="ai-mini-panel" role="dialog" aria-label="A.I Mini"><header><div className="row"><Bot/><div><b>A.I Mini</b><small>Cloud + Drive RAG + Central RAG + OpenAlex</small></div></div><button className="icon-btn" onClick={()=>setOpen(false)} aria-label="Đóng A.I Mini"><X/></button></header>
       <div className="ai-mini-greeting"><Sparkles/><p>{greeting}</p></div>
       <div className="ai-mini-tabs"><button className={mode==='assistant'?'active':''} onClick={()=>setMode('assistant')}><Bot/>Trao đổi</button><button className={mode==='feedback'?'active':''} onClick={()=>setMode('feedback')}><MessageSquarePlus/>Góp ý</button></div>
       {mode==='assistant'?<>
         {history.items.length>0&&<div className="ai-mini-history"><div className="between"><span><History/> 3 lịch sử gần nhất</span><small>Tự xóa hiển thị mỗi ngày</small></div>{history.items.map(item=><button key={item.id} onClick={()=>{setAnswer(item.answer);setQuery(item.query)}}><b>{item.query}</b><span className="ai-mini-history-preview">{item.answer}</span></button>)}</div>}
-        {answer&&<article className="ai-mini-answer"><b>A.I Mini</b><p>{answer}</p></article>}
-        <div className="ai-mini-compose"><textarea maxLength={1200} value={query} onChange={e=>setQuery(e.target.value)} placeholder="Hỏi A.I Mini… (ví dụ: tìm nghiên cứu OpenAlex về châm cứu mất ngủ)" onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();void ask()}}}/><button disabled={busy||!clean(query)} onClick={()=>void ask()}><Send/></button></div>
+        {answer&&<article className="ai-mini-answer"><b>A.I Mini</b><p>{answer}</p>{provenance.length>0&&<div className="ai-mini-provenance"><small>Nguồn:</small>{provenance.map((p,i)=>p.url?<a key={`${p.label}-${i}`} href={p.url} target="_blank" rel="noreferrer noopener">{p.label}</a>:<span key={`${p.label}-${i}`}>{p.label}</span>)}</div>}{pending&&<div className="ai-mini-confirm"><button disabled={busy} onClick={()=>void confirmAction()}><Check/>Xác nhận</button><button className="secondary" disabled={busy} onClick={()=>{setPending(null);setMessage('Đã hủy thao tác.')}}><X/>Hủy</button></div>}</article>}
+        <div className="ai-mini-compose"><textarea maxLength={2000} value={query} onChange={e=>setQuery(e.target.value)} placeholder="Hỏi, dịch, kiểm tra điểm, nhắc tưới hoặc: Gửi tin nhắn cho Tên: nội dung" onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();void ask()}}}/><button disabled={busy||!clean(query)} onClick={()=>void ask()}><Send/></button></div><small className="muted"><Languages/> Dịch: “Dịch sang tiếng Việt: …” · Trợ lý ghi dữ liệu chỉ thực hiện sau khi bạn xác nhận.</small>
       </>:<div className="ai-mini-feedback"><label>Loại góp ý<select value={feedbackKind} onChange={e=>setFeedbackKind(e.target.value as typeof feedbackKind)}><option value="suggestion">Đề xuất</option><option value="bug">Báo lỗi</option><option value="other">Khác</option></select></label><label>Nội dung<textarea maxLength={3000} value={feedback} onChange={e=>setFeedback(e.target.value)} placeholder="Mô tả góp ý hoặc vấn đề bạn gặp…"/></label><button disabled={busy||clean(feedback).length<5} onClick={()=>void submitFeedback()}><Send/>Gửi góp ý</button></div>}
       {message&&<div className="ai-note" role="status">{message}</div>}
     </section>}

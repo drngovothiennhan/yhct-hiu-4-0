@@ -78,9 +78,11 @@ if(!guestTools.includes('search_yhct_knowledge'))ok('guest cannot receive authen
 
 requireText(mini,"from '../../services/centralKnowledgeService'",'A.I Mini uses centralized knowledge service');
 requireText(mini,"searchKnowledge(text,'all',5)",'A.I Mini executes central-first knowledge search before cloud escalation');
-requireText(mini,'Nguồn đối chiếu đã xác minh','A.I Mini visibly labels verified references');
-requireText(mini,'PubMed/DOI + WHO/NCCIH/Cochrane','A.I Mini communicates diversified high-standard evidence sources');
-requireText(mini,'offline fallback','A.I Mini communicates offline fallback');
+requireText(mini,'centralSources','A.I Mini maps central evidence into bounded AI sources');
+requireText(mini,'h.evidence','A.I Mini includes publication evidence in source context');
+requireText(mini,'h.authoritySources','A.I Mini includes WHO/NCCIH/Cochrane authority evidence in source context');
+requireText(mini,'Cloud + Drive RAG + Central RAG + OpenAlex','A.I Mini visibly communicates shared retrieval architecture');
+requireText(mini,'Nguồn phù hợp:','A.I Mini visibly exposes source-backed fallback when cloud AI degrades');
 
 requireText(access,'export async function publicRpc','server provides bounded public RPC transport for readiness checks');
 requireText(access,'safeRpcName','public/member RPC transports validate RPC names');

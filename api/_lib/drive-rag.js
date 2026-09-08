@@ -1,0 +1,25 @@
+import mammoth from 'mammoth';
+
+export const DEFAULT_RESEARCH_FOLDER_ID='1IjoX3TwCz-mp4g6tE72OnWv2rH00m1NX';
+const MAX_FILES=80,MAX_TEXT=750000,CACHE_MS=5*60*1000,HTTP_MS=9000;
+let cache={at:0,documents:[],folderId:''};
+const clean=(v,max=1000)=>String(v??'').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').replace(/\s+/g,' ').trim().slice(0,max);
+const folderId=()=>String(process.env.YHCT_DRIVE_RESEARCH_FOLDER_ID||DEFAULT_RESEARCH_FOLDER_ID).trim();
+const apiKey=()=>String(process.env.GOOGLE_DRIVE_API_KEY||'').trim();
+const withTimeout=async(url,init={},ms=HTTP_MS)=>{const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{return await fetch(url,{...init,signal:c.signal})}finally{clearTimeout(t)}};
+const fileUrl=f=>{const id=encodeURIComponent(f.id),mime=String(f.mimeType||'');if(mime==='application/vnd.google-apps.document')return`https://docs.google.com/document/d/${id}/edit`;if(mime==='application/vnd.google-apps.spreadsheet')return`https://docs.google.com/spreadsheets/d/${id}/edit`;if(mime==='application/vnd.google-apps.presentation')return`https://docs.google.com/presentation/d/${id}/edit`;return`https://drive.google.com/file/d/${id}/view`};
+async function listChildren(parent,key){const u=new URL('https://www.googleapis.com/drive/v3/files');u.searchParams.set('q',`'${parent}' in parents and trashed=false`);u.searchParams.set('fields','files(id,name,mimeType,modifiedTime,size,webViewLink)');u.searchParams.set('pageSize','100');u.searchParams.set('orderBy','modifiedTime desc');u.searchParams.set('key',key);const r=await withTimeout(u);if(!r.ok)throw new Error(`Google Drive list ${r.status}`);return (await r.json()).files||[]}
+async function rawBytes(file,key){const u=new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}`);u.searchParams.set('alt','media');u.searchParams.set('key',key);const r=await withTimeout(u,{},11000);if(!r.ok)return null;const length=Number(r.headers.get('content-length')||0);if(length>5_000_000)return null;return Buffer.from(await r.arrayBuffer())}
+async function exportText(file,key,mimeType){const u=new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}/export`);u.searchParams.set('mimeType',mimeType);u.searchParams.set('key',key);const r=await withTimeout(u,{},11000);return r.ok?(await r.text()).slice(0,MAX_TEXT):''}
+async function extractText(file,key){const mime=String(file.mimeType||''),name=String(file.name||'').toLowerCase();try{
+  if(mime==='application/vnd.google-apps.document')return await exportText(file,key,'text/plain');
+  if(mime==='application/vnd.google-apps.spreadsheet')return await exportText(file,key,'text/csv');
+  if(mime==='application/vnd.google-apps.presentation')return await exportText(file,key,'text/plain');
+  if(mime.startsWith('text/')||mime.includes('json')||mime.includes('csv')||mime.includes('markdown')){const b=await rawBytes(file,key);return b?b.toString('utf8').slice(0,MAX_TEXT):''}
+  if(mime==='application/vnd.openxmlformats-officedocument.wordprocessingml.document'||name.endsWith('.docx')){const b=await rawBytes(file,key);if(!b)return'';const out=await mammoth.extractRawText({buffer:b});return clean(out.value,MAX_TEXT)}
+  return'';
+}catch{return''}}
+export async function buildDriveRagIndex({force=false}={}){const key=apiKey(),root=folderId();if(!key)return{configured:false,folderId:root,documents:[],reason:'missing_google_drive_api_key'};if(!force&&cache.folderId===root&&Date.now()-cache.at<CACHE_MS)return{configured:true,folderId:root,documents:cache.documents,cached:true};
+ const first=await listChildren(root,key),files=[];for(const f of first){if(f.mimeType==='application/vnd.google-apps.folder'){const nested=await listChildren(f.id,key).catch(()=>[]);files.push(...nested.map(x=>({...x,parentName:f.name})))}else files.push(f);if(files.length>=MAX_FILES)break}const selected=files.slice(0,MAX_FILES);const texts=await Promise.allSettled(selected.map(f=>extractText(f,key)));const docs=selected.map((f,i)=>({id:String(f.id),name:clean(f.name,240),mime:String(f.mimeType||''),text:texts[i].status==='fulfilled'?texts[i].value:'',source:'drive',url:f.webViewLink||fileUrl(f),updatedAt:f.modifiedTime||null,parentName:clean(f.parentName||'',160)}));cache={at:Date.now(),documents:docs,folderId:root};return{configured:true,folderId:root,documents:docs,cached:false}}
+const tokens=s=>new Set(clean(s,10000).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().match(/[a-z0-9]{2,}/g)||[]);
+export function retrieveDriveRag(query,documents,limit=5){const q=tokens(query);return documents.map(d=>{const sample=(d.text||d.name).slice(0,50000),t=tokens(sample);let hit=0;for(const w of q)if(t.has(w))hit++;const score=q.size?hit/q.size:0;let snippet='';if(d.text){const parts=d.text.replace(/\s+/g,' ').split(/(?<=[.!?])\s+/).filter(Boolean);let best=-1;for(const p of parts){const pt=tokens(p);let s=0;for(const w of q)if(pt.has(w))s++;if(s>best){best=s;snippet=p}}}return{document:d,score,snippet:clean(snippet||d.text||d.name,900)}}).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,Math.max(1,Math.min(8,limit)))}

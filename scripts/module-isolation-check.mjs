@@ -14,12 +14,12 @@ need(profile,['ProfileInbox','<ProfileInbox member={member}/>','Tường cá nh�
 need(inbox,['messages_inbox_v1','member_messages','MessagesCenter','role="dialog"','inboxBadge'],'profile inbox dialog');
 need(adminTheme,['THEME_OPTIONS.length','Giao diện hệ thống','module khác chỉ nhận theme đồng bộ'],'ACC compact theme');
 need(research,['searchOpenAlex(query,12)','A.I OpenAlex tổng hợp','summarizeOpenAlex','askServerAi'],'research OpenAlex AI');
-need(researchMini,['searchOpenAlex(text,6)','OpenAlex live + A.I'],'Research AI mini OpenAlex');
-need(mini,['searchOpenAlex','academicIntent','OpenAlex live + A.I','OpenAlex A.I yêu cầu đăng nhập thành viên.'],'global AI mini OpenAlex');
+need(researchMini,['searchOpenAlex(text,6)','searchDriveRag(text,4)','askServerAi(text,\'research\'','Cloud + Drive RAG + OpenAlex'],'Research AI mini shared retrieval');
+need(mini,['searchOpenAlex','searchDriveRag','academicIntent','Cloud + Drive RAG + Central RAG + OpenAlex','if(!output&&member)'],'global AI mini authenticated shared retrieval');
 need(vite,['module-feed','module-research','module-profile','module-profile-inbox','module-garden','module-notifications','module-schedule','module-drl','module-exam','module-admin','module-acc'],'module chunks');
-need(manifest,["id:'./'","display:'standalone'","prefer_related_applications:false","shortcuts:",'Trung tâm nghiên cứu','Tường cá nhân'],'PWA manifest');
+need(manifest,["id:'/'","start_url:'/'","scope:'/'","display:'standalone'","prefer_related_applications:false","shortcuts:",'Trung tâm nghiên cứu','Tường cá nhân'],'root PWA manifest');
 need(pwa,['beforeinstallprompt','appinstalled','requestPwaInstall','display-mode: standalone'],'PWA install controller');
 need(settings,['Cài ứng dụng mạng xã hội','PWA độc lập của Chrome','requestPwaInstall'],'app settings');
 
 if(errors.length){console.error('MODULE ISOLATION CHECK FAILED');for(const error of errors)console.error(`- ${error}`);process.exit(1)}
-console.log('module-isolation-ok: 10 final areas frozen, inbox embedded in profile, admin/ACC separation, PWA install and OpenAlex AI contracts present');
+console.log('module-isolation-ok: 10 final areas frozen, inbox embedded in profile, admin/ACC separation, root PWA install and shared Drive/OpenAlex AI contracts present');

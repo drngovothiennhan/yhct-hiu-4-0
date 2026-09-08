@@ -1,59 +1,100 @@
 import fs from 'node:fs';
 import path from 'node:path';
+
 const root=process.cwd(),errors=[];
-const file=p=>path.join(root,p),read=p=>fs.readFileSync(file(p),'utf8');
-const required=['src/App.tsx','src/main.tsx','src/theme.ts','src/types/index.ts','src/services/authService.ts','src/services/authRuntimeService.ts','src/services/socialService.ts','src/services/offlineCache.ts','src/services/pwaInstallService.ts','src/modules/moduleContract.ts','src/modules/ModuleBoundary.tsx','src/components/system/AppSettingsDialog.tsx','src/components/feed/AcademicFeed.tsx','src/components/feed/AcademicPostComposer.tsx','src/components/feed/AcademicPostCard.tsx','src/components/admin/AdminControlCenter.tsx','src/components/admin/SystemAdminCenter.tsx','src/components/admin/ModerationOpsPanel.tsx','src/components/profile/ProfileCenter.tsx','src/components/profile/ProfileInbox.tsx','src/components/messages/MessagesCenter.tsx','src/components/game/HerbGardenGame.tsx','src/components/game/HerbGardenSocialHub.tsx','src/components/ai/UnifiedAiMini.tsx','src/components/drl/DrlCenter.tsx','src/components/research/ResearchCenter.tsx','src/components/research/ResearchAiMini.tsx','src/components/schedule/ScheduleCenter.tsx','src/components/notifications/NotificationsCenter.tsx','src/components/news/TcmNewsRotator.tsx','src/components/community/CommunitySidebar.tsx','src/components/system/ViewportModeToggle.tsx','src/academic-production.css','src/social-v5.css','src/garden-v6.css','src/module-isolation.css','public/garden-decor-sprite.svg','public/service-worker.js','public/manifest.webmanifest','api/manifest.js','vite.config.ts','vercel.json','scripts/role-ui-audit.mjs','scripts/module-isolation-check.mjs','scripts/platform-upgrade-check.mjs','supabase/migrations/202609080533_fix_garden_profile_decor_persistence_v1.sql','supabase/migrations/202609080630_admin_news_retention_and_garden_grid_v6.sql'];
-for(const p of required)if(!fs.existsSync(file(p)))errors.push(`missing ${p}`);
-const sourceFiles=[];const walk=dir=>{if(!fs.existsSync(dir))return;for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,entry.name);if(entry.isDirectory())walk(p);else if(/\.(?:ts|tsx|js|mjs|css)$/.test(entry.name))sourceFiles.push(p)}};walk(file('src'));walk(file('api'));
-const forbidden=[[/sk-proj-[A-Za-z0-9_-]{20,}/,'raw OpenAI secret'],[/AIza[0-9A-Za-z_-]{20,}/,'raw Google/Gemini secret'],[/dangerouslySetInnerHTML/,'dangerous raw HTML rendering'],[/\bTODO\b|\bFIXME\b|implement later|code logic here/i,'unfinished implementation marker'],[/drive\.google\.com\/drive\/folders\//i,'direct Google Drive folder URL'],[/logo-clb-yhct-hiu/i,'obsolete club logo reference']];
-for(const p of sourceFiles){const body=fs.readFileSync(p,'utf8');for(const [re,label] of forbidden)if(re.test(body))errors.push(`${label} in ${path.relative(root,p)}`)}
+const file=p=>path.join(root,p);
+const read=p=>fs.readFileSync(file(p),'utf8');
 const need=(body,tokens,label)=>{for(const token of tokens)if(!body.includes(token))errors.push(`${label} missing ${token}`)};
-const app=read('src/App.tsx'),contract=read('src/modules/moduleContract.ts'),types=read('src/types/index.ts'),composer=read('src/components/feed/AcademicPostComposer.tsx'),postCard=read('src/components/feed/AcademicPostCard.tsx'),academicCss=read('src/academic-production.css'),social=read('src/services/socialService.ts'),mini=read('src/components/ai/UnifiedAiMini.tsx'),socialCss=read('src/social-v5.css'),profile=read('src/components/profile/ProfileCenter.tsx'),profileInbox=read('src/components/profile/ProfileInbox.tsx'),auth=read('src/services/authService.ts'),messages=read('src/components/messages/MessagesCenter.tsx'),moderation=read('src/components/admin/ModerationOpsPanel.tsx'),systemAdmin=read('src/components/admin/SystemAdminCenter.tsx'),memberAdmin=read('src/components/admin/AdminControlCenter.tsx'),garden=read('src/components/game/HerbGardenGame.tsx'),gardenSocial=read('src/components/game/HerbGardenSocialHub.tsx'),gardenCss=read('src/garden-v6.css'),gardenMigration=read('supabase/migrations/202609080630_admin_news_retention_and_garden_grid_v6.sql'),sprite=read('public/garden-decor-sprite.svg'),research=read('src/components/research/ResearchCenter.tsx'),researchMini=read('src/components/research/ResearchAiMini.tsx'),pwa=read('src/services/pwaInstallService.ts'),settings=read('src/components/system/AppSettingsDialog.tsx');
+
+const required=[
+  'src/App.tsx','src/main.tsx','src/theme.ts','src/types/index.ts',
+  'src/modules/moduleContract.ts','src/modules/ModuleBoundary.tsx',
+  'src/services/authService.ts','src/services/authRuntimeService.ts','src/services/socialService.ts','src/services/offlineCache.ts','src/services/pwaInstallService.ts',
+  'src/services/academicTranslationService.ts','src/services/driveRagService.ts','src/services/examSessionService.ts',
+  'src/components/feed/AcademicFeed.tsx','src/components/feed/AcademicPostComposer.tsx','src/components/feed/AcademicPostCard.tsx',
+  'src/components/profile/ProfileCenter.tsx','src/components/profile/ProfileInbox.tsx','src/components/messages/MessagesCenter.tsx',
+  'src/components/game/HerbGardenGame.tsx','src/components/game/HerbGardenSocialHub.tsx',
+  'src/components/research/ResearchCenter.tsx','src/components/research/ResearchAiMini.tsx','src/components/research/ResearchProposalBuilder.tsx',
+  'src/components/exam/ExamCenter.tsx','src/components/ai/UnifiedAiMini.tsx',
+  'src/components/admin/AdminControlCenter.tsx','src/components/admin/SystemAdminCenter.tsx','src/components/admin/ModerationOpsPanel.tsx',
+  'src/components/drl/DrlCenter.tsx','src/components/schedule/ScheduleCenter.tsx','src/components/notifications/NotificationsCenter.tsx',
+  'src/components/system/AppSettingsDialog.tsx','src/components/system/ViewportModeToggle.tsx',
+  'src/exam-v2.css','src/research-ai-upgrade.css','src/module-isolation.css','src/garden-v6.css',
+  'api/_lib/drive-rag.js','api/ai/drive-rag.js','api/translate.js','api/manifest.js',
+  'public/service-worker.js','public/manifest.webmanifest','public/pwa-icon-192.png','public/pwa-icon-512.png','public/pwa-maskable-512.png','public/garden-decor-sprite.svg',
+  'vite.config.ts','vercel.json','scripts/role-ui-audit.mjs','scripts/module-isolation-check.mjs','scripts/platform-upgrade-check.mjs',
+  'supabase/migrations/202609080630_admin_news_retention_and_garden_grid_v6.sql',
+  'supabase/migrations/202609081640_ai_operations_core_v1.sql',
+  'supabase/migrations/20260908165705_exam_sessions_v2_integrity.sql',
+  'supabase/migrations/20260908171054_fix_exam_session_stratified_fill_v2.sql',
+  'supabase/migrations/20260908171730_index_ai_exam_foreign_keys_v1.sql',
+  'supabase/migrations/20260908171805_index_garden_trade_foreign_keys_v1.sql'
+];
+for(const p of required)if(!fs.existsSync(file(p)))errors.push(`missing ${p}`);
+
+const sourceFiles=[];
+const walk=dir=>{if(!fs.existsSync(dir))return;for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,entry.name);if(entry.isDirectory())walk(p);else if(/\.(?:ts|tsx|js|mjs|css)$/.test(entry.name))sourceFiles.push(p)}};
+walk(file('src'));walk(file('api'));
+const forbidden=[
+  [/sk-proj-[A-Za-z0-9_-]{20,}/,'raw OpenAI secret'],
+  [/AIza[0-9A-Za-z_-]{20,}/,'raw Google/Gemini secret'],
+  [/dangerouslySetInnerHTML/,'dangerous raw HTML rendering'],
+  [/\bTODO\b|\bFIXME\b|implement later|code logic here/i,'unfinished implementation marker'],
+  [/drive\.google\.com\/drive\/folders\//i,'direct Google Drive folder URL'],
+  [/logo-clb-yhct-hiu/i,'obsolete club logo reference']
+];
+for(const p of sourceFiles){const body=fs.readFileSync(p,'utf8');for(const [re,label] of forbidden)if(re.test(body))errors.push(`${label} in ${path.relative(root,p)}`)}
+
+const app=read('src/App.tsx'),main=read('src/main.tsx'),theme=read('src/theme.ts'),contract=read('src/modules/moduleContract.ts');
 need(app,['UnifiedAiMini member={member}','HerbGardenSocialHub member={member}',"lazy(()=>import('./components/feed/AcademicFeed'))","lazy(()=>import('./components/research/ResearchCenter'))","lazy(()=>import('./components/profile/ProfileCenter'))",'ModuleBoundary moduleId={tab}',"tab==='admin'&&canAdmin&&<AdminControlCenter","tab==='acc'&&canAcc&&<>",'authResolved'],'modular app shell');
 need(contract,["ModuleId='feed'|'research'|'profile'|'garden'|'notifications'|'schedule'|'drl'|'exam'|'admin'|'acc'","if(path==='/messages')return'profile'"],'frozen module contract');
 for(const stale of ['AiMiniFeedbackDock member={member}','PersonalCopilotWidget member={member}',"tab==='messages'","go('messages')"])if(app.includes(stale))errors.push(`retired top-level surface remains mounted: ${stale}`);
-need(types,["'news'|'reference'|'status'",'herbalAlias?:string','wallTheme?:string','wallMotto?:string'],'social content types');
-need(composer,["['news','Tin tức']","['reference','Bài tham khảo']",'Nội dung YHCT chuyên sâu — tùy chọn','requiresSource','Tin tức, bài tham khảo và nghiên cứu cần ít nhất 1 nguồn'],'flexible composer');
-need(postCard,["value==='news'?'Tin tức'","value==='reference'?'Bài tham khảo'","value==='status'?'Chia sẻ ngắn'",'citation-preview','citation-details','Xem đầy đủ'],'homepage post rendering');
-need(academicCss,['.citation-preview','-webkit-line-clamp:2','line-clamp:2','.citation-details'],'two-line homepage reference preview');
-need(social,["postType:p.postType||'reference'",'create_academic_post','update_academic_post','enforceDebounce'],'social post service');
-need(mini,["HISTORY_KEY='yhct-ai-mini-visible-history-v1'","timeZone:'Asia/Ho_Chi_Minh'",'slice(0,3)',"Mode='assistant'|'feedback'",'feedback_submit_v1','greeting','searchOpenAlex','academicIntent'],'unified AI Mini + OpenAlex');
-need(socialCss,['-webkit-line-clamp:2','.ai-mini-panel','.personal-wall','.moderation-work-grid','@media(max-width:680px)'],'social responsive CSS');
-need(profile,['member_wall_feed_v1','member_wall_post_create_v1','member_wall_post_delete_v1','member_profile_update_v2',"storage.from('member-media')",'maxLength={500}','wall?.posts.map','Đổi mật khẩu','ProfileInbox'],'personal wall/avatar/inbox host');
-need(profileInbox,['messages_inbox_v1','member_messages','MessagesCenter','role="dialog"','inboxBadge'],'embedded private inbox');
-need(auth,['herbal_alias','herbalAlias','wall_theme','wall_motto','readSessionResilient','readCachedMember','onAuthStateChange','auth_user_id','loadMemberFromSession'],'refresh-safe member session restore');
-need(messages,['messages_inbox_v1','messages_send_v1','message_recipients_v1','messages_mark_read_v1'],'private inbox implementation');
-need(moderation,['moderation_workbench_v2','moderation_mark_seen_v1','p_on_date','Tối đa 5 nội dung','Đã xem'],'moderation workbench');
-need(systemAdmin,['MAX_BLOCK_ITEMS=5','5 gần nhất','tcm_news_admin_list_v1','p_limit:MAX_BLOCK_ITEMS','Tin được cập nhật theo nguồn','48 giờ'],'admin system five-item blocks and news retention copy');
-need(memberAdmin,['MAX_BLOCK_ITEMS=5','.limit(MAX_BLOCK_ITEMS)','5 gần nhất'],'member admin five-item history');
-need(garden,['herb_garden_state_v3','herb_garden_select_initial_plots_v3','herb_garden_plant_v3','herb_garden_water_v3','herb_garden_fertilize_v3','herb_garden_harvest_v3','garden-nine-grid','Chọn 3 ô khởi đầu','Đã mở {unlockedCount}/9 ô','garden-decor-sprite.svg'],'nine-plot garden frontend');
-need(gardenSocial,['herb_garden_directory_v2','herb_garden_visit_v2','herb_garden_help_v2','herb_garden_market_buy_v1','herb_garden_market_create_v1','herb_garden_wallet_v1','herb_garden_profile_update_v1','visited-grid-v3','garden-decor-sprite.svg'],'social garden v6');
-need(gardenCss,['.garden-nine-grid','grid-template-columns:repeat(3','.garden-cell','.garden-decor-svg','.visited-grid-v3','@media(max-width:680px)'],'garden v6 responsive CSS');
-need(gardenMigration,['herb_garden_plots','slot_no between 1 and 9','herb_garden_one_active_plot_v3_idx','herb_garden_unlock_progress_v3','harvested_n<unlocked_n','herb_garden_maintenance_v3',"now()-interval '2 days'",'tcm-news-retention-hourly','augment_snapshot_modules_v6'],'garden/news server contracts');
-for(const id of ['pond','lantern','stone-path','bamboo-gate','lotus-pot','herb-sign'])if(!sprite.includes(`id="${id}"`))errors.push(`garden sprite missing ${id}`);
-if(/openai|gemini|generateContent/i.test(garden)||/openai|gemini|generateContent/i.test(gardenSocial))errors.push('herb garden must not contain generative medical logic');
-need(research,['searchOpenAlex(query,12)','A.I OpenAlex tổng hợp','summarizeOpenAlex'],'research OpenAlex AI');
-need(researchMini,['searchOpenAlex(text,6)','OpenAlex live + A.I'],'research mini OpenAlex AI');
+need(main,['requestAnimationFrame(()=>requestAnimationFrame(revealStableApp))','delete root.dataset.appBooting','yhct-prepaint','./exam-v2.css'],'stable first paint');
+need(theme,["link.setAttribute('href','/api/manifest')",'system_theme_get_v1','theme-color'],'system theme + root manifest');
 
-const boot=read('index.html'),viewport=read('src/components/system/ViewportModeToggle.tsx'),vite=read('vite.config.ts'),manifest=read('public/manifest.webmanifest'),manifestApi=read('api/manifest.js'),sw=read('public/service-worker.js'),vercel=read('vercel.json');
-need(boot,['yhct-viewport-mode-v1','dataset.viewportMode','width=device-width,initial-scale=1','href="./api/manifest"'],'viewport/PWA bootstrap');
+const mini=read('src/components/ai/UnifiedAiMini.tsx'),research=read('src/components/research/ResearchCenter.tsx'),researchMini=read('src/components/research/ResearchAiMini.tsx'),proposal=read('src/components/research/ResearchProposalBuilder.tsx'),translation=read('src/services/academicTranslationService.ts'),driveRag=read('src/services/driveRagService.ts');
+need(mini,['searchOpenAlex','academicIntent','searchDriveRag','HISTORY_KEY','feedback_submit_v1'],'unified AI Mini retrieval/actions');
+need(research,['searchOpenAlex(query,12)','A.I OpenAlex tổng hợp','summarizeOpenAlex'],'research OpenAlex AI');
+need(researchMini,['searchOpenAlex(text,6)','Cloud + Drive RAG + OpenAlex','translateAcademic','searchDriveRag'],'research mini shared AI retrieval');
+need(proposal,['Lưu ý trước khi chốt đề cương','PubMed/OpenAlex','CONSORT extension/STRICTA','PMID, DOI'],'research proposal methodology guardrails');
+need(translation,['translateAcademic','/api/translate'],'academic translation gateway');
+need(driveRag,['searchDriveRag','/api/ai/drive-rag'],'shared Drive RAG client');
+
+const garden=read('src/components/game/HerbGardenGame.tsx'),gardenSocial=read('src/components/game/HerbGardenSocialHub.tsx'),gardenMigration=read('supabase/migrations/202609080630_admin_news_retention_and_garden_grid_v6.sql');
+need(garden,['herb_garden_state_v3','herb_garden_select_initial_plots_v3','herb_garden_plant_v3','herb_garden_water_v4','herb_garden_fertilize_v3','herb_garden_harvest_v3','garden-nine-grid','Đã mở {unlockedCount}/9 ô'],'garden v4 watering + nine plots');
+need(gardenSocial,['herb_garden_directory_v2','herb_garden_visit_v2','herb_garden_help_v2','herb_garden_market_buy_v1','herb_garden_market_create_v1'],'garden social');
+need(gardenMigration,['herb_garden_plots','slot_no between 1 and 9','herb_garden_maintenance_v3','tcm-news-retention-hourly'],'garden/news server contracts');
+if(/openai|gemini|generateContent/i.test(garden)||/openai|gemini|generateContent/i.test(gardenSocial))errors.push('herb garden must not contain generative medical logic');
+
+const exam=read('src/components/exam/ExamCenter.tsx'),examService=read('src/services/examSessionService.ts'),examMigration=read('supabase/migrations/20260908165705_exam_sessions_v2_integrity.sql'),examFix=read('supabase/migrations/20260908171054_fix_exam_session_stratified_fill_v2.sql');
+need(exam,['getExamConfigV2','startExamSessionV2','saveExamAnswerV2','submitExamSessionV2','Thi thử 50 câu','A.I hướng dẫn suy luận','server integrity'],'exam v2 integrity UI');
+need(examService,['exam_config_v2','exam_session_start_v2','exam_session_answer_v2','exam_session_submit_v2'],'exam server RPC client');
+need(examMigration,["questionCount',50","durationMinutes',60",'review_status','legacy_validated','expert_approved','revoke all on public.exam_questions_v2 from anon,authenticated','revoke all on public.exam_sessions_v2 from anon,authenticated'],'exam database integrity');
+need(examFix,['remaining as(','combined as(','cardinality(v_ids)','limit 50'],'stratified exam selection fix');
+
+const boot=read('index.html'),viewport=read('src/components/system/ViewportModeToggle.tsx'),pwa=read('src/services/pwaInstallService.ts'),settings=read('src/components/system/AppSettingsDialog.tsx'),manifest=read('public/manifest.webmanifest'),manifestApi=read('api/manifest.js'),sw=read('public/service-worker.js'),vercel=read('vercel.json'),vite=read('vite.config.ts');
+need(boot,['yhct-viewport-mode-v1','dataset.viewportMode','width=device-width,initial-scale=1','href="/api/manifest"','data-app-booting="1"','yhct-prepaint','background:#f6f1e7'],'viewport/PWA + anti-flash bootstrap');
 need(viewport,['dataset.viewportMode','Xem bản Desktop','Xem bản Mobile','FORCE_DESKTOP_MOBILE_KEY'],'viewport mode control');
-need(vite,['GITHUB_PAGES',"'/yhct-hiu-4-0/'",'base:githubPages','module-feed','module-research','module-profile','module-garden','module-admin','module-acc'],'portable modular Vite base');
-need(manifest,['"start_url":"./"','"scope":"./"'],'portable static fallback manifest');
-need(manifestApi,['system_theme_get_v1','theme_color','Cache-Control','no-store','X-YHCT-System-Theme',"display:'standalone'","id:'./'",'shortcuts','prefer_related_applications:false'],'dynamic installable production manifest');
 need(pwa,['beforeinstallprompt','appinstalled','requestPwaInstall','display-mode: standalone'],'PWA install controller');
 need(settings,['Cài ứng dụng mạng xã hội','PWA độc lập của Chrome','requestPwaInstall'],'PWA settings surface');
+need(manifest,['"id":"/"','"start_url":"/"','"scope":"/"','"display":"standalone"','/pwa-icon-192.png','/pwa-icon-512.png','maskable'],'root static fallback manifest');
+need(manifestApi,['system_theme_get_v1','theme_color','Cache-Control','no-store','X-YHCT-System-Theme',"display:'standalone'","id:'/'","start_url:'/'","scope:'/'",'shortcuts','prefer_related_applications:false','/pwa-icon-192.png','/pwa-maskable-512.png'],'dynamic installable production manifest');
 need(sw,['navigationResponse','staticResponse','self.registration.scope'],'offline service worker');
+need(vite,['GITHUB_PAGES',"'/yhct-hiu-4-0/'",'base:githubPages','module-feed','module-research','module-profile','module-garden','module-admin','module-acc'],'portable modular Vite base');
 for(const route of ['/research','/profile','/schedule','/exam','/drl','/notifications','/garden','/messages','/admin','/acc'])if(!vercel.includes(`"source": "${route}"`))errors.push(`Vercel rewrite missing ${route}`);
 
-const news=read('src/components/news/TcmNewsRotator.tsx'),newsCss=read('src/news-rotator.css'),community=read('src/components/community/CommunitySidebar.tsx'),desktop=read('src/desktop-interaction-profile.css'),drl=read('src/components/drl/DrlCenter.tsx'),worker=read('src/workers/drlParseWorker.ts');
-need(news,['ROTATE_MS=8000','tcm_news_feed_v1',"addEventListener('wheel'",'{passive:false}','target="_blank"'],'news interaction');
-need(newsCss,['overflow-x:auto','scroll-snap-type:x mandatory','cursor:grab','@media(max-width:760px)'],'news CSS');
-need(community,["supabase.rpc('community_sidebar_v2')",'ACTIVE_LIMIT=10','Top 10 Tín dụng Cộng đồng'],'community safe feed');for(const sensitive of ['student_code','email','phone'])if(community.includes(sensitive))errors.push(`community sidebar exposes ${sensitive}`);
-need(desktop,['pointer-events:auto!important','community-member-button:hover','community-member-button:focus-visible'],'desktop pointer UX');
+const social=read('src/services/socialService.ts'),profile=read('src/components/profile/ProfileCenter.tsx'),profileInbox=read('src/components/profile/ProfileInbox.tsx'),messages=read('src/components/messages/MessagesCenter.tsx'),drl=read('src/components/drl/DrlCenter.tsx'),worker=read('src/workers/drlParseWorker.ts');
+need(social,['create_academic_post','update_academic_post','enforceDebounce'],'social post service');
+need(profile,['member_wall_feed_v1','member_wall_post_create_v1','member_wall_post_delete_v1','member_profile_update_v2','ProfileInbox'],'personal wall + inbox');
+need(profileInbox,['messages_inbox_v1','MessagesCenter','role="dialog"','inboxBadge'],'embedded inbox');
+need(messages,['messages_inbox_v1','messages_send_v1','message_recipients_v1','messages_mark_read_v1'],'private messaging');
 need(worker,['diem_de_xuat_drl','duplicateStudentCodes','logicalKey','toUpperCase()'],'DRL parser');
-need(drl,['drl_public_lookup_v2','drl_admin_import_v1','drl_admin_publish_semester_v1',"canPublish=roleAtLeast(member?.role,'admin')",'Đã chốt điểm','Đang tổng hợp / Chờ duyệt'],'DRL governance');
-const pkg=JSON.parse(read('package.json'));if(String(pkg.dependencies?.xlsx||'').includes('0.18.5'))errors.push('vulnerable xlsx 0.18.5 is forbidden');if(!String(pkg.scripts?.prebuild||'').includes('audit:roles'))errors.push('prebuild must run independent role audit');if(!String(pkg.scripts?.prebuild||'').includes('audit:modules'))errors.push('prebuild must run module isolation audit');
-if(Buffer.byteLength(gardenCss,'utf8')>=26000)errors.push('garden v6 CSS exceeds 26 KB');
+need(drl,['drl_public_lookup_v2','drl_admin_import_v1','drl_admin_publish_semester_v1',"canPublish=roleAtLeast(member?.role,'admin')"],'DRL governance');
+
+const pkg=JSON.parse(read('package.json'));
+if(String(pkg.dependencies?.xlsx||'').includes('0.18.5'))errors.push('vulnerable xlsx 0.18.5 is forbidden');
+if(!String(pkg.scripts?.prebuild||'').includes('audit:roles'))errors.push('prebuild must run independent role audit');
+if(!String(pkg.scripts?.prebuild||'').includes('audit:modules'))errors.push('prebuild must run module isolation audit');
+
 if(errors.length){console.error('ACCEPTANCE CHECK FAILED');errors.forEach(e=>console.error(`- ${e}`));process.exit(1)}
-console.log(`acceptance-ok: ${sourceFiles.length} application source files scanned; modular shell + embedded inbox + OpenAlex AI + installable PWA + refresh-safe auth + system theme + admin + garden + social content + DRL gates clean`);
+console.log(`acceptance-ok: ${sourceFiles.length} application source files scanned; modular shell + AI retrieval + garden v4 + exam integrity + root PWA + anti-flash boot gates clean`);

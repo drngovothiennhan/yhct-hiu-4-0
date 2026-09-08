@@ -95,8 +95,9 @@ requireText(runtime,'Dữ liệu hệ thống:','client visibly labels system to
 requireText(runtime,'renderAiAnswer','client has a consistent safety/citation renderer');
 
 const localIndex=mini.indexOf('searchKnowledge(text');
-const serverIndex=mini.indexOf("askServerAi(text,'fast')");
-if(localIndex>=0&&serverIndex>localIndex)ok('A.I Mini stays local-first before cloud escalation');else fail('A.I Mini must search local knowledge before calling cloud AI');
+const driveIndex=mini.indexOf('searchDriveRag(text');
+const firstCloudCallIndex=mini.indexOf('askServerAi(');
+if(localIndex>=0&&driveIndex>=0&&firstCloudCallIndex>localIndex&&firstCloudCallIndex>driveIndex)ok('A.I Mini retrieves local/Drive knowledge before cloud escalation');else fail('A.I Mini must retrieve local/Drive knowledge before calling cloud AI');
 requireText(mini,'getGeminiStatus().configured','Gemini remains an optional fallback only');
 requireText(research,"askServerAi(query,'research',sources)",'Research Center sends bounded RAG sources to AI gateway');
 requireText(research,'aiAnswer.citations','Research Center renders server-validated citations');

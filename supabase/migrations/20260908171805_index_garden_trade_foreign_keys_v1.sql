@@ -1,0 +1,2 @@
+create index if not exists herb_garden_trade_listings_buyer_member_id_idx on public.herb_garden_trade_listings(buyer_member_id) where buyer_member_id is not null;
+create index if not exists herb_garden_trade_listings_seller_member_id_idx on public.herb_garden_trade_listings(seller_member_id);

@@ -63,7 +63,8 @@ async function runCase(name,width,height,port){
     });
     const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++seq;const timer=setTimeout(()=>{pending.delete(id);reject(new Error(`${name}: CDP timeout on ${method}`))},7000);pending.set(id,{resolve,reject,timer});ws.send(JSON.stringify({id,method,params}))});
     const waitReady=async()=>{let loaded=false;const start=Date.now();while(Date.now()-start<15000){const r=await send('Runtime.evaluate',{expression:'document.readyState',returnByValue:true});if(r?.result?.value==='complete'){loaded=true;break}await sleep(200)}if(!loaded)throw new Error(`${name}: page did not reach complete readyState.`);await sleep(1800)};
-    const inspect=async()=>{const r=await send('Runtime.evaluate',{expression:`(()=>({title:document.title,innerWidth:window.innerWidth,innerHeight:window.innerHeight,devicePixelRatio:window.devicePixelRatio,pathname:location.pathname,mode:document.documentElement.dataset.viewportMode||'',mobileUi:document.documentElement.dataset.mobileUi||'',theme:document.documentElement.dataset.theme||'',themeColor:(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')||'').toLowerCase(),manifestHref:document.querySelector('link[rel="manifest"]')?.href||'',legacyTheme:localStorage.getItem('yhct-hiu-ui-theme-v1'),heading:document.querySelector('.top-title h1')?.textContent||'',activeModule:document.querySelector('.app')?.getAttribute('data-active-module')||'',bottomNav:!!document.querySelector('.mobile-bottom-nav')&&getComputedStyle(document.querySelector('.mobile-bottom-nav')).display!=='none',aside:!!document.querySelector('aside')&&getComputedStyle(document.querySelector('aside')).display!=='none',bodyText:(document.body.innerText||'').slice(0,700)}))()`,returnByValue:true});return r.result.value};
+    const inspect=async()=>{const r=await send('Runtime.evaluate',{expression:`(()=>{const root=document.getElementById('root');return{title:document.title,innerWidth:window.innerWidth,innerHeight:window.innerHeight,devicePixelRatio:window.devicePixelRatio,pathname:location.pathname,mode:document.documentElement.dataset.viewportMode||'',mobileUi:document.documentElement.dataset.mobileUi||'',theme:document.documentElement.dataset.theme||'',themeColor:(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')||'').toLowerCase(),manifestHref:document.querySelector('link[rel="manifest"]')?.href||'',legacyTheme:localStorage.getItem('yhct-hiu-ui-theme-v1'),heading:document.querySelector('.top-title h1')?.textContent||'',activeModule:document.querySelector('.app')?.getAttribute('data-active-module')||'',bottomNav:!!document.querySelector('.mobile-bottom-nav')&&getComputedStyle(document.querySelector('.mobile-bottom-nav')).display!=='none',aside:!!document.querySelector('aside')&&getComputedStyle(document.querySelector('aside')).display!=='none',appReady:document.documentElement.dataset.appReady||'',appBooting:document.documentElement.dataset.appBooting||'',prepaint:!!document.getElementById('yhct-prepaint'),rootVisibility:root?getComputedStyle(root).visibility:'missing',bodyBackground:getComputedStyle(document.body).backgroundColor,bodyText:(document.body.innerText||'').slice(0,1200)}})()`,returnByValue:true});return r.result.value};
+    const assertStableBoot=state=>{if(state.appReady!=='1'||state.appBooting||state.prepaint||state.rootVisibility==='hidden'||state.rootVisibility==='missing')throw new Error(`${name}: stable first-paint boot contract failed: ${JSON.stringify(state)}`)};
     const auditMobileOverlays=async()=>{
       const r=await send('Runtime.evaluate',{expression:`(()=>{const rectOf=el=>{const r=el?.getBoundingClientRect();return r?{left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}:null};const intersects=(a,b)=>!!a&&!!b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;const visible=el=>!!el&&getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility!=='hidden';const search=document.querySelector('.research-search');const title=document.querySelector('.top-title');const selectors=['.copilot-fab','.ai-feedback-trigger','.mobile-more-button'];const controls=selectors.map(selector=>{const el=document.querySelector(selector);return{selector,visible:visible(el),rect:visible(el)?rectOf(el):null}});const searchRect=rectOf(search),titleRect=rectOf(title);return{searchRect,titleRect,controls,searchOverlaps:controls.filter(x=>x.visible&&intersects(searchRect,x.rect)).map(x=>x.selector),titleOverlaps:controls.filter(x=>x.visible&&intersects(titleRect,x.rect)).map(x=>x.selector),outOfViewport:controls.filter(x=>x.visible&&x.rect&&(x.rect.left<0||x.rect.top<0||x.rect.right>innerWidth||x.rect.bottom>innerHeight)).map(x=>x.selector)}})()`,returnByValue:true});return r.result.value;
     };
@@ -72,7 +73,7 @@ async function runCase(name,width,height,port){
       const stale=initial.theme==='ngu-y'?'tcm-cloud-2d':'ngu-y';
       await send('Runtime.evaluate',{expression:`localStorage.setItem('yhct-hiu-ui-theme-v1',${JSON.stringify(stale)})`});
       await send('Page.reload',{ignoreCache:true});await waitReady();await sleep(1200);
-      const recovered=await inspect();
+      const recovered=await inspect();assertStableBoot(recovered);
       if(recovered.legacyTheme!==null)throw new Error(`${name}: legacy local theme storage was not purged: ${JSON.stringify({stale,legacyTheme:recovered.legacyTheme})}`);
       if(!THEME_COLORS[recovered.theme])throw new Error(`${name}: recovered unknown system theme ${recovered.theme}`);
       if(recovered.theme===stale)throw new Error(`${name}: stale local theme still controls the UI: ${JSON.stringify({initial:initial.theme,stale,recovered:recovered.theme})}`);
@@ -88,8 +89,9 @@ async function runCase(name,width,height,port){
         const manifestExpected=THEME_COLORS[manifest.serverTheme];
         if(String(manifest.body?.theme_color||'').toLowerCase()!==manifestExpected)throw new Error(`${name}: manifest theme_color does not match its backend theme: ${JSON.stringify(manifest)}`);
         if(!String(manifest.cache).includes('no-store'))throw new Error(`${name}: manifest must be no-store: ${JSON.stringify(manifest)}`);
-        if(manifest.body?.display!=='standalone'||manifest.body?.id!=='./'||manifest.body?.prefer_related_applications!==false)throw new Error(`${name}: installable PWA manifest contract failed: ${JSON.stringify(manifest.body)}`);
-        if(!Array.isArray(manifest.body?.icons)||manifest.body.icons.length<2)throw new Error(`${name}: PWA manifest requires regular + maskable icons.`);
+        if(manifest.body?.display!=='standalone'||manifest.body?.id!=='/'||manifest.body?.start_url!=='/'||manifest.body?.scope!=='/'||manifest.body?.prefer_related_applications!==false)throw new Error(`${name}: installable PWA manifest contract failed: ${JSON.stringify(manifest.body)}`);
+        const icons=Array.isArray(manifest.body?.icons)?manifest.body.icons:[];
+        if(!icons.some(x=>x.type==='image/png'&&x.sizes==='192x192')||!icons.some(x=>x.type==='image/png'&&x.sizes==='512x512')||!icons.some(x=>String(x.purpose||'').includes('maskable')))throw new Error(`${name}: PWA manifest requires PNG 192, PNG 512 and maskable icon.`);
         if(!Array.isArray(manifest.body?.shortcuts)||!manifest.body.shortcuts.some(x=>String(x?.url||'').includes('research'))||!manifest.body.shortcuts.some(x=>String(x?.url||'').includes('profile')))throw new Error(`${name}: PWA manifest shortcuts contract failed.`);
       }
       return {initialTheme:initial.theme,staleTheme:stale,recoveredTheme:recovered.theme,themeColor:recovered.themeColor,legacyTheme:recovered.legacyTheme,manifestHref:recovered.manifestHref,manifest};
@@ -101,26 +103,34 @@ async function runCase(name,width,height,port){
     }
     const version=await send('Browser.getVersion');
     await send('Page.navigate',{url:target});await waitReady();
-    const state=await inspect();
+    const state=await inspect();assertStableBoot(state);
     if(!String(version.product||'').startsWith('Chrome/'))throw new Error(`${name}: browser is not Chrome: ${version.product}`);
     if(!state.title.includes('YHCT HIU 4.0'))throw new Error(`${name}: unexpected title ${state.title}`);
     if(name==='mobile'&&(state.innerWidth!==width||state.innerWidth>980||state.mode!=='mobile'||!state.bottomNav||state.aside))throw new Error(`mobile: responsive contract failed: ${JSON.stringify(state)}`);
     if(name==='desktop'&&(state.innerWidth<981||state.mode!=='desktop'||!state.aside||state.bottomNav))throw new Error(`desktop: responsive contract failed: ${JSON.stringify(state)}`);
     const themeAudit=await auditThemeRecovery(state);
-    let routeRefresh=null;let overlayAudit=null;
+    let routeRefresh=null;let overlayAudit=null;let examAudit=null;
     if(name==='mobile'){
       await send('Page.navigate',{url:`${baseTarget}/research`});await waitReady();
-      const before=await inspect();overlayAudit=await auditMobileOverlays();
+      const before=await inspect();assertStableBoot(before);overlayAudit=await auditMobileOverlays();
       if(overlayAudit.searchOverlaps.length||overlayAudit.titleOverlaps.length||overlayAudit.outOfViewport.length)throw new Error(`mobile: overlay contract failed: ${JSON.stringify(overlayAudit)}`);
-      await send('Page.reload',{ignoreCache:true});await waitReady();const after=await inspect();routeRefresh={before,after};
+      await send('Page.reload',{ignoreCache:true});await waitReady();const after=await inspect();assertStableBoot(after);routeRefresh={before,after};
       if(before.pathname!=='/research'||after.pathname!=='/research'||before.activeModule!=='research'||after.activeModule!=='research'||!before.heading.includes('Trung tâm nghiên cứu')||!after.heading.includes('Trung tâm nghiên cứu'))throw new Error(`mobile: modular research refresh route persistence failed: ${JSON.stringify(routeRefresh)}`);
       if(!before.bodyText.includes('OpenAlex')||!before.bodyText.includes('A.I LÀ TRỌNG TÂM'))throw new Error(`mobile: research OpenAlex AI surface missing: ${before.bodyText}`);
+
+      await send('Page.navigate',{url:`${baseTarget}/exam`});await waitReady();
+      const examBefore=await inspect();assertStableBoot(examBefore);
+      await send('Page.reload',{ignoreCache:true});await waitReady();
+      const examAfter=await inspect();assertStableBoot(examAfter);examAudit={before:examBefore,after:examAfter};
+      if(examBefore.pathname!=='/exam'||examAfter.pathname!=='/exam'||examBefore.activeModule!=='exam'||examAfter.activeModule!=='exam'||!examAfter.bodyText.includes('National Exam Prep')||!examAfter.bodyText.includes('50 câu'))throw new Error(`mobile: exam v2 surface/refresh contract failed: ${JSON.stringify(examAudit)}`);
+      const examShot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile(path.join(outDir,'chrome-mobile-exam.png'),Buffer.from(examShot.data,'base64'));
+      await send('Page.navigate',{url:`${baseTarget}/research`});await waitReady();
     }
     const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile(path.join(outDir,`chrome-${name}.png`),Buffer.from(shot.data,'base64'));
-    await writeFile(path.join(outDir,`chrome-${name}.json`),JSON.stringify({target,browser:version.product,state,themeAudit,routeRefresh,overlayAudit,runtimeErrors,consoleErrors},null,2));
+    await writeFile(path.join(outDir,`chrome-${name}.json`),JSON.stringify({target,browser:version.product,state,themeAudit,routeRefresh,overlayAudit,examAudit,runtimeErrors,consoleErrors},null,2));
     if(runtimeErrors.length)throw new Error(`${name}: runtime exceptions: ${runtimeErrors.join(' | ')}`);
     if(consoleErrors.length)throw new Error(`${name}: console errors: ${consoleErrors.join(' | ')}`);
-    console.log(`Chrome ${name} PASS`,version.product,JSON.stringify({state,themeAudit,routeRefresh,overlayAudit}));
+    console.log(`Chrome ${name} PASS`,version.product,JSON.stringify({state,themeAudit,routeRefresh,overlayAudit,examAudit}));
   }finally{if(ws)try{ws.close()}catch{}await stopChrome(proc,profile)}
 }
 
