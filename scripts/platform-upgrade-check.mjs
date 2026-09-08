@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 const read=p=>fs.readFileSync(p,'utf8');
 const need=(ok,msg)=>{if(!ok){console.error(`FAIL: ${msg}`);process.exitCode=1}else console.log(`OK: ${msg}`)};
-const app=read('src/App.tsx'),feed=read('src/components/feed/AcademicFeed.tsx'),composer=read('src/components/feed/AcademicPostComposer.tsx'),types=read('src/types/index.ts'),theme=read('src/components/admin/AdminThemeControl.tsx'),device=read('src/services/deviceCapability.ts'),widgets=feed,mini=read('src/components/ai/UnifiedAiMini.tsx'),socialCss=read('src/social-v5.css'),profile=read('src/components/profile/ProfileCenter.tsx'),moderation=read('src/components/admin/ModerationOpsPanel.tsx'),gardenSocial=read('src/components/game/HerbGardenSocialHub.tsx'),messages=read('src/components/messages/MessagesCenter.tsx'),auth=read('src/services/authService.ts'),systemAdmin=read('src/components/admin/SystemAdminCenter.tsx'),memberAdmin=read('src/components/admin/AdminControlCenter.tsx');
+const app=read('src/App.tsx'),contract=read('src/modules/moduleContract.ts'),feed=read('src/components/feed/AcademicFeed.tsx'),composer=read('src/components/feed/AcademicPostComposer.tsx'),types=read('src/types/index.ts'),theme=read('src/components/admin/AdminThemeControl.tsx'),device=read('src/services/deviceCapability.ts'),widgets=feed,mini=read('src/components/ai/UnifiedAiMini.tsx'),socialCss=read('src/social-v5.css'),profile=read('src/components/profile/ProfileCenter.tsx'),profileInbox=read('src/components/profile/ProfileInbox.tsx'),moderation=read('src/components/admin/ModerationOpsPanel.tsx'),gardenSocial=read('src/components/game/HerbGardenSocialHub.tsx'),messages=read('src/components/messages/MessagesCenter.tsx'),auth=read('src/services/authService.ts'),systemAdmin=read('src/components/admin/SystemAdminCenter.tsx'),memberAdmin=read('src/components/admin/AdminControlCenter.tsx'),pwa=read('src/services/pwaInstallService.ts'),settings=read('src/components/system/AppSettingsDialog.tsx'),research=read('src/components/research/ResearchCenter.tsx'),researchMini=read('src/components/research/ResearchAiMini.tsx');
 need(app.includes("lazy(()=>import('./components/game/HerbGardenGame'))"),'herb garden remains lazy-loaded');
 need(app.includes("lazy(()=>import('./components/game/HerbGardenSocialHub'))"),'social garden is lazy-loaded');
-need(app.includes("lazy(()=>import('./components/messages/MessagesCenter'))"),'messages are lazy-loaded');
+need(profileInbox.includes("lazy(()=>import('../messages/MessagesCenter'))"),'messages remain lazy-loaded inside personal wall');
 need(app.includes('UnifiedAiMini member={member}')&&!app.includes('AiMiniFeedbackDock member={member}')&&!app.includes('PersonalCopilotWidget member={member}'),'one unified AI Mini surface is mounted');
 need(mini.includes('slice(0,3)')&&mini.includes("timeZone:'Asia/Ho_Chi_Minh'")&&mini.includes('localStorage.removeItem(HISTORY_KEY)'),'AI Mini keeps three daily-reset history items');
 need(socialCss.includes('-webkit-line-clamp:2'),'two-line compact previews remain gated');
@@ -16,12 +16,16 @@ need(theme.includes('THEME_OPTIONS.map'),'all registered YHCT themes remain sele
 need(types.includes('leader:2,super_mod:3,admin:4'),'frontend role levels mirror database hierarchy');
 need(device.includes('dataset.performanceTier')&&device.includes('hardwareConcurrency'),'device capability module uses runtime hardware hints');
 need(widgets.includes("matchMedia('(min-width:1600px)')")&&widgets.includes("dataset.viewportMode==='desktop'"),'desktop widget gate remains >=1600 desktop-only');
-need(profile.includes('member_wall_feed_v1')&&profile.includes('member_wall_post_create_v1')&&profile.includes("storage.from('member-media')")&&profile.includes('maxLength={500}'),'personal wall/avatar contract is wired');
+need(profile.includes('member_wall_feed_v1')&&profile.includes('member_wall_post_create_v1')&&profile.includes("storage.from('member-media')")&&profile.includes('maxLength={500}')&&profile.includes('ProfileInbox'),'personal wall/avatar/inbox contract is wired');
 need(auth.includes('herbal_alias')&&auth.includes('herbalAlias')&&auth.includes('readCachedMember'),'refresh-safe herbal identity session restore remains');
-need(messages.includes('messages_inbox_v1')&&messages.includes('messages_send_v1'),'private inbox is retained');
+need(messages.includes('messages_inbox_v1')&&messages.includes('messages_send_v1')&&profileInbox.includes('member_messages'),'private inbox is retained inside profile');
 need(moderation.includes('moderation_workbench_v2')&&moderation.includes('moderation_mark_seen_v1')&&moderation.includes('Tối đa 5 nội dung'),'moderation workbench remains five-item based');
 need(systemAdmin.includes('MAX_BLOCK_ITEMS=5')&&systemAdmin.includes("tcm_news_admin_list_v1',{p_limit:MAX_BLOCK_ITEMS}")&&systemAdmin.includes('5 gần nhất'),'ACC system content is grouped into five-item blocks');
 need(memberAdmin.includes('MAX_BLOCK_ITEMS=5')&&memberAdmin.includes('.limit(MAX_BLOCK_ITEMS)'),'member administration history is capped at five recent items');
+need(app.includes("tab==='admin'&&canAdmin&&<AdminControlCenter")&&!memberAdmin.includes('AdminThemeControl'),'Điều hành remains free of theme controls');
+need(app.includes("tab==='acc'&&canAcc&&<>")&&app.includes('AdminThemeControl theme={theme} onChange={changeTheme}'),'theme controls live only in ACC');
+need(pwa.includes('beforeinstallprompt')&&pwa.includes('appinstalled')&&settings.includes('Cài ứng dụng mạng xã hội'),'real PWA installation controller is wired');
+need(research.includes('searchOpenAlex(query,12)')&&research.includes('A.I OpenAlex tổng hợp')&&researchMini.includes('searchOpenAlex(text,6)')&&mini.includes('academicIntent'),'OpenAlex is restored to Research Center and AI Mini');
 
 const game=read('src/components/game/HerbGardenGame.tsx'),gardenCss=read('src/garden-v6.css'),gardenMigration=read('supabase/migrations/202609080630_admin_news_retention_and_garden_grid_v6.sql'),sprite=read('public/garden-decor-sprite.svg');
 const catalog=[1,2,3,4,5].map((n,i)=>read(`supabase/migrations/20260908015${5+i}_herb_garden_catalog_qd4664_part${n}.sql`)).join('\n');
@@ -44,8 +48,9 @@ need(Buffer.byteLength(gardenCss,'utf8')<26000,'garden v6 visual layer remains l
 const viewport=read('src/components/system/ViewportModeToggle.tsx'),bootstrap=read('index.html'),chromeSmoke=read('scripts/chrome-real-smoke.mjs'),vercel=read('vercel.json');
 need(viewport.includes('FORCE_DESKTOP_MOBILE_KEY')&&viewport.includes("if(compact&&!forceDesktop)return'mobile'"),'compact devices recover to mobile unless desktop is explicitly requested');
 need(bootstrap.includes('yhct-force-desktop-on-mobile-v1')&&bootstrap.includes("compact&&!forceDesktop?'mobile'"),'pre-React viewport bootstrap matches mobile recovery policy');
-need(app.includes("research:'/research'")&&app.includes("garden:'/garden'")&&app.includes('tabFromLocation()')&&app.includes('authResolved'),'modules retain refresh-safe routes');
+need(contract.includes("path:'/research'")&&contract.includes("path:'/garden'")&&contract.includes("path:'/profile'")&&contract.includes("if(path==='/messages')return'profile'")&&app.includes('tabFromLocation()')&&app.includes('authResolved'),'modules retain refresh-safe routes and legacy messages compatibility');
 for(const route of ['/research','/profile','/schedule','/exam','/drl','/notifications','/garden','/messages','/admin','/acc'])need(vercel.includes(`\"source\": \"${route}\"`),`Vercel rewrites ${route} to SPA shell`);
 need(chromeSmoke.includes('command -v google-chrome')&&chromeSmoke.includes('Page.captureScreenshot')&&chromeSmoke.includes("runCase('mobile',390,844")&&chromeSmoke.includes("runCase('desktop',1440,1000"),'real Google Chrome smoke covers mobile and desktop');
-need(chromeSmoke.includes("Page.navigate',{url:`${baseTarget}/research`}")&&chromeSmoke.includes("Page.reload',{ignoreCache:true}")&&chromeSmoke.includes("after.pathname!=='/research'"),'real Chrome verifies hard refresh routing');
+need(chromeSmoke.includes("Page.navigate',{url:`${baseTarget}/research`}")&&chromeSmoke.includes("Page.reload',{ignoreCache:true}")&&chromeSmoke.includes("after.pathname!=='/research'")&&chromeSmoke.includes("activeModule!=='research'"),'real Chrome verifies modular hard refresh routing');
+need(chromeSmoke.includes("display!=='standalone'")&&chromeSmoke.includes('prefer_related_applications!==false')&&chromeSmoke.includes('manifest.body?.shortcuts'),'production Chrome verifies installable manifest semantics');
 if(process.exitCode)process.exit(process.exitCode);console.log('Platform upgrade acceptance passed.');
