@@ -1,0 +1,106 @@
+name: Smart Herb Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/herbs/**'
+      - 'src/main.tsx'
+      - 'supabase/migrations/20260908_smart_herbs_v1.sql'
+      - 'scripts/verify-smart-herb.mjs'
+      - 'vercel.json'
+      - '.github/workflows/smart-herb-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Smart Herb static release gate
+        run: node scripts/verify-smart-herb.mjs
+
+      - name: TypeScript compile
+        run: npx tsc -b
+
+      - name: Vite production bundle
+        run: npx vite build
+
+      - name: Start local production preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/smart-herb-vite.log 2>&1 &
+          echo $! > /tmp/smart-herb-vite.pid
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/smart-herb?herb=cam-thao >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/smart-herb-vite.log || true
+          echo '::error title=Smart Herb preview unavailable::Local Vite preview did not become ready.'
+          exit 1
+
+      - name: Locate headless Chrome
+        id: chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$chrome" ]; then
+            echo '::error title=Chrome unavailable::No supported Chrome/Chromium binary found on runner.'
+            exit 1
+          fi
+          echo "bin=$chrome" >> "$GITHUB_OUTPUT"
+          "$chrome" --version
+
+      - name: Render guest Smart Herb at mobile and desktop widths
+        shell: bash
+        env:
+          CHROME_BIN: ${{ steps.chrome.outputs.bin }}
+        run: |
+          set -euo pipefail
+          url='http://127.0.0.1:4173/smart-herb?herb=cam-thao'
+          common=(--headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=6000)
+
+          "$CHROME_BIN" "${common[@]}" --window-size=390,844 --dump-dom "$url" > /tmp/smart-herb-mobile.html
+          grep -Fq 'Smart Herb' /tmp/smart-herb-mobile.html
+          grep -Fq 'Quét mẫu thật. Học kiến thức thật. Kiểm chứng nguồn.' /tmp/smart-herb-mobile.html
+          grep -Fq 'Cam thảo' /tmp/smart-herb-mobile.html
+          grep -Fq 'Nội dung phục vụ giáo dục, không thay thế chẩn đoán hoặc điều trị chuyên môn.' /tmp/smart-herb-mobile.html
+          "$CHROME_BIN" "${common[@]}" --window-size=390,844 --screenshot=/tmp/smart-herb-mobile.png "$url"
+
+          "$CHROME_BIN" "${common[@]}" --window-size=1440,1000 --dump-dom "$url" > /tmp/smart-herb-desktop.html
+          grep -Fq 'Smart Herb' /tmp/smart-herb-desktop.html
+          grep -Fq 'Cam thảo' /tmp/smart-herb-desktop.html
+          grep -Fq 'Nguồn học thuật có thể truy xuất' /tmp/smart-herb-desktop.html
+          "$CHROME_BIN" "${common[@]}" --window-size=1440,1000 --screenshot=/tmp/smart-herb-desktop.png "$url"
+
+      - name: Upload rendered QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-herb-rendered-qa
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            /tmp/smart-herb-mobile.html
+            /tmp/smart-herb-desktop.html
+            /tmp/smart-herb-mobile.png
+            /tmp/smart-herb-desktop.png
+            /tmp/smart-herb-vite.log

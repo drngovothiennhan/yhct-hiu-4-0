@@ -6,6 +6,7 @@
   },
   "rewrites": [
     {"source": "/manifest.webmanifest", "destination": "/api/manifest"},
+    {"source": "/smart-herb", "destination": "/"},
     {"source": "/research", "destination": "/"},
     {"source": "/profile", "destination": "/"},
     {"source": "/schedule", "destination": "/"},
