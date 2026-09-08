@@ -10,6 +10,7 @@ const requireText=(text,needle,label)=>text.includes(needle)?ok(label):fail(`${l
 const baseMigration=read('supabase/migrations/20260908121556_ai_knowledge_central_rag_v1.sql');
 const evidenceMigration=read('supabase/migrations/202609081925_ai_knowledge_evidence_pubmed_scholar_v1.sql');
 const authorityMigration=read('supabase/migrations/202609082020_ai_knowledge_authority_sources_v3.sql');
+const surfaceMigration=read('supabase/migrations/202609081328_ai_knowledge_public_surface_v4.sql');
 const service=read('src/services/centralKnowledgeService.ts');
 const tools=read('api/_lib/ai-tools.js');
 const access=read('api/_lib/member-access.js');
@@ -43,6 +44,13 @@ requireText(authorityMigration,'https://www.nccih.nih.gov/health/traditional-chi
 requireText(authorityMigration,'https://doi.org/10.1002/14651858.CD003281.pub5','Cochrane PC6 review uses canonical DOI');
 requireText(authorityMigration,'revoke all on table public.ai_knowledge_authority_sources from anon,authenticated','raw authority source table is not directly exposed');
 for(const provider of ["'who'","'nccih'","'cochrane'"]){if(authorityMigration.includes(provider))ok(`authority migration includes ${provider}`);else fail(`authority provider missing: ${provider}`)}
+
+requireText(surfaceMigration,'revoke all on function public.ai_knowledge_search_v1','legacy v1 search RPC is removed from public surface');
+requireText(surfaceMigration,'revoke all on function public.ai_knowledge_search_v2','legacy v2 search RPC is removed from public surface');
+requireText(surfaceMigration,'revoke all on function public.ai_knowledge_stats_v1','legacy v1 stats RPC is removed from public surface');
+requireText(surfaceMigration,'revoke all on function public.ai_knowledge_stats_v2','legacy v2 stats RPC is removed from public surface');
+requireText(surfaceMigration,'grant execute on function public.ai_knowledge_search_v3','v3 search remains the sole public RAG search surface');
+requireText(surfaceMigration,'grant execute on function public.ai_knowledge_stats_v3','v3 stats remains the sole public RAG stats surface');
 
 requireText(service,"supabase.rpc('ai_knowledge_search_v3'",'client searches authority-enriched Supabase RAG first');
 requireText(service,'searchLocalKnowledge','client retains IndexedDB knowledge fallback');
