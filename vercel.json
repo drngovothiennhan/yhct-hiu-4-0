@@ -14,7 +14,8 @@
     {"source": "/garden", "destination": "/"},
     {"source": "/messages", "destination": "/"},
     {"source": "/admin", "destination": "/"},
-    {"source": "/acc", "destination": "/"}
+    {"source": "/acc", "destination": "/"},
+    {"source": "/smart-herb", "destination": "/"}
   ],
   "headers": [
     {
