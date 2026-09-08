@@ -1,0 +1,6 @@
+import {supabase} from './authService';
+import {translateZeroCost} from './researchLocalAi';
+export type TranslationResult={text:string;provider:string;degraded?:boolean;note?:string};
+export async function translateAcademic(text:string,target='vi',source?:string):Promise<TranslationResult>{const input=text.trim();if(!input)return{text:'',provider:'none',degraded:true,note:'Chưa có nội dung cần dịch.'};try{const local=await translateZeroCost(input,target);if(local.ok&&local.text)return{text:local.text,provider:local.provider||'chrome-local'}}catch{}
+ const {data:{session}}=await supabase.auth.getSession();if(!session?.access_token)return{text:'',provider:'none',degraded:true,note:'Cần đăng nhập để dùng nguồn dịch online.'};try{const r=await fetch('/api/translate',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${session.access_token}`},body:JSON.stringify({text:input,target,source})});const j=await r.json().catch(()=>({}));if(r.ok&&j.ok&&typeof j.text==='string')return{text:j.text,provider:String(j.provider||'free-api')};return{text:'',provider:'none',degraded:true,note:String(j.error||'Nguồn dịch miễn phí đang tạm giới hạn.')}}catch{return{text:'',provider:'none',degraded:true,note:'Không kết nối được nguồn dịch online.'}}
+}
