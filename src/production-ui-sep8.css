@@ -1,0 +1,80 @@
+/* 2026-09-08 production hardening: desktop Herb Garden, touch hit-testing, lightweight bright themes. */
+
+/* Shell-vs-content isolation: nested asides are content panels, never app navigation. */
+.herb-garden-v3 .garden-v3-layout>.garden-v3-detail,
+.garden-social .garden-community-layout>aside{
+  position:static!important;
+  inset:auto!important;
+  top:auto!important;
+  width:auto!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  margin:0!important;
+  align-self:start!important;
+  z-index:auto!important;
+  overflow:visible!important;
+  display:grid!important;
+  align-content:start!important;
+  flex:none!important;
+  background:var(--surface)!important;
+  color:var(--text)!important;
+  box-shadow:var(--shadow)!important;
+}
+.garden-social .garden-community-layout>aside{padding:12px!important;border:1px solid var(--line)!important;border-radius:16px!important;gap:8px!important}
+
+/* Desktop scene proportions. Keep the board visually dominant without allowing either column to stretch the row. */
+@media (min-width:981px){
+  .herb-garden-v3{gap:16px}
+  .herb-garden-v3 .garden-v3-layout{grid-template-columns:minmax(540px,1.55fr) minmax(330px,.85fr);gap:18px;align-items:start}
+  .herb-garden-v3 .garden-board-v3{min-height:0;padding:clamp(68px,6vw,82px) clamp(14px,1.6vw,20px) clamp(14px,1.6vw,20px);container-type:inline-size}
+  .herb-garden-v3 .garden-nine-grid{gap:clamp(8px,1.1vw,12px);max-width:760px;margin-inline:auto}
+  .herb-garden-v3 .garden-cell{aspect-ratio:1.08/1;min-width:0}
+  .herb-garden-v3 .garden-cell-plant{width:42%;height:42%;bottom:27%}
+  .herb-garden-v3 .garden-cell-soil{left:14%;right:14%;height:33%}
+  .herb-garden-v3 .garden-board-decor-art{left:4%;right:4%;height:clamp(48px,8cqw,72px);gap:clamp(4px,1cqw,10px)}
+  .herb-garden-v3 .garden-board-decor-art .garden-decor-svg{width:clamp(38px,8cqw,70px);height:clamp(38px,8cqw,70px)}
+  .herb-garden-v3 .garden-v3-detail{padding:16px!important;gap:10px!important}
+  .herb-garden-v3 .garden-v3-detail h3{font-size:clamp(17px,1.35vw,21px);margin-bottom:6px}
+  .herb-garden-v3 .garden-v3-care{grid-template-columns:1fr 1fr;gap:8px}
+  .herb-garden-v3 .garden-v3-care article{min-width:0;padding:9px}
+  .herb-garden-v3 .garden-v3-care strong{font-size:18px}
+  .garden-social .garden-community-layout{grid-template-columns:minmax(250px,300px) minmax(0,1fr);align-items:start}
+  .garden-social .garden-directory{max-height:min(52vh,520px);overscroll-behavior:contain}
+  .garden-social .visited-garden{min-height:320px}
+}
+
+/* Decorations stay contextual on compact screens instead of becoming oversized props. */
+@media (max-width:980px){
+  .herb-garden-v3 .garden-board-decor-art .garden-decor-svg{width:clamp(34px,10vw,50px);height:clamp(34px,10vw,50px)}
+  .garden-social .garden-community-layout>aside{width:100%!important}
+}
+
+/* Touch / hit-testing hardening. Decorative layers never intercept taps. */
+.tcm-cartoon-decor,.garden-board-v3:before,.garden-board-decor-art,.garden-decor-svg,.system-brand-mark__icon,.garden-cell-soil,.garden-cell-plant{pointer-events:none!important}
+button,a,[role="button"],input,textarea,select,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+button,a,[role="button"]{position:relative}
+.garden-cell,.visited-plot-v3,.garden-directory>button,.garden-social-tabs>button,.mobile-bottom-nav>button,.mobile-more-grid>button{pointer-events:auto;isolation:isolate}
+.garden-nine-grid,.garden-community-layout,.visited-garden,.panel{min-width:0}
+.garden-directory{scrollbar-gutter:stable;touch-action:pan-y;overscroll-behavior:contain}
+.ai-mini-unified:not(.is-open){pointer-events:none}
+.ai-mini-unified:not(.is-open) .ai-mini-fab{pointer-events:auto}
+.ai-mini-unified.is-open{pointer-events:auto}
+
+/* Lightweight motion: compositor-only, automatically suppressed on constrained devices. */
+@media (prefers-reduced-motion:no-preference){
+  html:not([data-performance-tier="low"]):not([data-save-data="true"]) .garden-cell.stage-growing .garden-cell-plant{animation:gardenPlantBreathe 4.8s ease-in-out infinite}
+  html:not([data-performance-tier="low"]):not([data-save-data="true"]) .garden-board-decor-art .garden-decor-svg{animation:gardenDecorFloat 6s ease-in-out infinite}
+  html:not([data-performance-tier="low"]):not([data-save-data="true"]) .garden-board-decor-art .garden-decor-svg:nth-child(2n){animation-delay:-2s}
+}
+@keyframes gardenPlantBreathe{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-2px)}}
+@keyframes gardenDecorFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+html[data-performance-tier="low"] .garden-decor-svg,html[data-save-data="true"] .garden-decor-svg{filter:none!important;animation:none!important}
+
+/* Admin-selectable bright 2D / modern themes. Token-only: no heavy bitmap assets. */
+html[data-theme='tcm-spring-2d']{--primary:#147d67;--primary-2:#20a184;--accent:#e65f68;--accent-2:#f08a72;--gold:#f3bd4b;--bg:#f3fbf7;--surface:#ffffff;--surface-2:#e8f6ef;--text:#18372e;--muted:#668077;--line:#cfe7dc;--nav:#176b5a;--nav-2:#20866e;--success:#2f8a5d;--danger:#c84e56;--shadow:0 12px 30px rgba(31,104,82,.12)}
+html[data-theme='tcm-cloud-2d']{--primary:#376f9f;--primary-2:#4d8fc6;--accent:#d76a7f;--accent-2:#e79083;--gold:#e4b85d;--bg:#f4f9fd;--surface:#ffffff;--surface-2:#eaf3f9;--text:#233746;--muted:#687c8b;--line:#cfdeea;--nav:#315e83;--nav-2:#3e769f;--success:#4a8467;--danger:#b84e60;--shadow:0 12px 30px rgba(49,94,131,.11)}
+html[data-theme='tcm-mint-modern']{--primary:#0f766e;--primary-2:#14a394;--accent:#f06f57;--accent-2:#ff9478;--gold:#e6b84e;--bg:#f5faf8;--surface:#ffffff;--surface-2:#e8f4f1;--text:#1d3431;--muted:#647b77;--line:#cfe3de;--nav:#114f4a;--nav-2:#0f766e;--success:#278466;--danger:#c6524d;--shadow:0 14px 36px rgba(15,118,110,.11)}
+html[data-theme='tcm-spring-2d'] .panel,html[data-theme='tcm-cloud-2d'] .panel,html[data-theme='tcm-mint-modern'] .panel{box-shadow:var(--shadow)}
+html[data-theme='tcm-spring-2d'] .panel,html[data-theme='tcm-cloud-2d'] .panel{background-image:linear-gradient(145deg,color-mix(in srgb,var(--primary) 3%,transparent),transparent 42%)}
+html[data-theme='tcm-mint-modern'] button{border-radius:14px}
