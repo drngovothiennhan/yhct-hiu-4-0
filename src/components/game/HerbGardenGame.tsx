@@ -15,8 +15,11 @@ type Plant={
   source_ref?:string|null;source_page?:number|null;visual_variant?:number|null;
 };
 type Inventory={name:string;other_names:string;botanical_name:string;family:string;used_part:string;traditional_actions:string;dosage:string;caution:string;source_ref:string;source_page:number;quantity:number;updated_at:string;visual_variant:number};
+type GardenProfile={theme:string;decor:string[]};
 
 const DAY=86400000;
+const DECOR_SYMBOL:Record<string,string>={pond:'💧',lantern:'🏮','stone-path':'🪨','bamboo-gate':'🎋','lotus-pot':'🪷','herb-sign':'🌿'};
+const DECOR_LABEL:Record<string,string>={pond:'Ao sen',lantern:'Đèn lồng','stone-path':'Lối đá','bamboo-gate':'Cổng trúc','lotus-pot':'Chậu sen','herb-sign':'Bảng tên dược liệu'};
 function remaining(iso:string|undefined|null,now:number){
   if(!iso)return '—';
   const ms=Math.max(0,Date.parse(iso)-now),days=Math.floor(ms/DAY),hours=Math.floor((ms%DAY)/3600000),minutes=Math.floor((ms%3600000)/60000);
@@ -24,14 +27,15 @@ function remaining(iso:string|undefined|null,now:number){
 }
 
 export default function HerbGardenGame({member}:{member:Member}){
-  const [plant,setPlant]=useState<Plant|null>(null),[inventory,setInventory]=useState<Inventory[]>([]),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[fx,setFx]=useState<'water'|'fertilize'|''>(''),[now,setNow]=useState(Date.now());
+  const [plant,setPlant]=useState<Plant|null>(null),[inventory,setInventory]=useState<Inventory[]>([]),[profile,setProfile]=useState<GardenProfile>({theme:'bamboo',decor:[]}),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[fx,setFx]=useState<'water'|'fertilize'|''>(''),[now,setNow]=useState(Date.now());
   const load=async()=>{setBusy(true);setMsg('');try{
-    const [state,stock]=await Promise.all([supabase.rpc('herb_garden_state_v2'),supabase.rpc('herb_garden_inventory_v2')]);
+    const [state,stock,personalization]=await Promise.all([supabase.rpc('herb_garden_state_v2'),supabase.rpc('herb_garden_inventory_v2'),supabase.rpc('herb_garden_visit_v1',{p_member_id:member.id})]);
     if(state.error)throw state.error;if(stock.error)throw stock.error;
     setPlant(Array.isArray(state.data)&&state.data[0]?state.data[0] as Plant:null);
     setInventory((Array.isArray(stock.data)?stock.data:[]) as Inventory[]);
+    if(!personalization.error&&personalization.data){const own=personalization.data as {theme?:string;decor?:string[]};setProfile({theme:own.theme||'bamboo',decor:Array.isArray(own.decor)?own.decor:[]})}
   }catch(e){setMsg((e as Error).message)}finally{setBusy(false)}};
-  useEffect(()=>{void load();const t=window.setInterval(()=>setNow(Date.now()),30000);return()=>window.clearInterval(t)},[member.id]);
+  useEffect(()=>{void load();const timer=window.setInterval(()=>setNow(Date.now()),30000);const onProfile=(event:Event)=>{const detail=(event as CustomEvent<GardenProfile>).detail;if(detail?.theme&&Array.isArray(detail.decor))setProfile({theme:detail.theme,decor:detail.decor})};window.addEventListener('yhct:garden-profile-updated',onProfile);return()=>{window.clearInterval(timer);window.removeEventListener('yhct:garden-profile-updated',onProfile)}},[member.id]);
   const progress=useMemo(()=>{if(!plant)return 0;if(plant.status==='mature'||plant.status==='harvested'||plant.status==='dead')return 100;const start=Date.parse(plant.planted_at),end=Date.parse(plant.matures_at);return Math.max(0,Math.min(100,Math.round((now-start)/Math.max(1,end-start)*100)))},[plant,now]);
   const run=async(kind:'plant'|'water'|'fertilize'|'harvest')=>{setBusy(true);setMsg('');try{
     const rpc={plant:'herb_garden_plant_v2',water:'herb_garden_water_v2',fertilize:'herb_garden_fertilize_v2',harvest:'herb_garden_harvest_v2'}[kind];
@@ -51,10 +55,12 @@ export default function HerbGardenGame({member}:{member:Member}){
     <div className="garden-rules" aria-label="Luật chăm sóc"><span><Droplets/> Tưới: 6 giờ/lần</span><span>🌱 Bón phân: 1 lần/ngày</span><span>⏳ Sinh trưởng: 72 giờ</span><span>🧺 Thu hoạch: đủ 12/12 + 3/3</span></div>
     {msg&&<div className="ai-note" role="status">{msg}</div>}
     <div className="garden-layout">
-      <section className="garden-plot panel">
+      <section className={`garden-plot panel garden-profile-theme-${profile.theme}`}>
+        <div className="garden-profile-strip" aria-label="Trang trí Gia Viên hiện tại"><span><PaletteBadge theme={profile.theme}/></span>{profile.decor.length?profile.decor.map(x=><span key={x}><i aria-hidden>{DECOR_SYMBOL[x]||'🌿'}</i>{DECOR_LABEL[x]||x}</span>):<small>Chưa chọn vật trang trí.</small>}</div>
         {!plant?<div className="garden-empty"><div className="seed-orb"><Sprout/></div><h3>Ô đất đang trống</h3><p>Hệ thống sẽ chọn ngẫu nhiên một trong 70 cây thuốc mẫu. Danh tính hạt giống được giữ bí mật trong suốt thời gian sinh trưởng.</p><button disabled={busy} onClick={()=>void run('plant')}><Leaf/>Nhận hạt và gieo</button></div>:<>
-          <div className={`garden-scene-v2 stage-${plant.status} stage-progress-${progress>=67?3:progress>=34?2:1} variant-${variant} fx-${fx}`} aria-label={plant.status==='dead'?'Cây đã chết':plant.status==='mature'?'Cây đã trưởng thành':'Cây thuốc đang phát triển'}>
+          <div className={`garden-scene-v2 garden-scene-theme-${profile.theme} stage-${plant.status} stage-progress-${progress>=67?3:progress>=34?2:1} variant-${variant} fx-${fx}`} aria-label={plant.status==='dead'?'Cây đã chết':plant.status==='mature'?'Cây đã trưởng thành':'Cây thuốc đang phát triển'}>
             <div className="garden-sun"/><div className="garden-cloud cloud-a"/><div className="garden-cloud cloud-b"/><div className="garden-hills"/><div className="garden-ground"/><div className="garden-soil"/>
+            <div className="garden-scene-decor" aria-hidden>{profile.decor.map((x,index)=><span key={x} className={`garden-scene-decor-item garden-scene-decor-${x} decor-slot-${index+1}`}>{DECOR_SYMBOL[x]||'🌿'}</span>)}</div>
             <div className="plant-art-v2"><i className="stem"/><i className="leaf leaf-a"/><i className="leaf leaf-b"/><i className="leaf leaf-c"/><i className="leaf leaf-d"/><i className="flower flower-a"/><i className="flower flower-b"/></div>
             <div className="water-fx"><i/><i/><i/><i/></div><div className="fertilizer-fx"><i>✦</i><i>✦</i><i>✦</i></div>
             {plant.status==='dead'&&<div className="garden-dead-overlay"><span>🍂</span><b>Cây đã chết</b></div>}
@@ -77,3 +83,5 @@ export default function HerbGardenGame({member}:{member:Member}){
     </div>
   </section>;
 }
+
+function PaletteBadge({theme}:{theme:string}){const label=theme==='lotus'?'Liên hoa':theme==='stone'?'Thạch viên':theme==='lantern'?'Đèn dược phòng':theme==='herbal-paper'?'Giấy thảo mộc':'Trúc xanh';return <b>Chủ đề: {label}</b>}
