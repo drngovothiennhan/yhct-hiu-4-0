@@ -7,9 +7,9 @@ const checks=[
  ['ACC admin gate',has(files.app,"canAcc=roleAtLeast(member?.role,'admin')")],
  ['ACC-only theme selector',has(files.app,"tab==='acc'&&canAcc&&<>",'AdminThemeControl theme={theme} onChange={changeTheme}')&&has(files.adminTheme,'Giao diện hệ thống','THEME_OPTIONS.length','acc-theme-compact-grid')&&not(files.app,'theme-quick-toggle','mobile-theme-action')],
  ['Điều hành has no theme selector',has(files.app,"tab==='admin'&&canAdmin&&<AdminControlCenter")&&not(files.adminControl,'AdminThemeControl','saveSystemTheme')],
- ['admin-only theme mutation',has(files.app,'const changeTheme=(next:ThemeName)=>{if(!canAcc)return','saveSystemTheme(next)')&&has(files.theme,"supabase.rpc('system_theme_set_v1'",'p_theme:theme')],
+ ['admin-only theme mutation',has(files.app,'const changeTheme=(next:ThemeName)=>{if(!canAcc)return','saveSystemTheme(next)')&&has(files.theme,"supabase.rpc('system_theme_set_v1'",'p_theme:target','pendingSaveTheme','desiredSystemTheme')],
  ['global system theme application',has(files.app,'applyTheme(theme)','fetchSystemTheme()','watchSystemTheme(next=>')&&has(files.theme,"supabase.rpc('system_theme_get_v1')",'watchSystemTheme')],
- ['legacy theme head source removed',not(files.boot,'yhct-hiu-ui-theme-v1')&&has(files.main,'clearLegacyThemeState()')&&has(files.theme,'localStorage.removeItem(LEGACY_THEME_KEY)','normalizeManifestLink')],
+ ['legacy theme override removed + atomic bootstrap',not(files.boot,'yhct-hiu-ui-theme-v1','data-theme="duoc-ngoc"')&&has(files.main,'bootstrapThemeState()')&&has(files.theme,'localStorage.removeItem(LEGACY_THEME_KEY)','normalizeManifestLink','SYSTEM_THEME_HINT_KEY','data.themeSwitching')],
  ['moderation workbench includes feedback only for admin',has(files.moderation,"moderation_workbench_v2","canAdmin=roleAtLeast(member?.role,'admin')",'feedback_admin_resolve_v1','p_on_date')],
  ['host-neutral diagnostics',has(files.admin,"edgeUrl('acc-diagnostics')","edgeUrl('public-weather')",'SUPABASE_PUBLISHABLE_KEY')],
  ['admin-only DRL publication',has(files.drl,"canPublish=roleAtLeast(member?.role,'admin')",'drl_admin_publish_semester_v1','drl_admin_lock_semester_v1')]
@@ -47,4 +47,4 @@ const checks=[
  ['module build chunks',has(files.vite,'module-feed','module-research','module-profile','module-garden','module-admin','module-acc')],
  ['DRL exact publication status',has(files.drl,'drl_public_lookup_v2','Đã chốt điểm','Đang tổng hợp / Chờ duyệt','total_points')]
 ]]];
-let failed=0;for(const [role,items] of checks){const bad=items.filter(([,ok])=>!ok);if(bad.length){failed++;console.error(`role-audit ${role} FAIL: ${bad.map(([name])=>name).join('; ')}`)}else console.log(`role-audit ${role} PASS: ${items.map(([name])=>name).join('; ')}`)}if(failed)process.exit(1);console.log('role-audit-ok: modular final roles, ACC-only theme mutation, embedded private inbox, OpenAlex academic AI, installable PWA, wall identity, moderation, garden, DRL and RBAC contracts passed');
+let failed=0;for(const [role,items] of checks){const bad=items.filter(([,ok])=>!ok);if(bad.length){failed++;console.error(`role-audit ${role} FAIL: ${bad.map(([name])=>name).join('; ')}`)}else console.log(`role-audit ${role} PASS: ${items.map(([name])=>name).join('; ')}`)}if(failed)process.exit(1);console.log('role-audit-ok: modular final roles, ACC-only atomic theme mutation, embedded private inbox, OpenAlex academic AI, installable PWA, wall identity, moderation, garden, DRL and RBAC contracts passed');
