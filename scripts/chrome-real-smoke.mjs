@@ -76,16 +76,17 @@ async function runCase(name,width,height,port){
       const expectedColor=THEME_COLORS[initial.theme];
       if(recovered.theme!==initial.theme)throw new Error(`${name}: stale local theme was not replaced by system theme: ${JSON.stringify({initial:initial.theme,stale,recovered:recovered.theme})}`);
       if(recovered.themeColor!==expectedColor)throw new Error(`${name}: meta theme-color mismatch after recovery: expected ${expectedColor}, got ${recovered.themeColor}`);
+      if(productionSmoke&&!recovered.manifestHref.includes('/api/manifest'))throw new Error(`${name}: browser manifest link is not dynamic: ${recovered.manifestHref}`);
       let manifest=null;
       if(productionSmoke){
-        const result=await send('Runtime.evaluate',{expression:`fetch('/manifest.webmanifest?qa=theme-${Date.now()}',{cache:'no-store'}).then(async r=>({ok:r.ok,status:r.status,cache:r.headers.get('cache-control')||'',serverTheme:r.headers.get('x-yhct-system-theme')||'',body:await r.json()}))`,awaitPromise:true,returnByValue:true});
+        const result=await send('Runtime.evaluate',{expression:`fetch('/api/manifest?qa=theme-${Date.now()}',{cache:'no-store'}).then(async r=>({ok:r.ok,status:r.status,cache:r.headers.get('cache-control')||'',serverTheme:r.headers.get('x-yhct-system-theme')||'',body:await r.json()}))`,awaitPromise:true,returnByValue:true});
         manifest=result.result.value;
         if(!manifest?.ok)throw new Error(`${name}: dynamic manifest request failed: ${JSON.stringify(manifest)}`);
         if(String(manifest.body?.theme_color||'').toLowerCase()!==expectedColor)throw new Error(`${name}: manifest theme_color mismatch: ${JSON.stringify(manifest)}`);
-        if(manifest.serverTheme&&manifest.serverTheme!==initial.theme)throw new Error(`${name}: manifest backend theme mismatch: ${JSON.stringify(manifest)}`);
+        if(manifest.serverTheme!==initial.theme)throw new Error(`${name}: manifest backend theme mismatch: ${JSON.stringify(manifest)}`);
         if(!String(manifest.cache).includes('no-store'))throw new Error(`${name}: manifest must be no-store: ${JSON.stringify(manifest)}`);
       }
-      return {initialTheme:initial.theme,staleTheme:stale,recoveredTheme:recovered.theme,themeColor:recovered.themeColor,manifest};
+      return {initialTheme:initial.theme,staleTheme:stale,recoveredTheme:recovered.theme,themeColor:recovered.themeColor,manifestHref:recovered.manifestHref,manifest};
     };
     await send('Page.enable');await send('Runtime.enable');await send('Network.enable');
     if(name==='mobile'){
