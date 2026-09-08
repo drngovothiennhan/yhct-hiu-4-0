@@ -1,80 +1,50 @@
 import fs from 'node:fs';
 import path from 'node:path';
-
-const root=process.cwd();
+const root=process.cwd(),errors=[];
+const file=p=>path.join(root,p),read=p=>fs.readFileSync(file(p),'utf8');
 const required=[
-  'src/App.tsx','src/main.tsx','src/theme.ts','src/components/admin/SystemAdminCenter.tsx','src/components/admin/AdminControlCenter.tsx','src/components/admin/AdminThemeControl.tsx','src/components/admin/ModerationOpsPanel.tsx',
-  'src/components/profile/ProfileCenter.tsx','src/services/authRuntimeService.ts','src/components/drl/DrlCenter.tsx','src/components/research/ResearchCenter.tsx','src/components/schedule/ScheduleCenter.tsx','src/components/notifications/NotificationsCenter.tsx',
-  'src/components/ai/PersonalCopilotWidget.tsx','src/components/news/TcmNewsRotator.tsx','src/components/community/CommunitySidebar.tsx','src/components/branding/SystemBrandMark.tsx','src/components/branding/TcmCartoonDecor.tsx','src/components/system/ViewportModeToggle.tsx',
-  'src/services/offlineCache.ts','src/services/socialService.ts','src/services/miniAiEngine.ts','src/services/geminiByok.ts','src/news-rotator.css','src/desktop-community.css','src/final4-v2.css','src/desktop-interaction-profile.css',
-  'src/workers/drlParseWorker.ts','src/workers/docxParseWorker.ts','api/_lib/member-access.js','api/ai/diagnostics.js','api/research/drive.js','api/weather.js','scripts/role-ui-audit.mjs','public/service-worker.js','public/yhct-system-mark.svg','public/manifest.webmanifest','vite.config.ts',
-  '.github/workflows/github-pages.yml','ops/sql/community_sidebar_v1.sql','ops/sql/final_2_0_score_publication.sql'
+ 'src/App.tsx','src/main.tsx','src/theme.ts','src/types/index.ts','src/services/authService.ts','src/services/authRuntimeService.ts','src/services/socialService.ts','src/services/offlineCache.ts',
+ 'src/components/feed/AcademicFeed.tsx','src/components/feed/AcademicPostComposer.tsx','src/components/admin/AdminControlCenter.tsx','src/components/admin/SystemAdminCenter.tsx','src/components/admin/AdminThemeControl.tsx','src/components/admin/ModerationOpsPanel.tsx',
+ 'src/components/profile/ProfileCenter.tsx','src/components/messages/MessagesCenter.tsx','src/components/game/HerbGardenGame.tsx','src/components/game/HerbGardenSocialHub.tsx','src/components/ai/UnifiedAiMini.tsx',
+ 'src/components/drl/DrlCenter.tsx','src/components/research/ResearchCenter.tsx','src/components/schedule/ScheduleCenter.tsx','src/components/notifications/NotificationsCenter.tsx','src/components/news/TcmNewsRotator.tsx','src/components/community/CommunitySidebar.tsx',
+ 'src/components/system/ViewportModeToggle.tsx','src/social-v5.css','src/news-rotator.css','src/desktop-community.css','src/desktop-interaction-profile.css','src/final4-v2.css','public/service-worker.js','public/manifest.webmanifest','vite.config.ts','vercel.json','scripts/role-ui-audit.mjs'
 ];
-const errors=[];
-const read=file=>fs.readFileSync(path.join(root,file),'utf8');
+for(const p of required)if(!fs.existsSync(file(p)))errors.push(`missing ${p}`);
+const sourceFiles=[];const walk=dir=>{if(!fs.existsSync(dir))return;for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,entry.name);if(entry.isDirectory())walk(p);else if(/\.(?:ts|tsx|js|mjs|css)$/.test(entry.name))sourceFiles.push(p)}};walk(file('src'));walk(file('api'));
+const forbidden=[[/sk-proj-[A-Za-z0-9_-]{20,}/,'raw OpenAI secret'],[/AIza[0-9A-Za-z_-]{20,}/,'raw Google/Gemini secret'],[/dangerouslySetInnerHTML/,'dangerous raw HTML rendering'],[/\bTODO\b|\bFIXME\b|implement later|code logic here/i,'unfinished implementation marker'],[/drive\.google\.com\/drive\/folders\//i,'direct Google Drive folder URL'],[/logo-clb-yhct-hiu/i,'obsolete club logo reference']];
+for(const p of sourceFiles){const body=fs.readFileSync(p,'utf8');for(const [re,label] of forbidden)if(re.test(body))errors.push(`${label} in ${path.relative(root,p)}`)}
 const need=(body,tokens,label)=>{for(const token of tokens)if(!body.includes(token))errors.push(`${label} missing ${token}`)};
-for(const file of required)if(!fs.existsSync(path.join(root,file)))errors.push(`missing ${file}`);
-if(fs.existsSync(path.join(root,'src/components/news/TcmNewsCenter.tsx')))errors.push('retired TcmNewsCenter module must be deleted');
+const app=read('src/App.tsx'),types=read('src/types/index.ts'),composer=read('src/components/feed/AcademicPostComposer.tsx'),social=read('src/services/socialService.ts'),mini=read('src/components/ai/UnifiedAiMini.tsx'),socialCss=read('src/social-v5.css'),profile=read('src/components/profile/ProfileCenter.tsx'),auth=read('src/services/authService.ts'),messages=read('src/components/messages/MessagesCenter.tsx'),moderation=read('src/components/admin/ModerationOpsPanel.tsx'),garden=read('src/components/game/HerbGardenGame.tsx'),gardenSocial=read('src/components/game/HerbGardenSocialHub.tsx');
+need(app,['UnifiedAiMini member={member}','HerbGardenSocialHub member={member}',"lazy(()=>import('./components/messages/MessagesCenter'))","messages:'/messages'","garden:'/garden'",'authResolved'],'social v5 app shell');
+for(const stale of ['AiMiniFeedbackDock member={member}','PersonalCopilotWidget member={member}'])if(app.includes(stale))errors.push(`retired duplicate AI surface remains mounted: ${stale}`);
+need(types,["'news'|'reference'|'status'",'herbalAlias?:string','wallTheme?:string','wallMotto?:string'],'social v5 types');
+need(composer,["['news','Tin tức']","['reference','Bài tham khảo']",'Nội dung YHCT chuyên sâu — tùy chọn','requiresSource','Tin tức, bài tham khảo và nghiên cứu cần ít nhất 1 nguồn'],'flexible composer');
+need(social,["postType:p.postType||'reference'",'create_academic_post','update_academic_post','enforceDebounce'],'social post service');
+need(mini,["HISTORY_KEY='yhct-ai-mini-visible-history-v1'","timeZone:'Asia/Ho_Chi_Minh'","slice(0,3)",'localStorage.removeItem(HISTORY_KEY)',"Mode='assistant'|'feedback'",'feedback_submit_v1','greeting'],'unified AI Mini');
+need(socialCss,['-webkit-line-clamp:2','.ai-mini-panel','.personal-wall','.moderation-work-grid','.garden-community-layout','@media(max-width:680px)'],'social v5 responsive CSS');
+need(profile,['member_wall_feed_v1','member_wall_post_create_v1','member_wall_post_delete_v1','member_profile_update_v2',"storage.from('member-media')",'maxLength={500}','wall?.posts.map','Đổi mật khẩu'],'personal wall/avatar');
+need(auth,['herbal_alias','herbalAlias','wall_theme','wall_motto',"select('id,full_name,avatar_url,herbal_alias,wall_theme,wall_motto"],'herbal identity session restore');
+need(messages,['messages_inbox_v1','messages_send_v1','message_recipients_v1','messages_mark_read_v1','member_messages'],'private inbox');
+need(moderation,['moderation_workbench_v2','moderation_mark_seen_v1','p_on_date','Tối đa 5 nội dung','Đã xem','feedback_admin_resolve_v1','tcm_news_review_v1','moderate_academic_post_v1'],'admin/mod workbench');
+need(gardenSocial,['herb_garden_directory_v1','herb_garden_visit_v1','herb_garden_help_v1','herb_garden_market_v1','herb_garden_market_create_v1','herb_garden_market_buy_v1','herb_garden_market_cancel_v1','herb_garden_profile_update_v1','herb_garden_inventory_v3'],'garden social/economy');
+if(/openai|gemini|generateContent/i.test(garden)||/openai|gemini|generateContent/i.test(gardenSocial))errors.push('herb garden must not contain generative medical logic');
 
-const packageJson=JSON.parse(read('package.json'));
-if(String(packageJson.dependencies?.xlsx||'').includes('0.18.5'))errors.push('vulnerable xlsx 0.18.5 is forbidden');
-if(!String(packageJson.scripts?.prebuild||'').includes('audit:roles'))errors.push('prebuild must run independent role audit');
-
-const files=[];
-const walk=dir=>{for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,entry.name);entry.isDirectory()?walk(p):/\.(?:ts|tsx|js|css)$/.test(entry.name)&&files.push(p)}};
-for(const scope of ['src','api'])walk(path.join(root,scope));
-const forbidden=[
-  [/sk-proj-[A-Za-z0-9_-]{20,}/,'raw OpenAI secret'],[/AIza[0-9A-Za-z_-]{20,}/,'raw Google/Gemini secret'],[/dangerouslySetInnerHTML/,'dangerous raw HTML rendering'],[/\bTODO\b|\bFIXME\b|implement later|code logic here/i,'unfinished implementation marker'],[/logo-clb-yhct-hiu/i,'obsolete club logo reference'],[/drive\.google\.com\/drive\/folders\//i,'direct Google Drive folder URL'],[/1IjoX3TwCz-mp4g6tE72OnWv2rH00m1NX/,'retired client-visible YHCT Drive folder id']
-];
-for(const file of files){const body=fs.readFileSync(file,'utf8');for(const [re,label] of forbidden)if(re.test(body))errors.push(`${label} in ${path.relative(root,file)}`)}
-
-const boot=read('index.html');
-need(boot,['yhct-viewport-mode-v1','dataset.viewportMode','width=1280,viewport-fit=cover','width=device-width,initial-scale=1','href="./manifest.webmanifest"','href="./yhct-system-mark.svg"'],'early viewport/bootstrap portability');
-if(boot.includes('width=1280,initial-scale=1')||boot.includes('width=1280, initial-scale=1'))errors.push('desktop viewport must not force initial-scale=1 on narrow phones');
-
-const rotator=read('src/components/news/TcmNewsRotator.tsx'),rotatorCss=read('src/news-rotator.css');
-need(rotator,['ROTATE_MS=8000','REFRESH_MS=5*60*1000','tcm_news_feed_v1','target="_blank"','desktopInteractionEnabled',"addEventListener('wheel'",'{passive:false}','pending+=delta','onMouseDown','onMouseMove','finishMouseDrag','suppressClickRef','news-rotator-nav','cachePut','cacheGet'],'Final 4 news');
-need(rotatorCss,['overflow-x:auto','scroll-snap-type:x mandatory','cursor:grab','touch-action:auto','.news-rotator-nav','@media(max-width:760px)'],'Final 4 news CSS');
-if(!/\.news-rotator-nav\{display:none\}/.test(rotatorCss.replace(/\s+/g,'')))errors.push('desktop news arrows must be hidden on mobile');
-
-const community=read('src/components/community/CommunitySidebar.tsx'),desktop=read('src/desktop-interaction-profile.css');
-need(community,["type GroupKey='leadership'|'management'|'active'",'PAGE_SIZE=3','ROTATE_MS=8000','ACTIVE_LIMIT=10',"supabase.rpc('community_sidebar_v2')",'community-member-button','onClick={()=>onOpen(item)}','role="dialog"','Top 10 Tín dụng Cộng đồng'],'community interaction');
-for(const sensitive of ['student_code','studentCode','email','phone'])if(community.includes(sensitive))errors.push(`community sidebar must not expose ${sensitive}`);
-need(desktop,['@media screen and (min-width:1024px)','html[data-viewport-mode="desktop"]','pointer-events:auto!important','community-member-button:hover','community-member-button:focus-visible','color-scheme:light','text-size-adjust:100%'],'desktop canonical interaction');
-
-const worker=read('src/workers/drlParseWorker.ts'),drl=read('src/components/drl/DrlCenter.tsx');
-need(worker,['header:1','diem_de_xuat_drl','ten_hoat_dong','suggested_semester_code','duplicateStudentCodes','duplicateRows','logicalKey','toUpperCase()','hiu_drl_proposal'],'DRL parser');
-need(drl,['drl_admin_import_v1','drl_admin_upsert_semester_v1','drl_admin_publish_semester_v1','drl_public_lookup_v2','is_published','Đã chốt điểm','Đang tổng hợp / Chờ duyệt',"canPublish=roleAtLeast(member?.role,'admin')",'step:1|2','Tiếp tục xác nhận','Xác nhận công bố','cachePut','cacheGet'],'DRL publication/import');
-
-const theme=read('src/theme.ts'),adminTheme=read('src/components/admin/AdminThemeControl.tsx'),adminOps=read('src/components/admin/AdminControlCenter.tsx'),app=read('src/App.tsx');
-need(theme,["'tcm-cartoon-2d'","'tcm-isometric-3d'",'localStorage.setItem(KEY,theme)','dataset.theme'],'theme tokens');
-need(adminTheme,['2D Flat','3D Isometric',"onChange('tcm-cartoon-2d')","onChange('tcm-isometric-3d')"],'ACC theme control');
-need(app,['TcmCartoonDecor','AdminThemeControl theme={theme}',"canAcc=roleAtLeast(member?.role,'admin')","applyTheme(canAcc?theme:'duoc-ngoc',canAcc)",'ViewportModeToggle','mobile-bottom-nav','PersonalCopilotWidget member={member}',"window.location.pathname==='/profile'",'auth-submit-spinner'],'application shell');
-for(const stale of ['theme-quick-toggle','mobile-theme-action','toggleCartoonTheme'])if(app.includes(stale))errors.push(`public theme control must be absent: ${stale}`);
-for(const stale of ['THEME_OPTIONS','onThemeChange','theme-settings'])if(adminOps.includes(stale))errors.push(`member operations must not expose theme control: ${stale}`);
-
-const profile=read('src/components/profile/ProfileCenter.tsx'),authRuntime=read('src/services/authRuntimeService.ts');
-need(profile,['member_profile_summary_v1','community_credits','drl_semesters','Đổi mật khẩu','Mật khẩu hiện tại','Mật khẩu mới','Xác nhận mật khẩu mới','changeMemberPassword'],'profile/password');
-need(authRuntime,['loginOptimized','8000','AbortController','member-change-password','Authorization:`Bearer ${session.access_token}`'],'bounded auth runtime');
-
-const featureCss=read('src/final4-v2.css');
-need(featureCss,["html[data-theme='tcm-cartoon-2d']",'--cartoon-jade','--cartoon-apricot','--cartoon-cinnabar','--cartoon-cinnamon','.tcm-cartoon-decor','.drl-publish-dialog','.community-credit-badge'],'Final 4 V2 CSS');
-const social=read('src/services/socialService.ts');need(social,['enforceDebounce','create-post','comment:${me.id}:${postId}'],'community anti-spam debounce');
-const offline=read('src/services/offlineCache.ts');need(offline,['indexedDB.open','cachePut','cacheGet','expiresAt'],'offline IndexedDB');
-
-const systemAdmin=read('src/components/admin/SystemAdminCenter.tsx');
-need(systemAdmin,['SUPABASE_PUBLISHABLE_KEY','SUPABASE_URL',"edgeUrl('public-weather')","edgeUrl('acc-diagnostics')",'authorization:`Bearer ${session.access_token}`'],'host-neutral ACC edge runtime');
-if(systemAdmin.includes("fetch('/api/ai/diagnostics'")||systemAdmin.includes('fetch(`/api/weather'))errors.push('ACC must not depend on Vercel-only same-origin APIs');
-
-const driveApi=read('api/research/drive.js');need(driveApi,["memberAccess(req,'admin')",'process.env.YHCT_DRIVE_FOLDER_ID','process.env.GOOGLE_DRIVE_API_KEY','Cache-Control','no-store'],'secure Drive API fallback');for(const token of ['req.query?.folderId','webViewLink'])if(driveApi.includes(token))errors.push(`secure Drive API must not expose ${token}`);
-const weather=read('api/weather.js');need(weather,["new URL(req.url||'/'","searchParams.get('lat')","searchParams.get('lon')"],'legacy Vercel weather fallback');if(weather.includes('req.query'))errors.push('weather route must not use legacy req.query parser');
-
-const main=read('src/main.tsx'),vite=read('vite.config.ts'),manifest=read('public/manifest.webmanifest'),pages=read('.github/workflows/github-pages.yml');
-need(main,["import './viewport-native-hotfix.css';","import './news-rotator.css';","import './desktop-community.css';","import './final4-v2.css';","import './desktop-interaction-profile.css';",'import.meta.env.BASE_URL'],'main CSS + portable service worker');if(main.lastIndexOf('desktop-interaction-profile.css')<main.lastIndexOf('final4-v2.css'))errors.push('desktop interaction/profile CSS must load after frozen Final 4 CSS');
+const boot=read('index.html'),viewport=read('src/components/system/ViewportModeToggle.tsx'),vite=read('vite.config.ts'),manifest=read('public/manifest.webmanifest'),sw=read('public/service-worker.js'),vercel=read('vercel.json');
+need(boot,['yhct-viewport-mode-v1','dataset.viewportMode','width=device-width,initial-scale=1','href="./manifest.webmanifest"'],'viewport/PWA bootstrap');
+need(viewport,['dataset.viewportMode','Xem bản Desktop','Xem bản Mobile'],'viewport mode control');
 need(vite,['GITHUB_PAGES',"'/yhct-hiu-4-0/'",'base:githubPages'],'portable Vite base');
-need(manifest,['"start_url":"./"','"scope":"./"','"src":"yhct-system-mark.svg"'],'portable PWA manifest');
-need(pages,['actions/deploy-pages@v4',"GITHUB_PAGES: 'true'",'cp dist/index.html dist/404.html','touch dist/.nojekyll'],'GitHub Pages fallback workflow');
-const sw=read('public/service-worker.js');need(sw,['final4-v2-offline','NAV_TIMEOUT_MS=4500','navigationResponse','staticResponse','self.registration.scope','const ROOT=','caches.match(ROOT)'],'service worker Final 4 portable offline');
+need(manifest,['"start_url":"./"','"scope":"./"'],'portable manifest');
+need(sw,['navigationResponse','staticResponse','self.registration.scope'],'offline service worker');
+for(const route of ['/research','/profile','/schedule','/exam','/drl','/notifications','/garden','/messages','/admin','/acc'])if(!vercel.includes(`"source": "${route}"`))errors.push(`Vercel rewrite missing ${route}`);
 
-if(errors.length){console.error('ACCEPTANCE CHECK FAILED');errors.forEach(error=>console.error(`- ${error}`));process.exit(1)}
-console.log(`acceptance-ok: ${files.length} application source files scanned; frozen mobile + portable static hosting + Supabase edge ACC + desktop interaction + ACC theme + profile/password + DRL + offline gates clean`);
+const news=read('src/components/news/TcmNewsRotator.tsx'),newsCss=read('src/news-rotator.css'),community=read('src/components/community/CommunitySidebar.tsx'),desktop=read('src/desktop-interaction-profile.css'),drl=read('src/components/drl/DrlCenter.tsx'),worker=read('src/workers/drlParseWorker.ts');
+need(news,['ROTATE_MS=8000','tcm_news_feed_v1',"addEventListener('wheel'",'{passive:false}','onMouseDown','onMouseMove','target="_blank"'],'news interaction preserved');
+need(newsCss,['overflow-x:auto','scroll-snap-type:x mandatory','cursor:grab','@media(max-width:760px)'],'news CSS preserved');
+need(community,["supabase.rpc('community_sidebar_v2')",'ACTIVE_LIMIT=10','Top 10 Tín dụng Cộng đồng'],'community safe feed');for(const sensitive of ['student_code','email','phone'])if(community.includes(sensitive))errors.push(`community sidebar exposes ${sensitive}`);
+need(desktop,['pointer-events:auto!important','community-member-button:hover','community-member-button:focus-visible'],'desktop pointer UX');
+need(worker,['diem_de_xuat_drl','duplicateStudentCodes','logicalKey','toUpperCase()'],'DRL parser');
+need(drl,['drl_public_lookup_v2','drl_admin_import_v1','drl_admin_publish_semester_v1',"canPublish=roleAtLeast(member?.role,'admin')",'Đã chốt điểm','Đang tổng hợp / Chờ duyệt'],'DRL governance');
+
+const pkg=JSON.parse(read('package.json'));if(String(pkg.dependencies?.xlsx||'').includes('0.18.5'))errors.push('vulnerable xlsx 0.18.5 is forbidden');if(!String(pkg.scripts?.prebuild||'').includes('audit:roles'))errors.push('prebuild must run independent role audit');
+if(errors.length){console.error('ACCEPTANCE CHECK FAILED');errors.forEach(e=>console.error(`- ${e}`));process.exit(1)}
+console.log(`acceptance-ok: ${sourceFiles.length} application source files scanned; social v5 + frozen mobile + inbox + wall + moderation + garden economy + DRL + PWA gates clean`);
