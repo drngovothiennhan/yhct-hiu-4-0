@@ -1,0 +1,160 @@
+name: Smart Herb Preview
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/herbs/**'
+      - 'src/main.tsx'
+      - 'supabase/migrations/20260908_smart_herbs_v1.sql'
+      - 'scripts/verify-smart-herb.mjs'
+      - 'vercel.json'
+      - '.github/workflows/smart-herb-gate.yml'
+      - '.github/workflows/smart-herb-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smart-herb-preview-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    env:
+      VERCEL_ORG_ID: team_zMTBj85c4Dh5QoDNIjWqQRTg
+      VERCEL_PROJECT_ID: prj_7DWP3LX30CFALUD1KoNeOR8NlpsQ
+      VERCEL_PROJECT_NAME: yhct-hiu-final4-stage
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      GIT_REPO_OWNER: drngovothiennhan
+      GIT_REPO_NAME: yhct-hiu-4-0
+      PREVIEW_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      PREVIEW_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+    steps:
+      - name: Require preview deployment credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "::error title=Missing VERCEL_TOKEN::Preview deploy is fail-closed."
+            exit 78
+          fi
+          if ! [[ "$PREVIEW_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error title=Invalid preview commit::Unexpected commit SHA."
+            exit 78
+          fi
+
+      - name: Create isolated preview deployment from PR head
+        id: create
+        shell: bash
+        run: |
+          set -euo pipefail
+          request_file="$(mktemp)"
+          response_file="$(mktemp)"
+          node - "$request_file" <<'NODE'
+          const fs=require('node:fs');
+          const output=process.argv[2];
+          const sha=process.env.PREVIEW_SHA;
+          const owner=process.env.GIT_REPO_OWNER;
+          const repo=process.env.GIT_REPO_NAME;
+          const branch=process.env.PREVIEW_REF;
+          const body={
+            name:process.env.VERCEL_PROJECT_NAME,
+            project:process.env.VERCEL_PROJECT_ID,
+            gitSource:{type:'github',org:owner,repo,ref:sha},
+            gitMetadata:{
+              remoteUrl:`https://github.com/${owner}/${repo}`,
+              commitRef:branch,
+              commitSha:sha,
+              ci:true,
+              ciType:'github-actions',
+              ciGitProviderUsername:owner,
+              ciGitRepoVisibility:'public'
+            },
+            meta:{smartHerbPreview:'1',smartHerbBranch:branch}
+          };
+          fs.writeFileSync(output,JSON.stringify(body));
+          NODE
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data-binary "@${request_file}" \
+            "https://api.vercel.com/v13/deployments?teamId=${VERCEL_ORG_ID}&forceNew=1")"
+          rm -f "$request_file"
+          if [[ "$status" != "200" && "$status" != "201" && "$status" != "202" ]]; then
+            detail="$(node - "$response_file" <<'NODE'
+          const fs=require('node:fs');
+          try {
+            const body=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+            const error=body?.error||body;
+            process.stdout.write(String(error?.message||error?.code||'Preview deployment create failed').slice(0,600));
+          } catch {
+            process.stdout.write('Unable to read Vercel deployment error');
+          }
+          NODE
+            )"
+            rm -f "$response_file"
+            echo "::error title=Vercel preview creation failed::HTTP ${status}: ${detail}"
+            exit 80
+          fi
+          deployment_id="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));if(!b.id)process.exit(2);process.stdout.write(b.id)" "$response_file")"
+          deployment_url="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.url||'')" "$response_file")"
+          rm -f "$response_file"
+          echo "deployment_id=$deployment_id" >> "$GITHUB_OUTPUT"
+          echo "deployment_url=https://$deployment_url" >> "$GITHUB_OUTPUT"
+          echo "Created preview deployment: $deployment_id"
+
+      - name: Wait for preview readiness
+        id: ready
+        shell: bash
+        env:
+          DEPLOYMENT_ID: ${{ steps.create.outputs.deployment_id }}
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          for attempt in $(seq 1 120); do
+            status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v13/deployments/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}")"
+            if [ "$status" != "200" ]; then
+              echo "::warning::Preview status probe HTTP ${status}; retrying."
+              sleep 5
+              continue
+            fi
+            state="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.readyState||b.status||'UNKNOWN')" "$response_file")"
+            deployed_sha="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b?.meta?.githubCommitSha||'')" "$response_file")"
+            echo "Vercel preview state: $state"
+            if [[ "$state" == "ERROR" || "$state" == "CANCELED" ]]; then
+              echo "::error title=Vercel preview failed::Deployment ${DEPLOYMENT_ID} entered ${state}."
+              exit 81
+            fi
+            if [ "$state" = "READY" ]; then
+              if [ -n "$deployed_sha" ] && [ "$deployed_sha" != "$PREVIEW_SHA" ]; then
+                echo "::error title=Commit mismatch::Vercel built ${deployed_sha}, expected ${PREVIEW_SHA}."
+                exit 82
+              fi
+              echo "url=${{ steps.create.outputs.deployment_url }}" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error title=Vercel preview timeout::Deployment did not become ready within 10 minutes."
+          exit 83
+
+      - name: Publish preview summary
+        run: |
+          {
+            echo "### Smart Herb Vercel preview"
+            echo "- Commit: \`${PREVIEW_SHA}\`"
+            echo "- Branch: \`${PREVIEW_REF}\`"
+            echo "- Deployment: \`${{ steps.create.outputs.deployment_id }}\`"
+            echo "- URL: ${{ steps.ready.outputs.url }}"
+            echo "- Production alias: unchanged"
+          } >> "$GITHUB_STEP_SUMMARY"

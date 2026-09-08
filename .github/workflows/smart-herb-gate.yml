@@ -1,0 +1,41 @@
+name: Smart Herb Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/herbs/**'
+      - 'src/main.tsx'
+      - 'supabase/migrations/20260908_smart_herbs_v1.sql'
+      - 'scripts/verify-smart-herb.mjs'
+      - 'vercel.json'
+      - '.github/workflows/smart-herb-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Smart Herb static release gate
+        run: node scripts/verify-smart-herb.mjs
+
+      - name: TypeScript compile
+        run: npx tsc -b
+
+      - name: Vite production bundle
+        run: npx vite build
