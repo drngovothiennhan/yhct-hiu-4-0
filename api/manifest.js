@@ -29,6 +29,7 @@ async function readSystemTheme(){
 export default async function handler(_req,res){
   const theme=await readSystemTheme();
   const body={
+    id:'./',
     name:'YHCT HIU 4.0',
     short_name:'YHCT HIU',
     description:'Mạng xã hội Học thuật & Luyện thi Y học Cổ truyền',
@@ -38,7 +39,17 @@ export default async function handler(_req,res){
     background_color:'#f6f1e7',
     theme_color:THEMES[theme]||THEMES[FALLBACK_THEME],
     lang:'vi',
-    icons:[{src:'yhct-system-mark.svg',sizes:'any',type:'image/svg+xml',purpose:'any maskable'}]
+    categories:['education','medical','social'],
+    prefer_related_applications:false,
+    icons:[
+      {src:'yhct-system-mark.svg',sizes:'any',type:'image/svg+xml',purpose:'any'},
+      {src:'yhct-system-mark.svg',sizes:'any',type:'image/svg+xml',purpose:'maskable'}
+    ],
+    shortcuts:[
+      {name:'Bảng tin học thuật',short_name:'Bảng tin',url:'./',icons:[{src:'yhct-system-mark.svg',sizes:'any',type:'image/svg+xml'}]},
+      {name:'Trung tâm nghiên cứu',short_name:'Nghiên cứu',url:'./research',icons:[{src:'yhct-system-mark.svg',sizes:'any',type:'image/svg+xml'}]},
+      {name:'Tường cá nhân',short_name:'Cá nhân',url:'./profile',icons:[{src:'yhct-system-mark.svg',sizes:'any',type:'image/svg+xml'}]}
+    ]
   };
   res.setHeader('Content-Type','application/manifest+json; charset=utf-8');
   res.setHeader('Cache-Control','no-store, max-age=0, must-revalidate');
