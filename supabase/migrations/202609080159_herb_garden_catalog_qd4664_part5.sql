@@ -1,0 +1,43 @@
+-- QD4664 official catalog rows 57-70 of 70.
+
+insert into private.herb_garden_species(seed_key,name,other_names,botanical_name,category,family,used_part,traditional_actions,dosage,caution,source_page,visual_variant,source_code,source_ref,seedable) values
+  ('rau-meo', 'RÂU MÈO', 'Cây Bông bạc', 'Orthosiphon spiralis (Lour.) Merr.', 'Danh mục cây thuốc mẫu Bộ Y tế', 'Hoa môi – Lamiaceae.', 'Phần trên mặt đất.', 'Thanh lợi thấp nhiệt, lợi tiểu. Chữa viêm thận, viêm bàng quang, sỏi thận, viêm gan.', 'Ngày dùng 5 – 6g, dạng thuốc sắc.', '', 57, 1, 'QD4664-2014', 'Bộ tranh cây thuốc mẫu - Quyết định 4664/QĐ-BYT ngày 07/11/2014, Bộ Y tế', true),
+  ('rau-sam', 'RAU SAM', 'Mã xỉ hiện.', 'Portulaca oleracea L.', 'Danh mục cây thuốc mẫu Bộ Y tế', 'Rau sam (Portulacaceae).', 'Phần trên mặt đất', 'Thanh nhiệt giải độc, chỉ lỵ. Chữa mụn nhọt, nước ăn chân, kiết lỵ, tiểu buốt, tiểu ra máu.', 'Ngày dùng: 9 – 12g, dạng sắc. Dùng ngoài 30 - 60g tươi, giã đắp vào nơi bị bệnh.', '', 58, 2, 'QD4664-2014', 'Bộ tranh cây thuốc mẫu - Quyết định 4664/QĐ-BYT ngày 07/11/2014, Bộ Y tế', true),
+  ('sa', 'SẢ', '', 'Cymbopogon spp.', 'Danh mục cây thuốc mẫu Bộ Y tế', 'Lúa (Poaceae).', 'Thân rễ và lá', 'Phát hãn, lợi tiểu, hạ khí, tiêu đờm. Chữa cảm sốt, đau bụng, đầy hơi, trướng bụng, nôn mửa, ho nhiều đờm.', 'Ngày dùng: 6 – 9g (rễ), dạng hãm, sắc.', '', 59, 3, 'QD4664-2014', 'Bộ tranh cây thuốc mẫu - Quyết định 4664/QĐ-BYT ngày 07/11/2014, Bộ Y tế', true),
+  ('sai-dat', 'SÀI ĐẤT', 'Cúc nháp, ngổ núi, tân sa', 'Wedelia chinensis (Osbeck) Merr.', 'Danh mục cây thuốc mẫu Bộ Y tế', 'Cúc (Asteraceae).', 'Bộ phận trên mặt đất', 'Thanh nhiệt giải độc, tiêu viêm. Chữa viêm tấy, mụn nhọt, nhiễm trùng, chốc đầu, lở ngứa, dị ứng.', 'Ngày dùng 50 -100g (tươi), giã nát, hòa thêm nước gạn uống, bã đắp vào chỗ sưng tấy. Dùng dạng khô: 20 – 40g, sắc với 400ml nước đun sôi còn 100ml, uống làm 2-3 lần trong ngày. Trẻ em tùy tuổi, uống 1/3 - 1/2 liều người lớn.', '', 60, 4, 'QD4664-2014', 'Bộ tranh cây thuốc mẫu - Quyết định 4664/QĐ-BYT ngày 07/11/2014, Bộ Y tế', true),
+  ('san-day', 'SẮN DÂY', 'Cát căn', 'Pueraria montana (Lour.) Merr. var. chinensis (Ohwi) Maesen', 'Danh mục cây thuốc mẫu Bộ Y tế', 'Đậu (Fabaceae)', 'Rễ củ. Cạo vỏ phơi khô hoặc sấy khô.', 'Giải cơ, thoái nhiệt, sinh tân, chỉ khát, thấu chẩn, chỉ tả. Chữa cảm sốt phong nhiệt, cổ gáy cứng đau, sởi, thủy đậu, ban chẩn mọc không đều, kiết lỵ kèm theo sốt, khát nước.', 'Ngày 9 - 15g, dạng sắc.', '', 61, 5, 'QD4664-2014', 'Bộ tranh cây thuốc mẫu - Quyết định 4664/QĐ-BYT ngày 07/11/2014, Bộ Y tế', true),
+  ('sim', 'SIM', 'Hồng sim, Đào kim nương.', 'Rhodomyrtus tomentosa (Ait.) Hassk.', 'Danh mục cây thuốc mẫu Bộ Y tế', 'Sim (Myrtaceae)', 'Búp non, lá, nụ hoa, quả chín.', 'Chỉ huyết, lợi thấp, chỉ tả, giải độc. Chữa đau bụng, tiêu chảy, lỵ trực khuẩn.', 'Ngày dùng 8 – 16g, thái nhỏ, sắc với 200ml nước còn 50ml, chia 2 lần uống trong ngày. Dùng ngoài sắc lá, rửa vết thương.', '', 62, 6, 'QD4664-2014', 'Bộ tranh cây thuốc mẫu - Quyết định 4664/QĐ-BYT ngày 07/11/2014, Bộ Y tế', true),
+  ('thien-mon-dong', 'THIÊN MÔN ĐÔNG', 'Thiên môn, Thiên đông, Tóc tiên leo.', 'Asparagus cochinchinensis (Lour.) Merr.', 'Danh mục cây thuốc mẫu Bộ Y tế', 'Thiên môn đông (Asparagaceae).', 'Rễ củ. Đồ chín, bỏ vỏ, rút lõi, phơi khô hoặc sấy khô.', 'Tư âm, sinh tân, nhuận táo, thanh phế, hóa đàm. Chữa ho, sốt do phế nhiệt, tân dịch hao tổn, táo bón.', 'Ngày dùng 6 – 12g, sắc uống.', '', 63, 7, 'QD4664-2014', 'Bộ tranh cây thuốc mẫu - Quyết định 4664/QĐ-BYT ngày 07/11/2014, Bộ Y tế', true),
+  ('tia-to', 'TÍA TÔ', '', 'Perilla frutescens (L.) Britt.', 'Danh mục cây thuốc mẫu Bộ Y tế', 'Bạc hà (Lamiaceae).', 'Lá, hạt chín, cành phơi khô, hoặc sấy khô.', 'Hành khí, khoan trung, chỉ thống, an thai. Chữa khí uất vùng ngực, ngực sườn đày tức, thượng vị đau, ợ hơi, nôn mửa. Lá và cành tía tô chữa động thai. Hạt tía tô (tô tử) giảm ho trừ đàm.', 'Ngày dùng 5 – 9g, sắc uống.', '', 64, 8, 'QD4664-2014', 'Bộ tranh cây thuốc mẫu - Quyết định 4664/QĐ-BYT ngày 07/11/2014, Bộ Y tế', true),
+  ('trac-bach-diep', 'TRẮC BÁCH DIỆP', 'Trắc bá, bá tử, co tổng péc (Thái)', 'Platycladus oreintalis (L.) Franco', 'Danh mục cây thuốc mẫu Bộ Y tế', 'Hoàng đàn (Cupressaceae)', 'Lá, nhân hạt (bá tử nhân)', 'Lá sao cháy có tác dụng lương huyết, cầm máu, trừ thấp nhiệt. Chữa ho ra máu, đại tiểu tiện ra máu, chảy máu cam, rong kinh, rong huyết. Hạt trắc bách diệp (Bá tử nhân) có tác dụng bổ tâm, định thần, chỉ hãn, nhuận táo, thông tiện. Chữa hồi hộp, mất ngủ, hay quên, người yếu âm hư.', 'Ngày dùng 6 – 12g (lá), Bá tử nhân ngày dùng 4 – 12g. Trắc bách diệp sao cháy ngày dùng 10 – 20g, sắc uống.', '', 65, 1, 'QD4664-2014', 'Bộ tranh cây thuốc mẫu - Quyết định 4664/QĐ-BYT ngày 07/11/2014, Bộ Y tế', true),
+  ('trinh-nu-hoang-cung', 'TRINH NỮ HOÀNG CUNG', 'Tỏi lơi lá rộng.', 'Crinum latifolium L.', 'Danh mục cây thuốc mẫu Bộ Y tế', 'Thuỷ tiên (Amaryllidaceae).', 'Lá', 'Tiêu ung, bài nùng. Hỗ trợ chữa ung thư vú, ung thư cổ tử cung, ung thư tuyến tiền liệt.', 'Ngày dùng 3 – 5g, sao vàng, sắc uống.', '', 66, 2, 'QD4664-2014', 'Bộ tranh cây thuốc mẫu - Quyết định 4664/QĐ-BYT ngày 07/11/2014, Bộ Y tế', true),
+  ('xa-can', 'XẠ CAN', 'Rẻ quạt, lưỡi đòng', 'Belamcanda chinensis (L.) DC.', 'Danh mục cây thuốc mẫu Bộ Y tế', 'La dơn (Iridaceae)', 'Thân rễ, lá', 'Thanh nhiệt giải độc, hóa đàm bình suyễn. Chữa viêm họng, viêm amydal có mủ, ho nhiều đờm, khản tiếng, viêm tắc tuyến vú, tắc tia sữa.', 'Ngày dùng 3 – 6g (dạng khô), sắc uống; 10 – 20g (thân rễ tươi) tươi rửa sạch, nhúng qua nước sôi, giã nát cho vài hạt muối, vắt lấy nước ngậm và nuốt dần, bã hơ nóng đắp vào cổ.', '', 67, 3, 'QD4664-2014', 'Bộ tranh cây thuốc mẫu - Quyết định 4664/QĐ-BYT ngày 07/11/2014, Bộ Y tế', true),
+  ('xich-dong-nam', 'XÍCH ĐỒNG NAM', 'Mò hoa đỏ, lẹo cái', 'Clerodendrum japonicum (Thunb.) Sweet', 'Danh mục cây thuốc mẫu Bộ Y tế', 'Cỏ roi ngựa - Verbenaceae.', 'Toàn thân phơi hoặc sấy khô, có thể dùng tươi.', 'Hành khí, hoạt huyết, tiêu viêm, chỉ thống. Chữa khí hư, viêm cổ tử cung, kinh nguyệt không đều, vàng da, mụn lở, khớp xương đau nhức, đau lưng.', 'Ngày dùng 15 - 20g, sắc hoặc nấu cao uống. Lá tươi giã đắp hoặc ép lấy nước rửa vết thương, bỏng, mụn lở.', '', 68, 4, 'QD4664-2014', 'Bộ tranh cây thuốc mẫu - Quyết định 4664/QĐ-BYT ngày 07/11/2014, Bộ Y tế', true),
+  ('xuyen-tam-lien', 'XUYÊN TÂM LIÊN', 'Công cộng, lãm hạch liên, khổ đảm thảo', 'Andrographis paniculata (Burm.f.) Nees', 'Danh mục cây thuốc mẫu Bộ Y tế', 'Ô rô (Acanthaceae)', 'Bộ phận trên mặt đất', 'Thanh nhiệt giải độc, tiêu viêm, chỉ thống. Chữa lỵ cấp tính, viêm dạ dày, cảm mạo, phát sốt, viêm họng, viêm Amydal, viêm gan virus, mụn nhọt.', 'Ngày dùng 4 – 16g, dạng sắc, tán.', '', 69, 5, 'QD4664-2014', 'Bộ tranh cây thuốc mẫu - Quyết định 4664/QĐ-BYT ngày 07/11/2014, Bộ Y tế', true),
+  ('y-di', 'Ý DĨ', 'Bo bo, hạt cườm, cườm gạo', 'Coix lacryma-jobi L.', 'Danh mục cây thuốc mẫu Bộ Y tế', 'Lúa (Poaceae)', 'Hạt', 'Kiện tỳ, bổ phế, thanh nhiệt, thẩm thấp. Chữa phù thũng, cước khí, ỉa chảy do tỳ hư, phong thấp lâu ngày không khỏi, gân cơ co quắp khó vận động.', 'Ngày dùng 8 – 30g, sắc uống, thường phối hợp với các vị thuốc khác.', '', 70, 6, 'QD4664-2014', 'Bộ tranh cây thuốc mẫu - Quyết định 4664/QĐ-BYT ngày 07/11/2014, Bộ Y tế', true)
+on conflict(seed_key) do update set
+  name=excluded.name,other_names=excluded.other_names,botanical_name=excluded.botanical_name,category=excluded.category,
+  family=excluded.family,used_part=excluded.used_part,traditional_actions=excluded.traditional_actions,dosage=excluded.dosage,
+  caution=excluded.caution,source_page=excluded.source_page,visual_variant=excluded.visual_variant,source_code=excluded.source_code,
+  source_ref=excluded.source_ref,seedable=excluded.seedable;
+
+-- Existing still-hidden plants from the six-row demo catalog are re-rolled into the official catalog.
+-- Planting/maturity timestamps are preserved; only the hidden seed identity changes.
+do $$
+declare r record; v_seed text;
+begin
+  for r in
+    select p.id
+    from public.herb_garden_plants p
+    join private.herb_garden_species old on old.seed_key=p.seed_key
+    where p.harvested_at is null and old.source_code='legacy'
+  loop
+    select s.seed_key into v_seed
+    from private.herb_garden_species s
+    where s.seedable and s.source_code='QD4664-2014'
+    order by random() limit 1;
+    if v_seed is not null then update public.herb_garden_plants p set seed_key=v_seed where p.id=r.id; end if;
+  end loop;
+end $$;
+
+comment on table private.herb_garden_species is 'Herb Garden species catalog. QD4664-2014 rows are transcribed from the user-provided 70-page Bộ tranh cây thuốc mẫu; legacy demo rows are retained only for referential integrity and are not seedable.';

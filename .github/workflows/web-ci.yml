@@ -30,7 +30,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,4 +41,14 @@ jobs:
       - run: node scripts/platform-upgrade-check.mjs
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run build
+      - name: Real Google Chrome responsive smoke
+        run: node scripts/chrome-real-smoke.mjs
+      - name: Upload Chrome QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-smoke-${{ github.sha }}
+          path: browser-artifacts/
+          if-no-files-found: warn
+          retention-days: 1
       - run: node -e "const fs=require('fs'); for(const f of ['dist/index.html','dist/manifest.webmanifest','dist/service-worker.js']) if(!fs.existsSync(f)){console.error('missing '+f);process.exit(1)}"

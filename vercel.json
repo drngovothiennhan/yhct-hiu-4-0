@@ -5,27 +5,24 @@
     "deploymentEnabled": false
   },
   "rewrites": [
-    {
-      "source": "/profile",
-      "destination": "/"
-    }
+    {"source": "/research", "destination": "/"},
+    {"source": "/profile", "destination": "/"},
+    {"source": "/schedule", "destination": "/"},
+    {"source": "/exam", "destination": "/"},
+    {"source": "/drl", "destination": "/"},
+    {"source": "/notifications", "destination": "/"},
+    {"source": "/garden", "destination": "/"},
+    {"source": "/messages", "destination": "/"},
+    {"source": "/admin", "destination": "/"},
+    {"source": "/acc", "destination": "/"}
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        },
-        {
-          "key": "Permissions-Policy",
-          "value": "camera=(), geolocation=(), payment=(), usb=()"
-        }
+        {"key": "X-Content-Type-Options", "value": "nosniff"},
+        {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"},
+        {"key": "Permissions-Policy", "value": "camera=(), geolocation=(), payment=(), usb=()"}
       ]
     }
   ]

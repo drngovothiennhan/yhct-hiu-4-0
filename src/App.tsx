@@ -29,30 +29,65 @@ const HerbGardenGame=lazy(()=>import('./components/game/HerbGardenGame'));
 const MessagesCenter=lazy(()=>import('./components/messages/MessagesCenter'));
 type Tab='feed'|'research'|'profile'|'schedule'|'exam'|'drl'|'notifications'|'garden'|'messages'|'admin'|'acc';
 const TITLES:Record<Tab,string>={feed:'Bảng tin học thuật',research:'Khám phá học thuật',profile:'Hồ sơ học thuật',schedule:'Lịch hoạt động',exam:'Luyện thi Đánh giá Năng lực',drl:'Điểm hoạt động / Rèn luyện',notifications:'Thông báo',garden:'Gia Viên Dược Thảo',messages:'Tin nhắn',admin:'Điều hành thành viên',acc:'Admin Control Center'};
+const TAB_PATHS:Record<Tab,string>={feed:'/',research:'/research',profile:'/profile',schedule:'/schedule',exam:'/exam',drl:'/drl',notifications:'/notifications',garden:'/garden',messages:'/messages',admin:'/admin',acc:'/acc'};
+const PATH_TABS=new Map<string,Tab>(Object.entries(TAB_PATHS).map(([tab,path])=>[path,tab as Tab]));
+const MEMBER_ONLY=new Set<Tab>(['profile','notifications','garden','messages']);
 const LazyFallback=()=> <section className="panel lazy-module-loading" role="status">Đang tải module…</section>;
 
+function normalizePath(pathname:string){
+  const value=pathname.replace(/\/+$/,'')||'/';
+  return value.startsWith('/')?value:`/${value}`;
+}
+function tabFromLocation():Tab{
+  if(typeof window==='undefined')return'feed';
+  if(window.location.pathname==='/profile')return'profile';
+  return PATH_TABS.get(normalizePath(window.location.pathname))||'feed';
+}
+function replaceRoute(tab:Tab){
+  const desired=TAB_PATHS[tab];
+  if(normalizePath(window.location.pathname)!==desired)window.history.replaceState(null,'',desired);
+}
+
 export default function App(){
-  const [tab,setTab]=useState<Tab>('feed'),[member,setMember]=useState<Member|null>(null),[posts,setPosts]=useState<AcademicPost[]>(initialPosts),[theme,setTheme]=useState<ThemeName>(()=>readTheme()),[viewportMode,setViewportMode]=useState<ViewportMode>(()=>readViewportMode()),[authOpen,setAuthOpen]=useState(false),[moreOpen,setMoreOpen]=useState(false),[composeNonce,setComposeNonce]=useState(0),[student,setStudent]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false),[authPhase,setAuthPhase]=useState(''),[err,setErr]=useState('');
+  const [tab,setTab]=useState<Tab>(()=>tabFromLocation()),[member,setMember]=useState<Member|null>(null),[authResolved,setAuthResolved]=useState(false),[posts,setPosts]=useState<AcademicPost[]>(initialPosts),[theme,setTheme]=useState<ThemeName>(()=>readTheme()),[viewportMode,setViewportMode]=useState<ViewportMode>(()=>readViewportMode()),[authOpen,setAuthOpen]=useState(false),[moreOpen,setMoreOpen]=useState(false),[composeNonce,setComposeNonce]=useState(0),[student,setStudent]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false),[authPhase,setAuthPhase]=useState(''),[err,setErr]=useState('');
   const loginGuard=useRef(false),canAdmin=roleAtLeast(member?.role,'mod'),canAcc=roleAtLeast(member?.role,'admin');
   const reload=async()=>{try{setPosts(await fetchAcademicFeed())}catch{}};
   useEffect(()=>{const cap=applyDeviceCapabilityProfile();return cap.dispose},[]);
   useEffect(()=>{applyTheme(canAcc?theme:'duoc-ngoc',canAcc)},[theme,canAcc]);
   useEffect(()=>{applyViewportMode(viewportMode)},[viewportMode]);
-  useEffect(()=>{void restoreMember().then(m=>{if(m){setMember(m);if(window.location.pathname==='/profile')setTab('profile')}});void reload()},[]);
-  useEffect(()=>{const onPop=()=>{if(window.location.pathname==='/profile'&&member)setTab('profile');else if(tab==='profile')setTab('feed')};window.addEventListener('popstate',onPop);return()=>window.removeEventListener('popstate',onPop)},[member,tab]);
-  useEffect(()=>{if((tab==='profile'||tab==='notifications'||tab==='garden'||tab==='messages')&&!member)setTab('feed');if(tab==='admin'&&!canAdmin)setTab('feed');if(tab==='acc'&&!canAcc)setTab('feed')},[tab,member,canAdmin,canAcc]);
+  useEffect(()=>{
+    let live=true;
+    void(async()=>{try{const restored=await restoreMember();if(live&&restored)setMember(restored)}finally{if(live)setAuthResolved(true)}})();
+    void reload();
+    return()=>{live=false};
+  },[]);
+  useEffect(()=>{const onPop=()=>setTab(tabFromLocation());window.addEventListener('popstate',onPop);return()=>window.removeEventListener('popstate',onPop)},[]);
+  useEffect(()=>{
+    if(!authResolved)return;
+    let fallback:Tab|null=null;
+    if(MEMBER_ONLY.has(tab)&&!member)fallback='feed';
+    else if(tab==='admin'&&!canAdmin)fallback='feed';
+    else if(tab==='acc'&&!canAcc)fallback='feed';
+    if(fallback){setTab(fallback);replaceRoute(fallback)}
+  },[authResolved,tab,member,canAdmin,canAcc]);
   useEffect(()=>{if(!moreOpen)return;const before=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=before}},[moreOpen]);
   useEffect(()=>{if(!member)return;let sent=0;const report=(type:string,message:string)=>{if(sent++>=4)return;void supabase.rpc('record_client_diagnostic_v1',{p_event_type:type,p_message:message.slice(0,1800),p_metadata:{tab,viewportMode,performanceTier:document.documentElement.dataset.performanceTier||'unknown'}}).then(()=>{})};const onError=(e:ErrorEvent)=>report('error',e.message||'window error'),onRejection=(e:PromiseRejectionEvent)=>report('unhandledrejection',String((e.reason as {message?:string})?.message||e.reason||'promise rejection'));window.addEventListener('error',onError);window.addEventListener('unhandledrejection',onRejection);return()=>{window.removeEventListener('error',onError);window.removeEventListener('unhandledrejection',onRejection)}},[member,tab,viewportMode]);
 
-  const login=async()=>{if(loginGuard.current)return;loginGuard.current=true;setBusy(true);setErr('');setAuthPhase('Đang kết nối máy chủ xác thực…');try{const m=await loginOptimized(student.trim(),password);setMember(m);setAuthPhase('Đăng nhập thành công');setAuthOpen(false);setPassword('');void reload();if(window.location.pathname==='/profile')setTab('profile')}catch(e){setErr((e as Error).message||'Không thể đăng nhập');setAuthPhase('')}finally{loginGuard.current=false;setBusy(false)}};
-  const logout=()=>{setMember(null);setTab('feed');setMoreOpen(false);if(window.location.pathname==='/profile')window.history.replaceState(null,'','/');logoutFast()};
-  const go=(next:Tab)=>{setTab(next);setMoreOpen(false);const desired=next==='profile'?'/profile':'/';if(window.location.pathname!==desired)window.history.pushState(null,'',desired);window.scrollTo({top:0,behavior:'smooth'})};
+  const login=async()=>{if(loginGuard.current)return;loginGuard.current=true;setBusy(true);setErr('');setAuthPhase('Đang kết nối máy chủ xác thực…');try{const m=await loginOptimized(student.trim(),password);setMember(m);setAuthResolved(true);setAuthPhase('Đăng nhập thành công');setAuthOpen(false);setPassword('');void reload()}catch(e){setErr((e as Error).message||'Không thể đăng nhập');setAuthPhase('')}finally{loginGuard.current=false;setBusy(false)}};
+  const logout=()=>{setMember(null);setTab('feed');setMoreOpen(false);replaceRoute('feed');logoutFast()};
+  const go=(next:Tab)=>{setTab(next);setMoreOpen(false);const desired=TAB_PATHS[next];if(normalizePath(window.location.pathname)!==desired)window.history.pushState(null,'',desired);window.scrollTo({top:0,behavior:'smooth'})};
   const requestMemberAction=(action:()=>void)=>{if(!member){setAuthOpen(true);return}action()};
-  const requestCompose=()=>requestMemberAction(()=>{setTab('feed');setMoreOpen(false);setComposeNonce(x=>x+1)}),requestProfile=()=>requestMemberAction(()=>go('profile')),requestNotifications=()=>requestMemberAction(()=>go('notifications'));
+  const requestCompose=()=>requestMemberAction(()=>{go('feed');setComposeNonce(x=>x+1)}),requestProfile=()=>requestMemberAction(()=>go('profile')),requestNotifications=()=>requestMemberAction(()=>go('notifications'));
   const changeViewport=(next:ViewportMode)=>{setViewportMode(next);setMoreOpen(false)};
 
-  return <div className={`app viewport-mode-${viewportMode}`}><aside><div className="brand"><div className="brand-logo brand-logo--system"><SystemBrandMark variant="taiji" label="Biểu trưng hệ thống YHCT HIU 4.0"/></div><div><b>{BRANDING.platformName}</b><small>{BRANDING.owner} · {BRANDING.faculty}</small></div></div><nav><button className={tab==='feed'?'active':''} onClick={()=>go('feed')}><BookOpen/>Bảng tin học thuật</button><button className={tab==='research'?'active':''} onClick={()=>go('research')}><FlaskConical/>Trung tâm nghiên cứu</button>{member&&<><button className={tab==='messages'?'active':''} onClick={()=>go('messages')}><MessageCircle/>Tin nhắn</button><button className={tab==='garden'?'active':''} onClick={()=>go('garden')}><Gamepad2/>Gia Viên Dược Thảo</button><button className={tab==='profile'?'active':''} onClick={()=>go('profile')}><Medal/>Hồ sơ học thuật</button><button className={tab==='notifications'?'active':''} onClick={()=>go('notifications')}><Bell/>Thông báo</button></>}<button className={tab==='schedule'?'active':''} onClick={()=>go('schedule')}><CalendarDays/>Lịch hoạt động</button><button className={tab==='drl'?'active':''} onClick={()=>go('drl')}><FiveElementsIcon/>Điểm hoạt động</button><button className={tab==='exam'?'active':''} onClick={()=>go('exam')}><GraduationCap/>Luyện thi ĐGNL</button>{canAdmin&&<button className={tab==='admin'?'active':''} onClick={()=>go('admin')}><ShieldCheck/>Điều hành</button>}{canAcc&&<button className={`acc-nav ${tab==='acc'?'active':''}`} onClick={()=>go('acc')}><Star/>ACC Hệ thống</button>}</nav><footer>{member?<><b>{member.fullName}</b><small>{member.title}</small><button onClick={logout}><LogOut/>Đăng xuất</button></>:<button onClick={()=>setAuthOpen(true)}><LogIn/>Đăng nhập thành viên</button>}<ViewportModeToggle mode={viewportMode} onChange={changeViewport} className="viewport-toggle--sidebar"/></footer></aside>
-    <main><header className="top"><TcmCartoonDecor/><div className="top-title"><SystemBrandMark variant="taiji" size={40} className="mobile-top-mark" label="YHCT HIU 4.0"/><div><h1>{TITLES[tab]}</h1><p>{BRANDING.subtitle}</p></div></div><div className="top-actions"><span className="badge">FINAL 4.0 · RESPONSIVE</span><button className="mobile-more-button" onClick={()=>setMoreOpen(true)} aria-label="Mở thêm chức năng" title="Thêm"><Menu/></button><button className="mobile-account-button" onClick={member?logout:()=>setAuthOpen(true)} aria-label={member?'Đăng xuất':'Đăng nhập thành viên'} title={member?'Đăng xuất':'Đăng nhập thành viên'}>{member?<LogOut/>:<LogIn/>}</button></div></header>
+  return <div className={`app viewport-mode-${viewportMode}`}>
+    <aside>
+      <div className="brand"><div className="brand-logo brand-logo--system"><SystemBrandMark variant="taiji" label="Biểu trưng hệ thống YHCT HIU 4.0"/></div><div><b>{BRANDING.platformName}</b><small>{BRANDING.owner} · {BRANDING.faculty}</small></div></div>
+      <nav><button className={tab==='feed'?'active':''} onClick={()=>go('feed')}><BookOpen/>Bảng tin học thuật</button><button className={tab==='research'?'active':''} onClick={()=>go('research')}><FlaskConical/>Trung tâm nghiên cứu</button>{member&&<><button className={tab==='messages'?'active':''} onClick={()=>go('messages')}><MessageCircle/>Tin nhắn</button><button className={tab==='garden'?'active':''} onClick={()=>go('garden')}><Gamepad2/>Gia Viên Dược Thảo</button><button className={tab==='profile'?'active':''} onClick={()=>go('profile')}><Medal/>Hồ sơ học thuật</button><button className={tab==='notifications'?'active':''} onClick={()=>go('notifications')}><Bell/>Thông báo</button></>}<button className={tab==='schedule'?'active':''} onClick={()=>go('schedule')}><CalendarDays/>Lịch hoạt động</button><button className={tab==='drl'?'active':''} onClick={()=>go('drl')}><FiveElementsIcon/>Điểm hoạt động</button><button className={tab==='exam'?'active':''} onClick={()=>go('exam')}><GraduationCap/>Luyện thi ĐGNL</button>{canAdmin&&<button className={tab==='admin'?'active':''} onClick={()=>go('admin')}><ShieldCheck/>Điều hành</button>}{canAcc&&<button className={`acc-nav ${tab==='acc'?'active':''}`} onClick={()=>go('acc')}><Star/>ACC Hệ thống</button>}</nav>
+      <footer>{member?<><b>{member.fullName}</b><small>{member.title}</small><button onClick={logout}><LogOut/>Đăng xuất</button></>:<button onClick={()=>setAuthOpen(true)}><LogIn/>Đăng nhập thành viên</button>}<ViewportModeToggle mode={viewportMode} onChange={changeViewport} className="viewport-toggle--sidebar"/></footer>
+    </aside>
+    <main>
+      <header className="top"><TcmCartoonDecor/><div className="top-title"><SystemBrandMark variant="taiji" size={40} className="mobile-top-mark" label="YHCT HIU 4.0"/><div><h1>{TITLES[tab]}</h1><p>{BRANDING.subtitle}</p></div></div><div className="top-actions"><span className="badge">FINAL 4.0 · RESPONSIVE</span><button className="mobile-more-button" onClick={()=>setMoreOpen(true)} aria-label="Mở thêm chức năng" title="Thêm"><Menu/></button><button className="mobile-account-button" onClick={member?logout:()=>setAuthOpen(true)} aria-label={member?'Đăng xuất':'Đăng nhập thành viên'} title={member?'Đăng xuất':'Đăng nhập thành viên'}>{member?<LogOut/>:<LogIn/>}</button></div></header>
       {tab==='feed'&&<AcademicFeed posts={posts} setPosts={setPosts} member={member} reload={reload} composeNonce={composeNonce}/>} {tab==='research'&&<ResearchCenter member={member}/>} {tab==='profile'&&member&&<ProfileCenter member={member}/>} {tab==='notifications'&&member&&<NotificationsCenter member={member}/>} {tab==='schedule'&&<ScheduleCenter member={member}/>} {tab==='drl'&&<DrlCenter member={member}/>} {tab==='exam'&&<ExamCenter/>}
       {tab==='messages'&&member&&<Suspense fallback={<LazyFallback/>}><MessagesCenter member={member}/></Suspense>}{tab==='garden'&&member&&<Suspense fallback={<LazyFallback/>}><HerbGardenGame member={member}/></Suspense>}
       {tab==='admin'&&canAdmin&&<>{canAcc&&<AdminThemeControl theme={theme} onChange={setTheme}/>}<AdminControlCenter currentMember={member} onUpdate={m=>{if(member?.id===m.id)setMember(m)}}/></>}
