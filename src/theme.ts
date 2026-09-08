@@ -28,7 +28,7 @@ function normalizeManifestLink(){
   if(typeof document==='undefined')return;
   const link=document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
   if(!link)return;
-  link.setAttribute('href','./api/manifest');
+  link.setAttribute('href','/api/manifest');
   link.removeAttribute('data-theme-hint');
 }
 
