@@ -22,7 +22,7 @@ need(profile,['member_wall_feed_v1','member_wall_post_create_v1','member_wall_po
 need(auth,['herbal_alias','herbalAlias','wall_theme','wall_motto','readSessionResilient','readCachedMember','onAuthStateChange','auth_user_id','loadMemberFromSession'],'refresh-safe member session restore');
 need(messages,['messages_inbox_v1','messages_send_v1','message_recipients_v1','messages_mark_read_v1'],'private inbox');
 need(moderation,['moderation_workbench_v2','moderation_mark_seen_v1','p_on_date','Tối đa 5 nội dung','Đã xem'],'moderation workbench');
-need(systemAdmin,['MAX_BLOCK_ITEMS=5','5 gần nhất',"tcm_news_admin_list_v1',{p_limit:MAX_BLOCK_ITEMS}",'Tin được cập nhật theo nguồn','48 giờ'],'admin system five-item blocks and news retention copy');
+need(systemAdmin,['MAX_BLOCK_ITEMS=5','5 gần nhất','tcm_news_admin_list_v1','p_limit:MAX_BLOCK_ITEMS','Tin được cập nhật theo nguồn','48 giờ'],'admin system five-item blocks and news retention copy');
 need(memberAdmin,['MAX_BLOCK_ITEMS=5','.limit(MAX_BLOCK_ITEMS)','5 gần nhất'],'member admin five-item history');
 need(garden,['herb_garden_state_v3','herb_garden_select_initial_plots_v3','herb_garden_plant_v3','herb_garden_water_v3','herb_garden_fertilize_v3','herb_garden_harvest_v3','garden-nine-grid','Chọn 3 ô khởi đầu','Đã mở {unlockedCount}/9 ô','garden-decor-sprite.svg'],'nine-plot garden frontend');
 need(gardenSocial,['herb_garden_directory_v2','herb_garden_visit_v2','herb_garden_help_v2','herb_garden_market_buy_v1','herb_garden_market_create_v1','herb_garden_wallet_v1','herb_garden_profile_update_v1','visited-grid-v3','garden-decor-sprite.svg'],'social garden v6');
