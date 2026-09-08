@@ -3,7 +3,7 @@ import {supabase} from './authService';
 export type AiMode='fast'|'research'|'exam';
 export type AiSource={id:string;title:string;text:string;url?:string|null};
 export type AiCitation={id:string;label:string;url:string|null};
-export type AiRuntimeAnswer={answer:string;citations:AiCitation[];confidence:'high'|'medium'|'low';safety:'educational'|'needs_source_check'|'refuse_clinical_advice';suggestedQueries:string[];provider:'openai'|'local';degraded:boolean;latencyMs:number};
+export type AiRuntimeAnswer={answer:string;citations:AiCitation[];confidence:'high'|'medium'|'low';safety:'educational'|'needs_source_check'|'refuse_clinical_advice';suggestedQueries:string[];provider:'openai'|'local';degraded:boolean;latencyMs:number;toolsUsed:string[]};
 export class AiRuntimeError extends Error{constructor(public kind:'auth'|'timeout'|'network'|'invalid',message:string){super(message);this.name='AiRuntimeError'}}
 
 const TIMEOUT_MS=11000;
@@ -20,7 +20,8 @@ function normalizeAnswer(value:unknown):AiRuntimeAnswer{
   const safety=validSafety.has(String(x.safety))?String(x.safety) as AiRuntimeAnswer['safety']:'needs_source_check';
   const provider=x.provider==='openai'?'openai':'local';
   const suggestedQueries=Array.isArray(x.suggestedQueries)?x.suggestedQueries.map(v=>safe(v,180)).filter(Boolean).slice(0,3):[];
-  return{answer,citations,confidence,safety,suggestedQueries,provider,degraded:Boolean(x.degraded),latencyMs:Number.isFinite(Number(x.latencyMs))?Number(x.latencyMs):0};
+  const toolsUsed=Array.isArray(x.toolsUsed)?[...new Set(x.toolsUsed.map(v=>safe(v,80)).filter(Boolean))].slice(0,6):[];
+  return{answer,citations,confidence,safety,suggestedQueries,provider,degraded:Boolean(x.degraded),latencyMs:Number.isFinite(Number(x.latencyMs))?Number(x.latencyMs):0,toolsUsed};
 }
 
 export async function askServerAi(query:string,mode:AiMode='fast',sources:AiSource[]=[]):Promise<AiRuntimeAnswer>{
@@ -41,6 +42,7 @@ export async function askServerAi(query:string,mode:AiMode='fast',sources:AiSour
 
 export function renderAiAnswer(result:AiRuntimeAnswer){
   const sourceLine=result.citations.length?`\n\nNguồn: ${result.citations.map((c,i)=>`[${i+1}] ${c.label}`).join(' · ')}`:'';
+  const toolLine=result.toolsUsed.length?`\n\nDữ liệu hệ thống: ${result.toolsUsed.join(', ')}`:'';
   const safetyLine=result.safety==='refuse_clinical_advice'?'\n\nLưu ý: nội dung chỉ phục vụ học tập, không thay thế thăm khám/chẩn đoán/kê đơn.':result.safety==='needs_source_check'?'\n\nLưu ý: cần kiểm tra thêm nguồn chuyên môn trước khi áp dụng.':'';
-  return`${result.answer}${sourceLine}${safetyLine}`;
+  return`${result.answer}${sourceLine}${toolLine}${safetyLine}`;
 }
