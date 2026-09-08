@@ -10,7 +10,8 @@ if(!chrome)throw new Error('Google Chrome is required for browser QA; google-chr
 const outDir=path.resolve('browser-artifacts');await mkdir(outDir,{recursive:true});
 let preview=null;
 const target=process.env.CHROME_SMOKE_URL||'http://127.0.0.1:4173/';
-const watchdog=setTimeout(()=>{console.error('Chrome smoke watchdog exceeded 75 seconds.');try{preview?.kill('SIGKILL')}catch{}process.exit(124)},75000);
+const baseTarget=target.replace(/\/$/,'');
+const watchdog=setTimeout(()=>{console.error('Chrome smoke watchdog exceeded 90 seconds.');try{preview?.kill('SIGKILL')}catch{}process.exit(124)},90000);
 if(!process.env.CHROME_SMOKE_URL){
   const vite=path.resolve('node_modules/vite/bin/vite.js');
   preview=spawn(process.execPath,[vite,'preview','--host','127.0.0.1','--port','4173'],{stdio:'ignore',env:process.env});
@@ -53,24 +54,31 @@ async function runCase(name,width,height,port){
     ]);
     let seq=0;const pending=new Map();const runtimeErrors=[];
     ws.addEventListener('message',event=>{const m=JSON.parse(String(event.data));if(m.id&&pending.has(m.id)){const {resolve,reject,timer}=pending.get(m.id);clearTimeout(timer);pending.delete(m.id);m.error?reject(new Error(m.error.message)):resolve(m.result)}if(m.method==='Runtime.exceptionThrown')runtimeErrors.push(m.params?.exceptionDetails?.text||'Runtime exception')});
-    const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++seq;const timer=setTimeout(()=>{pending.delete(id);reject(new Error(`${name}: CDP timeout on ${method}`))},6000);pending.set(id,{resolve,reject,timer});ws.send(JSON.stringify({id,method,params}))});
+    const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++seq;const timer=setTimeout(()=>{pending.delete(id);reject(new Error(`${name}: CDP timeout on ${method}`))},7000);pending.set(id,{resolve,reject,timer});ws.send(JSON.stringify({id,method,params}))});
+    const waitReady=async()=>{let loaded=false;const start=Date.now();while(Date.now()-start<15000){const r=await send('Runtime.evaluate',{expression:'document.readyState',returnByValue:true});if(r?.result?.value==='complete'){loaded=true;break}await sleep(200)}if(!loaded)throw new Error(`${name}: page did not reach complete readyState.`);await sleep(1500)};
+    const inspect=async()=>{const r=await send('Runtime.evaluate',{expression:`(()=>({title:document.title,innerWidth:window.innerWidth,pathname:location.pathname,mode:document.documentElement.dataset.viewportMode||'',mobileUi:document.documentElement.dataset.mobileUi||'',heading:document.querySelector('.top-title h1')?.textContent||'',bottomNav:!!document.querySelector('.mobile-bottom-nav')&&getComputedStyle(document.querySelector('.mobile-bottom-nav')).display!=='none',aside:!!document.querySelector('aside')&&getComputedStyle(document.querySelector('aside')).display!=='none',bodyText:(document.body.innerText||'').slice(0,500)}))()`,returnByValue:true});return r.result.value};
     await send('Page.enable');await send('Runtime.enable');await send('Network.enable');
     const version=await send('Browser.getVersion');
-    await send('Page.navigate',{url:target});
-    let loaded=false;const start=Date.now();
-    while(Date.now()-start<15000){const r=await send('Runtime.evaluate',{expression:'document.readyState',returnByValue:true});if(r?.result?.value==='complete'){loaded=true;break}await sleep(200)}
-    if(!loaded)throw new Error(`${name}: page did not reach complete readyState.`);
-    await sleep(1800);
-    const evalResult=await send('Runtime.evaluate',{expression:`(()=>({title:document.title,innerWidth:window.innerWidth,mode:document.documentElement.dataset.viewportMode||'',mobileUi:document.documentElement.dataset.mobileUi||'',bottomNav:!!document.querySelector('.mobile-bottom-nav')&&getComputedStyle(document.querySelector('.mobile-bottom-nav')).display!=='none',aside:!!document.querySelector('aside')&&getComputedStyle(document.querySelector('aside')).display!=='none',bodyText:(document.body.innerText||'').slice(0,500)}))()`,returnByValue:true});
-    const state=evalResult.result.value;
-    const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile(path.join(outDir,`chrome-${name}.png`),Buffer.from(shot.data,'base64'));
-    await writeFile(path.join(outDir,`chrome-${name}.json`),JSON.stringify({target,browser:version.product,state,runtimeErrors},null,2));
+    await send('Page.navigate',{url:target});await waitReady();
+    const state=await inspect();
     if(!String(version.product||'').startsWith('Chrome/'))throw new Error(`${name}: browser is not Chrome: ${version.product}`);
     if(!state.title.includes('YHCT HIU 4.0'))throw new Error(`${name}: unexpected title ${state.title}`);
     if(name==='mobile'&&(state.innerWidth>980||state.mode!=='mobile'||!state.bottomNav||state.aside))throw new Error(`mobile: responsive contract failed: ${JSON.stringify(state)}`);
     if(name==='desktop'&&(state.innerWidth<981||state.mode!=='desktop'||!state.aside||state.bottomNav))throw new Error(`desktop: responsive contract failed: ${JSON.stringify(state)}`);
+
+    let routeRefresh=null;
+    if(name==='mobile'){
+      await send('Page.navigate',{url:`${baseTarget}/research`});await waitReady();
+      const before=await inspect();
+      await send('Page.reload',{ignoreCache:true});await waitReady();
+      const after=await inspect();
+      routeRefresh={before,after};
+      if(before.pathname!=='/research'||after.pathname!=='/research'||!before.heading.includes('Khám phá học thuật')||!after.heading.includes('Khám phá học thuật'))throw new Error(`mobile: refresh route persistence failed: ${JSON.stringify(routeRefresh)}`);
+    }
+    const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile(path.join(outDir,`chrome-${name}.png`),Buffer.from(shot.data,'base64'));
+    await writeFile(path.join(outDir,`chrome-${name}.json`),JSON.stringify({target,browser:version.product,state,routeRefresh,runtimeErrors},null,2));
     if(runtimeErrors.length)throw new Error(`${name}: runtime exceptions: ${runtimeErrors.join(' | ')}`);
-    console.log(`Chrome ${name} PASS`,version.product,JSON.stringify(state));
+    console.log(`Chrome ${name} PASS`,version.product,JSON.stringify({state,routeRefresh}));
   }finally{
     if(ws)try{ws.close()}catch{}
     await stopChrome(proc,profile);
