@@ -43,6 +43,8 @@ jobs:
       - run: npm run build
       - name: Real Google Chrome responsive smoke
         run: node scripts/chrome-real-smoke.mjs
+      - name: Smart Herb competition Chrome smoke
+        run: node scripts/smart-herb-chrome-smoke.mjs
       - name: Upload Chrome QA evidence
         if: always()
         uses: actions/upload-artifact@v4
