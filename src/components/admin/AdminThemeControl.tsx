@@ -1,27 +1,11 @@
 import {Check,Sparkles} from 'lucide-react';
 import {THEME_OPTIONS,type ThemeName} from '../../theme';
 
-const USE_CASE:Record<ThemeName,string>={
-  'duoc-ngoc':'Mặc định · học thuật & điều hành',
-  'muc-tuyen':'Đọc dài · nghiên cứu · luyện thi',
-  'ngu-y':'Hội nghị · quản trị trang trọng',
-  'tcm-cartoon-2d':'Trẻ trung · CLB · thiết bị nhẹ',
-  'tcm-isometric-3d':'Desktop mạnh · trình diễn ACC',
-  'tcm-spring-2d':'2D sáng · CLB · mobile/desktop',
-  'tcm-cloud-2d':'2D sáng · đọc học thuật · trình chiếu',
-  'tcm-mint-modern':'Hiện đại · tương phản rõ · tiết kiệm tài nguyên'
-};
 export default function AdminThemeControl({theme,onChange}:{theme:ThemeName;onChange:(theme:ThemeName)=>void}){
-  return <section className="panel acc-theme-control" aria-label="Bảng giao diện YHCT dành cho Admin">
-    <div className="row"><Sparkles/><div><h3>Bảng giao diện YHCT</h3><p className="muted">Chỉ Admin được chọn giao diện hệ thống. Các theme mới ưu tiên vector/CSS nhẹ; thiết bị yếu tự giảm hiệu ứng theo hồ sơ hiệu năng.</p></div></div>
-    <div className="theme-legacy-shortcuts" aria-label="Preset nhanh">
-      <button type="button" className={theme==='tcm-cartoon-2d'?'active':''} onClick={()=>onChange('tcm-cartoon-2d')}>2D Flat YHCT</button>
-      <button type="button" className={theme==='tcm-isometric-3d'?'active':''} onClick={()=>onChange('tcm-isometric-3d')}>3D Isometric YHCT</button>
-      <button type="button" className={theme==='tcm-spring-2d'?'active':''} onClick={()=>onChange('tcm-spring-2d')}>Xuân Dược 2D</button>
-      <button type="button" className={theme==='tcm-cloud-2d'?'active':''} onClick={()=>onChange('tcm-cloud-2d')}>Vân Lam 2D</button>
-      <button type="button" className={theme==='tcm-mint-modern'?'active':''} onClick={()=>onChange('tcm-mint-modern')}>Mint Modern</button>
-    </div>
-    <div className="theme-choice-grid">{THEME_OPTIONS.map(opt=><button type="button" key={opt.id} className={theme===opt.id?'active':''} onClick={()=>onChange(opt.id)} aria-pressed={theme===opt.id}><div className="theme-choice-title"><b>{opt.name}</b>{theme===opt.id&&<Check/>}</div><div className="theme-swatches">{opt.swatches.map(c=><i key={c} style={{backgroundColor:c}}/>)}</div><small>{opt.description}</small><span>{USE_CASE[opt.id]}</span></button>)}</div>
-    <div className="theme-matrix" role="table" aria-label="Bảng khuyến nghị giao diện"><div role="row" className="theme-matrix-head"><b>Giao diện</b><b>Khuyến nghị</b></div>{THEME_OPTIONS.map(opt=><div role="row" key={opt.id}><span>{opt.name}</span><span>{USE_CASE[opt.id]}</span></div>)}</div>
+  const current=THEME_OPTIONS.find(option=>option.id===theme)||THEME_OPTIONS[0];
+  return <section className="panel acc-theme-control acc-theme-control--compact" aria-label="Giao diện hệ thống dành cho Admin">
+    <div className="between"><div className="row"><Sparkles/><div><h3>Giao diện hệ thống</h3><p className="muted">Chỉ ACC/Admin thay đổi. Số lượng theme được giữ nguyên; module khác chỉ nhận theme đồng bộ và không sở hữu cấu hình giao diện.</p></div></div><span className="badge">{THEME_OPTIONS.length} theme</span></div>
+    <div className="acc-theme-current"><div><small>Đang dùng</small><b>{current.name}</b></div><div className="theme-swatches">{current.swatches.map(color=><i key={color} style={{backgroundColor:color}}/>)}</div></div>
+    <div className="acc-theme-compact-grid">{THEME_OPTIONS.map(option=><button type="button" key={option.id} className={theme===option.id?'active':''} onClick={()=>onChange(option.id)} aria-pressed={theme===option.id}><span><b>{option.name}</b><small>{option.description}</small></span>{theme===option.id&&<Check/>}</button>)}</div>
   </section>;
 }
