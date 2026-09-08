@@ -1,8 +1,8 @@
-const CACHE='yhct-hiu-4-final4-v2-offline';
+const CACHE='yhct-hiu-4-final4-v3-theme-sync';
 const SCOPE_URL=new URL(self.registration.scope);
 const ROOT=SCOPE_URL.pathname.endsWith('/')?SCOPE_URL.pathname:`${SCOPE_URL.pathname}/`;
 const path=name=>new URL(name,self.registration.scope).pathname;
-const SHELL=[path('./'),path('manifest.webmanifest'),path('yhct-system-mark.svg')];
+const SHELL=[path('./'),path('yhct-system-mark.svg')];
 const NAV_TIMEOUT_MS=4500;
 
 self.addEventListener('install',event=>{
@@ -16,7 +16,7 @@ self.addEventListener('activate',event=>{
 async function fetchWithTimeout(request,timeoutMs){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),timeoutMs);
-  try{return await fetch(request,{signal:controller.signal})}finally{clearTimeout(timer)}
+  try{return await fetch(request,{signal:controller.signal,cache:'no-store'})}finally{clearTimeout(timer)}
 }
 
 async function navigationResponse(request){
@@ -28,6 +28,10 @@ async function navigationResponse(request){
 }
 
 async function staticResponse(request){
+  const url=new URL(request.url);
+  if(url.pathname.endsWith('/manifest.webmanifest')||url.pathname.endsWith('manifest.webmanifest')){
+    try{return await fetch(request,{cache:'no-store'})}catch{return (await caches.match(request))||Response.error()}
+  }
   const cached=await caches.match(request);
   const update=fetch(request).then(response=>{
     if(response.ok&&response.type==='basic'){const copy=response.clone();void caches.open(CACHE).then(cache=>cache.put(request,copy))}
