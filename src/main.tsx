@@ -24,6 +24,7 @@ import './chrome-qa-hotfix.css';
 import './garden-personalization.css';
 import './production-ui-sep8.css';
 import './research-ai-upgrade.css';
+import './exam-v2.css';
 
 clearLegacyThemeState();
 
