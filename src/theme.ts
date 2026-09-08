@@ -11,4 +11,13 @@ export const THEME_OPTIONS:{id:ThemeName;name:string;description:string;swatches
 ];
 const KEY='yhct-hiu-ui-theme-v1';
 export function readTheme():ThemeName{if(typeof window==='undefined')return'duoc-ngoc';const v=window.localStorage.getItem(KEY);return THEME_OPTIONS.some(x=>x.id===v)?v as ThemeName:'duoc-ngoc'}
-export function applyTheme(theme:ThemeName,persist=true){if(typeof document!=='undefined')document.documentElement.dataset.theme=theme;if(persist&&typeof window!=='undefined')window.localStorage.setItem(KEY,theme)}
+export function applyTheme(theme:ThemeName,persist=true){
+  if(typeof document!=='undefined'){
+    document.documentElement.dataset.theme=theme;
+    const primary=THEME_OPTIONS.find(x=>x.id===theme)?.swatches[0]||'#174C3C';
+    let meta=document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if(!meta){meta=document.createElement('meta');meta.name='theme-color';document.head.appendChild(meta)}
+    meta.content=primary;
+  }
+  if(persist&&typeof window!=='undefined')window.localStorage.setItem(KEY,theme)
+}
