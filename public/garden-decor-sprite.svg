@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <symbol id="pond" viewBox="0 0 120 120">
+      <ellipse cx="60" cy="72" rx="46" ry="25" fill="#79b7cc"/>
+      <ellipse cx="60" cy="68" rx="40" ry="19" fill="#a8dbe8"/>
+      <path d="M53 67c8-10 16-9 23 1-8 7-15 8-23-1Z" fill="#4f9d69"/>
+      <path d="M61 64c2-12 6-20 12-25" stroke="#4f7f50" stroke-width="3" fill="none"/>
+      <path d="M69 41c6-7 15-5 18 4-7 6-14 5-18-4Z" fill="#e8a5b7"/>
+      <circle cx="78" cy="47" r="4" fill="#f6d7df"/>
+    </symbol>
+    <symbol id="lantern" viewBox="0 0 120 120">
+      <path d="M24 104h72" stroke="#70513d" stroke-width="7" stroke-linecap="round"/>
+      <path d="M62 22v78" stroke="#765844" stroke-width="7"/>
+      <path d="M62 28h29" stroke="#765844" stroke-width="6" stroke-linecap="round"/>
+      <path d="M87 29v14" stroke="#765844" stroke-width="4"/>
+      <rect x="73" y="42" width="28" height="34" rx="7" fill="#d66f55"/>
+      <rect x="78" y="47" width="18" height="24" rx="4" fill="#f4c786"/>
+      <path d="M87 76v12" stroke="#a84f43" stroke-width="3"/>
+    </symbol>
+    <symbol id="stone-path" viewBox="0 0 120 120">
+      <rect width="120" height="120" fill="#8aa36f" opacity=".28"/>
+      <ellipse cx="28" cy="92" rx="21" ry="12" fill="#918f87"/>
+      <ellipse cx="67" cy="73" rx="22" ry="13" fill="#aaa79f"/>
+      <ellipse cx="42" cy="48" rx="19" ry="11" fill="#8c8b86"/>
+      <ellipse cx="79" cy="29" rx="18" ry="10" fill="#b0ada5"/>
+      <path d="M15 104c20-14 38-19 55-29 15-9 26-21 37-41" stroke="#d7d0b9" stroke-width="4" fill="none" opacity=".6"/>
+    </symbol>
+    <symbol id="bamboo-gate" viewBox="0 0 120 120">
+      <rect x="18" y="25" width="12" height="80" rx="6" fill="#6e9d54"/>
+      <rect x="90" y="25" width="12" height="80" rx="6" fill="#6e9d54"/>
+      <rect x="22" y="23" width="78" height="11" rx="5" fill="#5d8b48"/>
+      <rect x="31" y="38" width="58" height="8" rx="4" fill="#83ad60"/>
+      <path d="M24 45 10 35m17 29L8 61m88-17 14-10M94 65l18-4" stroke="#4f793d" stroke-width="4" stroke-linecap="round"/>
+      <path d="M18 61c-8-6-11-13-8-20 8 0 13 6 14 14m78 8c9-6 12-13 9-21-9 1-13 7-15 15" fill="#699b4c"/>
+    </symbol>
+    <symbol id="lotus-pot" viewBox="0 0 120 120">
+      <path d="M30 73h60l-9 31H39Z" fill="#9e6d4d"/>
+      <path d="M37 78h46" stroke="#c08b65" stroke-width="4"/>
+      <path d="M60 74V39" stroke="#4d8559" stroke-width="4"/>
+      <path d="M60 47c-13-13-22-8-24 3 11 7 19 5 24-3Zm0 1c12-14 22-9 25 2-10 8-19 6-25-2Z" fill="#6da66d"/>
+      <path d="M60 40c-11-6-12-17 0-25 12 8 11 19 0 25Z" fill="#e7a5b8"/>
+      <path d="M60 38c-4-9 1-17 10-20 4 10 0 17-10 20Zm0 0c4-9-1-17-10-20-4 10 0 17 10 20Z" fill="#f1c3cf"/>
+    </symbol>
+    <symbol id="herb-sign" viewBox="0 0 120 120">
+      <path d="M59 48v57" stroke="#795940" stroke-width="8" stroke-linecap="round"/>
+      <rect x="18" y="21" width="84" height="50" rx="8" fill="#b78b60"/>
+      <rect x="24" y="27" width="72" height="38" rx="5" fill="#d7b48b"/>
+      <path d="M39 51c12-2 17-10 20-19 5 9 10 16 22 19-8 8-15 10-21 3-7 7-14 5-21-3Z" fill="#557f4d"/>
+      <path d="M60 53v9" stroke="#557f4d" stroke-width="3"/>
+    </symbol>
+  </defs>
+</svg>
