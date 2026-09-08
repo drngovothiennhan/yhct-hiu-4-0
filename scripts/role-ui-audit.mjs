@@ -7,7 +7,8 @@ const checks=[
  ['ACC admin gate',has(files.app,"canAcc=roleAtLeast(member?.role,'admin')")],
  ['ACC-only theme selector',has(files.app,'AdminThemeControl theme={theme} onChange={changeTheme}')&&has(files.adminTheme,'2D Flat','3D Isometric')&&not(files.app,'theme-quick-toggle','mobile-theme-action')],
  ['admin-only theme mutation',has(files.app,'const changeTheme=(next:ThemeName)=>{if(!canAcc)return','saveSystemTheme(next)')&&has(files.theme,"supabase.rpc('system_theme_set_v1'",'p_theme:theme')],
- ['global system theme application',has(files.app,'applyTheme(theme,true)','fetchSystemTheme()')&&has(files.theme,"supabase.rpc('system_theme_get_v1')")],
+ ['global system theme application',has(files.app,'applyTheme(theme)','fetchSystemTheme()','watchSystemTheme(next=>')&&has(files.theme,"supabase.rpc('system_theme_get_v1')",'watchSystemTheme')],
+ ['legacy theme head source removed',not(files.boot,'yhct-hiu-ui-theme-v1')&&has(files.main,'clearLegacyThemeState()')&&has(files.theme,'localStorage.removeItem(LEGACY_THEME_KEY)','normalizeManifestLink')],
  ['moderation workbench includes feedback only for admin',has(files.moderation,"moderation_workbench_v2","canAdmin=roleAtLeast(member?.role,'admin')",'feedback_admin_resolve_v1','p_on_date')],
  ['host-neutral diagnostics',has(files.admin,"edgeUrl('acc-diagnostics')","edgeUrl('public-weather')",'SUPABASE_PUBLISHABLE_KEY')],
  ['admin-only DRL publication',has(files.drl,"canPublish=roleAtLeast(member?.role,'admin')",'drl_admin_publish_semester_v1','drl_admin_lock_semester_v1')]
@@ -28,7 +29,7 @@ const checks=[
  ['Unified A.I Mini present',has(files.app,'UnifiedAiMini member={member}')&&has(files.mini,"slice(0,3)",'HISTORY_KEY','feedback_submit_v1')]
 ]],
 ['USER',[
- ['system theme received without selector',has(files.app,'fetchSystemTheme()','applyTheme(theme,true)')&&not(files.app,'theme-quick-toggle','mobile-theme-action')],
+ ['system theme received without selector',has(files.app,'fetchSystemTheme()','applyTheme(theme)','watchSystemTheme(next=>')&&not(files.app,'theme-quick-toggle','mobile-theme-action')],
  ['news interactions preserved',has(files.news,'ROTATE_MS=8000','tcm_news_feed_v1',"addEventListener('wheel'",'{passive:false}','onMouseDown','onMouseMove')],
  ['community public data safe',has(files.community,"supabase.rpc('community_sidebar_v2')",'ACTIVE_LIMIT=10')&&not(files.community,'student_code','email','phone')],
  ['profile wall + avatar + three-post server feed',has(files.profile,'member_wall_feed_v1','member_wall_post_create_v1','member_profile_update_v2',"storage.from('member-media')",'maxLength={500}')],
@@ -41,4 +42,4 @@ const checks=[
  ['portable static hosting',has(files.vite,'GITHUB_PAGES',"'/yhct-hiu-4-0/'")&&has(files.main,'import.meta.env.BASE_URL')],
  ['DRL exact publication status',has(files.drl,'drl_public_lookup_v2','Đã chốt điểm','Đang tổng hợp / Chờ duyệt','total_points')]
 ]]];
-let failed=0;for(const [role,items] of checks){const bad=items.filter(([,ok])=>!ok);if(bad.length){failed++;console.error(`role-audit ${role} FAIL: ${bad.map(([name])=>name).join('; ')}`)}else console.log(`role-audit ${role} PASS: ${items.map(([name])=>name).join('; ')}`)}if(failed)process.exit(1);console.log('role-audit-ok: global system theme with admin-only mutation, social v6, frozen mobile, portable hosting, private inbox, wall identity, moderation queues, nine-plot garden economy, DRL and RBAC contracts passed');
+let failed=0;for(const [role,items] of checks){const bad=items.filter(([,ok])=>!ok);if(bad.length){failed++;console.error(`role-audit ${role} FAIL: ${bad.map(([name])=>name).join('; ')}`)}else console.log(`role-audit ${role} PASS: ${items.map(([name])=>name).join('; ')}`)}if(failed)process.exit(1);console.log('role-audit-ok: global Supabase system theme with realtime sync, admin-only mutation, stale head cleanup, social v6, frozen mobile, portable hosting, private inbox, wall identity, moderation queues, nine-plot garden economy, DRL and RBAC contracts passed');
