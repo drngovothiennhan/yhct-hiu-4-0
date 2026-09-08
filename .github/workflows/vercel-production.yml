@@ -25,6 +25,7 @@ jobs:
       VERCEL_ORG_ID: team_zMTBj85c4Dh5QoDNIjWqQRTg
       VERCEL_PROJECT_ID: prj_7DWP3LX30CFALUD1KoNeOR8NlpsQ
       VERCEL_PROJECT_NAME: yhct-hiu-final4-stage
+      VERCEL_PRODUCTION_ALIAS: yhct-hiu-final4-stage.vercel.app
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       GIT_REPO_OWNER: drngovothiennhan
       GIT_REPO_NAME: yhct-hiu-4-0
@@ -129,10 +130,10 @@ jobs:
           deployment_url="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.url||'')" "$response_file")"
           rm -f "$response_file"
           echo "deployment_id=$deployment_id" >> "$GITHUB_OUTPUT"
-          echo "deployment_url=$deployment_url" >> "$GITHUB_OUTPUT"
+          echo "deployment_url=https://$deployment_url" >> "$GITHUB_OUTPUT"
           echo "Created deployment: $deployment_id"
 
-      - name: Wait for Vercel production readiness
+      - name: Wait for Vercel production readiness and alias binding
         id: ready
         shell: bash
         env:
@@ -151,9 +152,9 @@ jobs:
               continue
             fi
             state="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.readyState||b.status||'UNKNOWN')" "$response_file")"
-            url="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.url||'')" "$response_file")"
             deployed_sha="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b?.meta?.githubCommitSha||'')" "$response_file")"
-            echo "Vercel state: $state"
+            alias_bound="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(Array.isArray(b.alias)&&b.alias.includes(process.env.VERCEL_PRODUCTION_ALIAS)?'1':'0')" "$response_file")"
+            echo "Vercel state: $state; production alias bound: $alias_bound"
             if [[ "$state" == "ERROR" || "$state" == "CANCELED" ]]; then
               echo "::error title=Vercel production failed::Deployment ${DEPLOYMENT_ID} entered ${state}."
               exit 81
@@ -163,13 +164,15 @@ jobs:
                 echo "::error title=Commit mismatch::Vercel built ${deployed_sha}, expected ${CI_PASSED_SHA}."
                 exit 82
               fi
-              echo "url=https://${url}" >> "$GITHUB_OUTPUT"
-              echo "Production READY: https://${url}"
-              exit 0
+              if [ "$alias_bound" = "1" ]; then
+                echo "url=https://${VERCEL_PRODUCTION_ALIAS}" >> "$GITHUB_OUTPUT"
+                echo "Production READY and alias bound: https://${VERCEL_PRODUCTION_ALIAS}"
+                exit 0
+              fi
             fi
             sleep 5
           done
-          echo "::error title=Vercel production timeout::Deployment did not reach READY within 10 minutes."
+          echo "::error title=Vercel production timeout::Deployment/alias did not become ready within 10 minutes."
           exit 83
 
       - name: Checkout exact deployed commit for live Chrome QA
@@ -199,6 +202,7 @@ jobs:
             echo "### Vercel production deployment"
             echo "- Commit: \`${CI_PASSED_SHA}\`"
             echo "- Deployment: \`${{ steps.create.outputs.deployment_id }}\`"
-            echo "- URL: ${{ steps.ready.outputs.url }}"
+            echo "- Immutable URL: ${{ steps.create.outputs.deployment_url }}"
+            echo "- Public production alias: ${{ steps.ready.outputs.url }}"
             echo "- Live Google Chrome smoke: passed on 390x844 mobile and 1440x1000 desktop"
           } >> "$GITHUB_STEP_SUMMARY"
