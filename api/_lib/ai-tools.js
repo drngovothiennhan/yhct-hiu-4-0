@@ -9,36 +9,31 @@ const EMPTY_SCHEMA={type:'object',properties:{},required:[],additionalProperties
 
 const TOOL_REGISTRY={
   get_my_drl_history:{
-    minRole:'member',
-    rpc:'drl_member_history_v1',
+    minRole:'member',rpc:'drl_member_history_v1',
     description:'Đọc lịch sử điểm rèn luyện đã công bố của chính thành viên đang đăng nhập. Chỉ dùng khi người dùng hỏi về điểm/hoạt động rèn luyện của bản thân.',
-    parameters:EMPTY_SCHEMA,
-    rpcArgs:()=>({}),
-    normalize:data=>Array.isArray(data)?data.slice(0,MAX_MEMBER_HISTORY):[]
+    parameters:EMPTY_SCHEMA,rpcArgs:()=>({}),normalize:data=>Array.isArray(data)?data.slice(0,MAX_MEMBER_HISTORY):[]
+  },
+  get_my_garden_status:{
+    minRole:'member',rpc:'herb_garden_ai_status_v1',
+    description:'Đọc trạng thái Gia Viên Dược Thảo của chính thành viên, gồm cây đang trồng, lượt tưới và thời điểm tưới kế tiếp. Chỉ đọc, không tự tưới cây.',
+    parameters:EMPTY_SCHEMA,rpcArgs:()=>({}),normalize:data=>data&&typeof data==='object'?data:{}
   },
   list_research_opportunities:{
-    minRole:'member',
-    rpc:'research_opportunities_feed_v1',
+    minRole:'member',rpc:'research_opportunities_feed_v1',
     description:'Liệt kê cơ hội nghiên cứu đang mở trong hệ thống cho thành viên. Không đăng ký hoặc thay đổi dữ liệu.',
     parameters:{type:'object',properties:{limit:{type:'integer',minimum:1,maximum:MAX_RESEARCH_ITEMS}},required:['limit'],additionalProperties:false},
-    rpcArgs:args=>({p_limit:Math.min(MAX_RESEARCH_ITEMS,Math.max(1,Number(args.limit)||6))}),
-    normalize:data=>Array.isArray(data)?data.slice(0,MAX_RESEARCH_ITEMS):[]
+    rpcArgs:args=>({p_limit:Math.min(MAX_RESEARCH_ITEMS,Math.max(1,Number(args.limit)||6))}),normalize:data=>Array.isArray(data)?data.slice(0,MAX_RESEARCH_ITEMS):[]
   },
   search_yhct_knowledge:{
-    minRole:'member',
-    rpc:'ai_knowledge_search_v3',
+    minRole:'member',rpc:'ai_knowledge_search_v3',
     description:'Tìm kho tri thức YHCT tập trung theo dược liệu, phương tễ hoặc huyệt vị. Kết quả chỉ đọc, có thể kèm bằng chứng PubMed/DOI và nguồn authority đã xác minh từ WHO, NCCIH/NIH hoặc Cochrane.',
     parameters:{type:'object',properties:{query:{type:'string',minLength:2,maxLength:180},kinds:{type:'array',items:{type:'string',enum:['formula','herb','acupoint']},maxItems:3},limit:{type:'integer',minimum:1,maximum:MAX_KNOWLEDGE_ITEMS}},required:['query','kinds','limit'],additionalProperties:false},
-    rpcArgs:args=>({p_query:String(args.query||'').slice(0,180),p_kinds:Array.isArray(args.kinds)?args.kinds.filter(kind=>['formula','herb','acupoint'].includes(kind)).slice(0,3):[],p_limit:Math.min(MAX_KNOWLEDGE_ITEMS,Math.max(1,Number(args.limit)||4))}),
-    normalize:data=>Array.isArray(data)?data.slice(0,MAX_KNOWLEDGE_ITEMS):[]
+    rpcArgs:args=>({p_query:String(args.query||'').slice(0,180),p_kinds:Array.isArray(args.kinds)?args.kinds.filter(kind=>['formula','herb','acupoint'].includes(kind)).slice(0,3):[],p_limit:Math.min(MAX_KNOWLEDGE_ITEMS,Math.max(1,Number(args.limit)||4))}),normalize:data=>Array.isArray(data)?data.slice(0,MAX_KNOWLEDGE_ITEMS):[]
   },
   list_drl_semesters:{
-    minRole:'mod',
-    rpc:'drl_semester_list_v1',
+    minRole:'mod',rpc:'drl_semester_list_v1',
     description:'Đọc danh sách học kỳ điểm rèn luyện và trạng thái khóa/công bố. Chỉ dành cho moderator trở lên; không sửa dữ liệu.',
-    parameters:EMPTY_SCHEMA,
-    rpcArgs:()=>({}),
-    normalize:data=>Array.isArray(data)?data.slice(0,24):[]
+    parameters:EMPTY_SCHEMA,rpcArgs:()=>({}),normalize:data=>Array.isArray(data)?data.slice(0,24):[]
   }
 };
 
@@ -47,16 +42,5 @@ const parseArgs=raw=>{try{const value=JSON.parse(String(raw||'{}'));return value
 const boundedJson=value=>{const raw=JSON.stringify(value);if(raw.length<=MAX_TOOL_OUTPUT_CHARS)return raw;return JSON.stringify({ok:true,truncated:true,data:Array.isArray(value?.data)?value.data.slice(0,12):[]})};
 
 export const AI_TOOL_NAMES=Object.freeze(Object.keys(TOOL_REGISTRY));
-
-export function aiToolsForRole(role){
-  return Object.entries(TOOL_REGISTRY).filter(([,tool])=>roleAtLeast(role,tool.minRole)).map(([name,tool])=>({type:'function',name,description:tool.description,parameters:tool.parameters,strict:true}));
-}
-
-export async function executeAiTool(req,role,call){
-  const name=cleanName(call?.name),tool=TOOL_REGISTRY[name];
-  if(!tool||!roleAtLeast(role,tool.minRole))throw new Error('AI tool is not allowed for this role');
-  const args=parseArgs(call?.arguments),data=await memberRpc(req,tool.rpc,tool.rpcArgs(args));
-  const normalized=tool.normalize(data),result={ok:true,tool:name,data:normalized};
-  console.info(JSON.stringify({event:'ai_tool',ok:true,tool:name,role,rowCount:Array.isArray(normalized)?normalized.length:0}));
-  return boundedJson(result);
-}
+export function aiToolsForRole(role){return Object.entries(TOOL_REGISTRY).filter(([,tool])=>roleAtLeast(role,tool.minRole)).map(([name,tool])=>({type:'function',name,description:tool.description,parameters:tool.parameters,strict:true}))}
+export async function executeAiTool(req,role,call){const name=cleanName(call?.name),tool=TOOL_REGISTRY[name];if(!tool||!roleAtLeast(role,tool.minRole))throw new Error('AI tool is not allowed for this role');const args=parseArgs(call?.arguments),data=await memberRpc(req,tool.rpc,tool.rpcArgs(args));const normalized=tool.normalize(data),result={ok:true,tool:name,data:normalized};console.info(JSON.stringify({event:'ai_tool',ok:true,tool:name,role,rowCount:Array.isArray(normalized)?normalized.length:0}));return boundedJson(result)}
