@@ -172,6 +172,27 @@ jobs:
           echo "::error title=Vercel production timeout::Deployment did not reach READY within 10 minutes."
           exit 83
 
+      - name: Checkout exact deployed commit for live Chrome QA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CI_PASSED_SHA }}
+          fetch-depth: 1
+
+      - name: Real Google Chrome production smoke
+        shell: bash
+        env:
+          CHROME_SMOKE_URL: ${{ steps.ready.outputs.url }}
+        run: node scripts/chrome-real-smoke.mjs
+
+      - name: Upload production Chrome QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-chrome-smoke-${{ env.CI_PASSED_SHA }}
+          path: browser-artifacts/
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Publish deployment summary
         run: |
           {
@@ -179,4 +200,5 @@ jobs:
             echo "- Commit: \`${CI_PASSED_SHA}\`"
             echo "- Deployment: \`${{ steps.create.outputs.deployment_id }}\`"
             echo "- URL: ${{ steps.ready.outputs.url }}"
+            echo "- Live Google Chrome smoke: passed on 390x844 mobile and 1440x1000 desktop"
           } >> "$GITHUB_STEP_SUMMARY"
