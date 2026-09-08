@@ -10,6 +10,7 @@ const requireText=(text,needle,label)=>text.includes(needle)?ok(label):fail(`${l
 const migration=read('supabase/migrations/202609081925_ai_knowledge_evidence_pubmed_scholar_v1.sql');
 const service=read('src/services/centralKnowledgeService.ts');
 const tools=read('api/_lib/ai-tools.js');
+const access=read('api/_lib/member-access.js');
 const health=read('api/ai/health.js');
 const mini=read('src/components/ai/UnifiedAiMini.tsx');
 
@@ -53,9 +54,14 @@ requireText(mini,"searchKnowledge(text,'all',5)",'A.I Mini executes central-firs
 requireText(mini,'Nguồn đối chiếu đã xác minh','A.I Mini visibly labels verified evidence provenance');
 requireText(mini,'Central RAG · offline fallback','A.I Mini communicates central-first/offline architecture');
 
-requireText(health,'centralRag:true','AI health advertises Central RAG readiness');
+requireText(access,'export async function publicRpc','server provides bounded public RPC transport for readiness checks');
+requireText(access,'safeRpcName','public/member RPC transports validate RPC names');
+requireText(health,"publicRpc('ai_knowledge_stats_v2'",'AI health checks the live central knowledge RPC');
+requireText(health,'centralRag:true','AI health advertises Central RAG architecture');
+requireText(health,'centralRagReady','AI health reports live Central RAG readiness');
 requireText(health,'evidenceBacked:true','AI health advertises evidence-backed knowledge');
 requireText(health,"evidenceSources:['pubmed','google_scholar']",'AI health reports non-secret evidence providers');
 requireText(health,'offlineFallback:true','AI health advertises offline fallback');
+requireText(health,'total>=26&&evidence>=10&&pubmed>=10&&scholar>=10','AI health requires minimum live corpus/evidence counts');
 
 if(!process.exitCode)ok('Central RAG acceptance passed');
