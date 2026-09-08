@@ -40,6 +40,7 @@ function normalizePath(pathname:string){
 }
 function tabFromLocation():Tab{
   if(typeof window==='undefined')return'feed';
+  if(window.location.pathname==='/profile')return'profile';
   return PATH_TABS.get(normalizePath(window.location.pathname))||'feed';
 }
 function replaceRoute(tab:Tab){
