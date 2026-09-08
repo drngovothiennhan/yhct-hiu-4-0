@@ -9,7 +9,7 @@ const checks=[
  ['Điều hành has no theme selector',has(files.app,"tab==='admin'&&canAdmin&&<AdminControlCenter")&&not(files.adminControl,'AdminThemeControl','saveSystemTheme')],
  ['admin-only theme mutation',has(files.app,'const changeTheme=(next:ThemeName)=>{if(!canAcc)return','saveSystemTheme(next)')&&has(files.theme,"supabase.rpc('system_theme_set_v1'",'p_theme:target','pendingSaveTheme','desiredSystemTheme')],
  ['global system theme application',has(files.app,'applyTheme(theme)','fetchSystemTheme()','watchSystemTheme(next=>')&&has(files.theme,"supabase.rpc('system_theme_get_v1')",'watchSystemTheme')],
- ['legacy theme override removed + atomic bootstrap',not(files.boot,'yhct-hiu-ui-theme-v1','data-theme="duoc-ngoc"')&&has(files.main,'bootstrapThemeState()')&&has(files.theme,'localStorage.removeItem(LEGACY_THEME_KEY)','normalizeManifestLink','SYSTEM_THEME_HINT_KEY','data.themeSwitching')],
+ ['legacy theme override removed + atomic bootstrap',not(files.boot,'yhct-hiu-ui-theme-v1','data-theme="duoc-ngoc"')&&has(files.main,'bootstrapThemeState()')&&has(files.theme,'localStorage.removeItem(LEGACY_THEME_KEY)','normalizeManifestLink','SYSTEM_THEME_HINT_KEY','dataset.themeSwitching')],
  ['moderation workbench includes feedback only for admin',has(files.moderation,"moderation_workbench_v2","canAdmin=roleAtLeast(member?.role,'admin')",'feedback_admin_resolve_v1','p_on_date')],
  ['host-neutral diagnostics',has(files.admin,"edgeUrl('acc-diagnostics')","edgeUrl('public-weather')",'SUPABASE_PUBLISHABLE_KEY')],
  ['admin-only DRL publication',has(files.drl,"canPublish=roleAtLeast(member?.role,'admin')",'drl_admin_publish_semester_v1','drl_admin_lock_semester_v1')]
