@@ -1,4 +1,4 @@
-import {cloudAiEnabled,memberAccess} from '../_lib/member-access.js';
+import {cloudAiEnabled,cloudAiModel,memberAccess} from '../_lib/member-access.js';
 
 const MAX_QUERY=4000;
 const MAX_SOURCES=6;
@@ -76,7 +76,7 @@ export default async function handler(req,res){
   const query=clean(req.body?.query,MAX_QUERY),mode=MODES.has(req.body?.mode)?req.body.mode:'fast',sources=normalizeSources(req.body?.sources);
   if(query.length<2)return res.status(400).json({error:'Query is required'});
   const baseFallback=fallback(query,sources);
-  const key=process.env.OPENAI_API_KEY,model=clean(process.env.OPENAI_MODEL,120);
+  const key=process.env.OPENAI_API_KEY,model=cloudAiModel();
   if(!cloudAiEnabled()||!key||!model)return res.status(200).json(baseFallback);
 
   const sourceBlock=sources.length?sources.map(s=>`[${s.id}] ${s.title}\n${s.text}`).join('\n\n'):'(không có nguồn đính kèm)';
@@ -101,12 +101,12 @@ export default async function handler(req,res){
     });
     if(!response.ok)throw new Error(`OpenAI ${response.status}`);
     const payload=await response.json(),structured=parseStructured(extractOutputText(payload),sources),latencyMs=Date.now()-started;
-    res.setHeader('Server-Timing',`ai;dur=${latencyMs}`);res.setHeader('X-AI-Provider','openai');
-    console.info(JSON.stringify({event:'ai_gateway',ok:true,provider:'openai',mode,role:access.role,sourceCount:sources.length,latencyMs}));
+    res.setHeader('Server-Timing',`ai;dur=${latencyMs}`);res.setHeader('X-AI-Provider','openai');res.setHeader('X-AI-Model',model);
+    console.info(JSON.stringify({event:'ai_gateway',ok:true,provider:'openai',model,mode,role:access.role,sourceCount:sources.length,latencyMs}));
     return res.status(200).json({...structured,provider:'openai',degraded:false,latencyMs});
   }catch(error){
     const latencyMs=Date.now()-started,reason=error?.name==='AbortError'?'timeout':clean(error?.message,180)||'provider_error';
-    console.warn(JSON.stringify({event:'ai_gateway',ok:false,provider:'openai',mode,role:access.role,sourceCount:sources.length,latencyMs,reason}));
+    console.warn(JSON.stringify({event:'ai_gateway',ok:false,provider:'openai',model,mode,role:access.role,sourceCount:sources.length,latencyMs,reason}));
     return res.status(200).json({...baseFallback,latencyMs});
   }finally{clearTimeout(timer)}
 }
