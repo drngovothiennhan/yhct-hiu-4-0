@@ -60,7 +60,6 @@ function readCachedSession(){
 export function hasCachedAuthSession(){return Boolean(readCachedSession())}
 
 export function readCachedMember():Member|null{
-  if(!readCachedSession())return null;
   try{
     const raw=localStorage.getItem(memberCacheKey);
     if(!raw)return null;
@@ -152,13 +151,36 @@ export async function restoreMember():Promise<Member|null>{
       throw error;
     }
   }catch(error){
-    if(cachedMember&&hasCachedAuthSession()){
+    if(cachedMember){
       console.warn('restoreMember preserved cached member after bounded retries',error);
       return cachedMember;
     }
     console.warn('restoreMember failed after bounded retries',error);
     return null;
   }
+}
+
+export function watchAuthSession(onMember:(member:Member|null,event:string)=>void){
+  const {data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
+    window.setTimeout(()=>{
+      if(event==='SIGNED_OUT'){
+        persistMemberSession(null);
+        onMember(null,event);
+        return;
+      }
+      if(!session||!['INITIAL_SESSION','SIGNED_IN','TOKEN_REFRESHED','USER_UPDATED'].includes(event))return;
+      void loadMemberFromSession(session).then(member=>{
+        if(!member)return;
+        persistMemberSession(member);
+        onMember(member,event);
+      }).catch(error=>{
+        const cached=readCachedMember();
+        if(cached)onMember(cached,`${event}_CACHE_FALLBACK`);
+        console.warn('auth state member sync deferred after transient failure',error);
+      });
+    },0);
+  });
+  return ()=>subscription.unsubscribe();
 }
 
 export function logoutFast(){

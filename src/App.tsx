@@ -17,7 +17,7 @@ import UnifiedAiMini from './components/ai/UnifiedAiMini';
 import SystemBrandMark from './components/branding/SystemBrandMark';
 import TcmCartoonDecor from './components/branding/TcmCartoonDecor';
 import ViewportModeToggle,{applyViewportMode,readViewportMode,type ViewportMode} from './components/system/ViewportModeToggle';
-import {logoutFast,restoreMember,supabase} from './services/authService';
+import {logoutFast,readCachedMember,restoreMember,supabase,watchAuthSession} from './services/authService';
 import {loginOptimized} from './services/authRuntimeService';
 import {fetchAcademicFeed} from './services/dataService';
 import {applyTheme,readTheme,type ThemeName} from './theme';
@@ -40,13 +40,13 @@ function tabFromLocation():Tab{if(typeof window==='undefined')return'feed';if(wi
 function replaceRoute(tab:Tab){const desired=TAB_PATHS[tab];if(normalizePath(window.location.pathname)!==desired)window.history.replaceState(null,'',desired)}
 
 export default function App(){
-  const [tab,setTab]=useState<Tab>(()=>tabFromLocation()),[member,setMember]=useState<Member|null>(null),[authResolved,setAuthResolved]=useState(false),[posts,setPosts]=useState<AcademicPost[]>(initialPosts),[theme,setTheme]=useState<ThemeName>(()=>readTheme()),[viewportMode,setViewportMode]=useState<ViewportMode>(()=>readViewportMode()),[authOpen,setAuthOpen]=useState(false),[moreOpen,setMoreOpen]=useState(false),[composeNonce,setComposeNonce]=useState(0),[student,setStudent]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false),[authPhase,setAuthPhase]=useState(''),[err,setErr]=useState('');
+  const [tab,setTab]=useState<Tab>(()=>tabFromLocation()),[member,setMember]=useState<Member|null>(()=>readCachedMember()),[authResolved,setAuthResolved]=useState(false),[posts,setPosts]=useState<AcademicPost[]>(initialPosts),[theme,setTheme]=useState<ThemeName>(()=>readTheme()),[viewportMode,setViewportMode]=useState<ViewportMode>(()=>readViewportMode()),[authOpen,setAuthOpen]=useState(false),[moreOpen,setMoreOpen]=useState(false),[composeNonce,setComposeNonce]=useState(0),[student,setStudent]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false),[authPhase,setAuthPhase]=useState(''),[err,setErr]=useState('');
   const loginGuard=useRef(false),canAdmin=roleAtLeast(member?.role,'mod'),canAcc=roleAtLeast(member?.role,'admin');
   const reload=async()=>{try{setPosts(await fetchAcademicFeed())}catch{}};
   useEffect(()=>{const cap=applyDeviceCapabilityProfile();return cap.dispose},[]);
   useEffect(()=>{applyTheme(canAcc?theme:'duoc-ngoc',canAcc)},[theme,canAcc]);
   useEffect(()=>{applyViewportMode(viewportMode)},[viewportMode]);
-  useEffect(()=>{let live=true;void(async()=>{try{const restored=await restoreMember();if(live&&restored)setMember(restored)}finally{if(live)setAuthResolved(true)}})();void reload();return()=>{live=false}},[]);
+  useEffect(()=>{let live=true;const stop=watchAuthSession((next)=>{if(!live)return;setMember(next);setAuthResolved(true)});void(async()=>{try{const restored=await restoreMember();if(live)setMember(restored)}finally{if(live)setAuthResolved(true)}})();void reload();return()=>{live=false;stop()}},[]);
   useEffect(()=>{const onPop=()=>setTab(tabFromLocation());window.addEventListener('popstate',onPop);return()=>window.removeEventListener('popstate',onPop)},[]);
   useEffect(()=>{if(!authResolved)return;let fallback:Tab|null=null;if(MEMBER_ONLY.has(tab)&&!member)fallback='feed';else if(tab==='admin'&&!canAdmin)fallback='feed';else if(tab==='acc'&&!canAcc)fallback='feed';if(fallback){setTab(fallback);replaceRoute(fallback)}},[authResolved,tab,member,canAdmin,canAcc]);
   useEffect(()=>{if(!moreOpen)return;const before=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=before}},[moreOpen]);
