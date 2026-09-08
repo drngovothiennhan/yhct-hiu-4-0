@@ -9,11 +9,22 @@ export const cloudAiConfigured=()=>Boolean(cloudAiEnabled()&&process.env.OPENAI_
 export const roleAtLeast=(role,minRole='member')=>(ROLE_LEVEL[String(role||'guest')]??0)>=(ROLE_LEVEL[String(minRole||'member')]??1);
 
 const bearer=req=>String(req.headers?.authorization||'');
+const safeRpcName=value=>{const name=String(value||'');if(!/^[a-z0-9_]+$/i.test(name))throw new Error('Invalid RPC name');return name};
+
+export async function publicRpc(rpcName,args={},timeoutMs=4500){
+  const name=safeRpcName(rpcName);
+  if(!SUPABASE_URL||!PUBLISHABLE_KEY)throw new Error('Supabase public configuration missing');
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),Math.max(500,Math.min(Number(timeoutMs)||4500,8000)));
+  try{
+    const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{method:'POST',headers:{apikey:PUBLISHABLE_KEY,'content-type':'application/json'},body:JSON.stringify(args&&typeof args==='object'?args:{}),signal:controller.signal});
+    if(!r.ok){const text=await r.text().catch(()=>String(r.status));throw new Error(`Public RPC ${name} failed ${r.status}: ${text.slice(0,180)}`)}
+    return await r.json();
+  }finally{clearTimeout(timer)}
+}
 
 export async function memberRpc(req,rpcName,args={}){
-  const auth=bearer(req),name=String(rpcName||'');
+  const auth=bearer(req),name=safeRpcName(rpcName);
   if(!auth.startsWith('Bearer ')||auth.length<32)throw new Error('Authentication required');
-  if(!/^[a-z0-9_]+$/i.test(name))throw new Error('Invalid RPC name');
   if(!SUPABASE_URL||!PUBLISHABLE_KEY)throw new Error('Supabase public configuration missing');
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),4500);
   try{
