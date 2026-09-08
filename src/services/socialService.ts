@@ -1,11 +1,11 @@
-import type { AcademicPost,Member } from '../types';
+import type { AcademicPost,AcademicPostType,Member } from '../types';
 import { supabase } from './authService';
 
 export type PostMedia={id:string;name:string;url:string;aspect:'16:9'|'1:1';width:number;height:number};
-export type PostDraft={title:string;chiefComplaint:string;fourExams:{vong:string;van:string;vanHoi:string;thiet:string};eightPrinciples:string[];syndrome:string;treatmentPrinciple:string;formula?:string;acupoints:string[];tags:string[];citations:string[];postType:'research'|'clinical_case'|'medicinal_diet';specialty:string;visibility:'public'|'members';media:PostMedia[]};
+export type PostDraft={title:string;chiefComplaint:string;fourExams:{vong:string;van:string;vanHoi:string;thiet:string};eightPrinciples:string[];syndrome:string;treatmentPrinciple:string;formula?:string;acupoints:string[];tags:string[];citations:string[];postType:AcademicPostType;specialty:string;visibility:'public'|'members';media:PostMedia[]};
 const citations=(xs:string[])=>xs.map((raw,i)=>{try{const v=JSON.parse(raw);if(v&&typeof v==='object')return v}catch{}return{id:`manual-${i+1}`,title:raw,type:'other'}});
 const payload=(d:PostDraft)=>({title:d.title,chief_complaint:d.chiefComplaint,four_exams:{vong:d.fourExams.vong,van:d.fourExams.van,van_hoi:d.fourExams.vanHoi,thiet:d.fourExams.thiet},eight_principles:d.eightPrinciples,syndrome:d.syndrome,treatment_principle:d.treatmentPrinciple,formula:d.formula||'',acupoints:d.acupoints,tags:d.tags,citations:citations(d.citations),post_type:d.postType,specialty:d.specialty,visibility:d.visibility,media:d.media.map(({id,name,url,aspect,width,height})=>({id,name,url,aspect,width,height}))});
-export const draftFromPost=(p:AcademicPost):PostDraft=>({title:p.title,chiefComplaint:p.chiefComplaint,fourExams:{...p.fourExams},eightPrinciples:[...p.eightPrinciples],syndrome:p.syndrome,treatmentPrinciple:p.treatmentPrinciple,formula:p.formula||'',acupoints:[...(p.acupoints||[])],tags:[...p.tags],citations:[...p.citations],postType:p.postType||'research',specialty:p.specialty||'general',visibility:p.visibility||'public',media:[...(p.media||[])]});
+export const draftFromPost=(p:AcademicPost):PostDraft=>({title:p.title,chiefComplaint:p.chiefComplaint,fourExams:{...p.fourExams},eightPrinciples:[...p.eightPrinciples],syndrome:p.syndrome,treatmentPrinciple:p.treatmentPrinciple,formula:p.formula||'',acupoints:[...(p.acupoints||[])],tags:[...p.tags],citations:[...p.citations],postType:p.postType||'reference',specialty:p.specialty||'general',visibility:p.visibility||'public',media:[...(p.media||[])]});
 
 const lastActionAt=new Map<string,number>();
 function enforceDebounce(key:string,windowMs:number){const now=Date.now(),last=lastActionAt.get(key)||0;if(now-last<windowMs)throw new Error('Thao tác đang được xử lý. Vui lòng chờ một chút trước khi gửi lại.');lastActionAt.set(key,now)}
