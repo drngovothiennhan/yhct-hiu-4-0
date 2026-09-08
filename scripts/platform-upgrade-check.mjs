@@ -26,6 +26,7 @@ const viewport=read('src/components/system/ViewportModeToggle.tsx');
 const bootstrap=read('index.html');
 const chromeSmoke=read('scripts/chrome-real-smoke.mjs');
 const gardenCss=read('src/herb-garden-v2.css');
+const vercel=read('vercel.json');
 need(!game.match(/openai|gemini|generateContent/i),'game has no generative medical logic');
 need((catalog.match(/'Danh mục cây thuốc mẫu Bộ Y tế'/g)||[]).length===70,'official QD4664 seed catalog contains exactly 70 plants');
 need(catalog.includes("('bac-ha'")&&catalog.includes("('y-di'")&&catalog.includes("source_code='QD4664-2014'"),'catalog spans page 1 through page 70 and only official rows are seedable');
@@ -43,5 +44,8 @@ need(game.includes('garden-scene-v2')&&gardenCss.includes("content:'QĐ 4664'"),
 need(Buffer.byteLength(gardenCss,'utf8')<30000,'garden graphics remain lightweight under 30 KB CSS');
 need(viewport.includes('FORCE_DESKTOP_MOBILE_KEY')&&viewport.includes("if(compact&&!forceDesktop)return'mobile'"),'compact devices recover to mobile unless desktop is explicitly requested');
 need(bootstrap.includes('yhct-force-desktop-on-mobile-v1')&&bootstrap.includes("compact&&!forceDesktop?'mobile'"),'pre-React viewport bootstrap matches mobile recovery policy');
+need(app.includes("research:'/research'")&&app.includes("garden:'/garden'")&&app.includes('tabFromLocation()')&&app.includes('authResolved'),'all modules have refresh-safe routes and protected routes wait for auth restoration');
+for(const route of ['/research','/profile','/schedule','/exam','/drl','/notifications','/garden','/messages','/admin','/acc'])need(vercel.includes(`\"source\": \"${route}\"`),`Vercel rewrites ${route} to SPA shell`);
 need(chromeSmoke.includes("command -v google-chrome")&&chromeSmoke.includes('Page.captureScreenshot')&&chromeSmoke.includes("runCase('mobile',390,844")&&chromeSmoke.includes("runCase('desktop',1440,1000")&&chromeSmoke.includes("startsWith('Chrome/')"),'real Google Chrome smoke covers mobile and desktop with screenshots and browser identity verification');
+need(chromeSmoke.includes("Page.navigate',{url:`${baseTarget}/research`}")&&chromeSmoke.includes("Page.reload',{ignoreCache:true}")&&chromeSmoke.includes("after.pathname!=='/research'"),'real Chrome verifies route survives a hard refresh');
 if(process.exitCode)process.exit(process.exitCode);console.log('Platform upgrade acceptance passed.');
