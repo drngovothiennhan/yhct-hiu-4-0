@@ -1,5 +1,5 @@
 import type { Member } from '../types';
-import { mapMember,SUPABASE_PUBLISHABLE_KEY,SUPABASE_URL,supabase } from './authService';
+import { mapMember,persistMemberSession,SUPABASE_PUBLISHABLE_KEY,SUPABASE_URL,supabase } from './authService';
 
 const withTimeout=<T>(promise:PromiseLike<T>,ms:number)=>new Promise<T>((resolve,reject)=>{const timer=window.setTimeout(()=>reject(new Error('timeout')),ms);Promise.resolve(promise).then(value=>{window.clearTimeout(timer);resolve(value)},error=>{window.clearTimeout(timer);reject(error)})});
 
@@ -12,7 +12,9 @@ export async function loginOptimized(studentCode:string,password:string):Promise
     if(!response.ok)throw new Error(String(body.error||'Đăng nhập không thành công'));
     const sessionResult=await withTimeout(supabase.auth.setSession({access_token:String(body.access_token||''),refresh_token:String(body.refresh_token||'')}),3500) as {error?:Error|null};
     if(sessionResult.error)throw sessionResult.error;
-    return mapMember((body.member||{}) as Record<string,unknown>);
+    const member=mapMember((body.member||{}) as Record<string,unknown>);
+    persistMemberSession(member);
+    return member;
   }catch(error){
     if((error as Error).name==='AbortError'||(error as Error).message==='timeout')throw new Error('Máy chủ xác thực chưa phản hồi trong 8 giây. Vui lòng thử lại.');
     throw error;
