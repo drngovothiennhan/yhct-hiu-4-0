@@ -11,9 +11,9 @@ need(composer.includes('PMID:42532227')&&composer.includes('pubmed.ncbi.nlm.nih.
 need(composer.includes('<details className="composer-advanced">'),'advanced composer fields are collapsed');
 need(theme.includes('THEME_OPTIONS.map'),'all registered YHCT themes are selectable');
 need(types.includes("leader:2,super_mod:3,admin:4"),'frontend role levels mirror database hierarchy');
-need(device.includes("data")||device.includes('performanceTier'),'device capability module exists');
+need(device.includes('dataset.performanceTier')&&device.includes('hardwareConcurrency'),'device capability module uses runtime hardware hints');
 need(widgets.includes("matchMedia('(min-width:1600px)')")&&widgets.includes("dataset.viewportMode==='desktop'"),'desktop widget gate remains >=1600 desktop-only');
-need(migration.includes("'academic_post_review'")&&migration.includes('academic_moderation_queue'),'moderation notification contract is versioned');
+need(migration.includes("'academic_post_review'")&&migration.includes('create_academic_post')&&migration.includes('moderate_academic_post_v1'),'moderation notification contract is versioned');
 need(migration.includes('member_messages')&&migration.includes('feedback_reports')&&migration.includes('herb_garden_plants'),'new mutable modules are versioned');
 need(migration.includes('augment_snapshot_modules_v3')&&migration.includes("'member_messages'")&&migration.includes("'feedback_reports'")&&migration.includes("'herb_garden_inventory'"),'new modules are included in future managed snapshots');
 need(migration.includes("private.has_min_role('admin')")&&migration.includes('admin_run_retention_v1'),'cleanup remains admin-guarded');
