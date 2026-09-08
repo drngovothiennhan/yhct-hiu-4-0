@@ -21,7 +21,7 @@ export function initPwaInstallCapture(){
   return()=>{window.removeEventListener('beforeinstallprompt',before);window.removeEventListener('appinstalled',installed);bound=false};
 }
 
-export function subscribePwaInstall(listener:Listener){listeners.add(listener);return()=>listeners.delete(listener)}
+export function subscribePwaInstall(listener:Listener){listeners.add(listener);return()=>{listeners.delete(listener)}}
 
 export async function requestPwaInstall(){
   if(isStandalone())return{status:'installed' as const};
