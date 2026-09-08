@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState,type CSSProperties} from 'react';
+import {useEffect,useMemo,useState} from 'react';
 import {Droplets,Leaf,PackageOpen,RefreshCw,ShoppingBasket,Sparkles,Sprout} from 'lucide-react';
 import type {Member} from '../../types';
 import {supabase} from '../../services/authService';
@@ -21,10 +21,6 @@ function remaining(iso:string|undefined|null,now:number){
   if(!iso)return '—';
   const ms=Math.max(0,Date.parse(iso)-now),days=Math.floor(ms/DAY),hours=Math.floor((ms%DAY)/3600000),minutes=Math.floor((ms%3600000)/60000);
   return days?`${days} ngày ${hours} giờ`:`${hours} giờ ${minutes} phút`;
-}
-function sourceThumbStyle(page?:number|null):CSSProperties{
-  const index=Math.max(0,Math.min(69,(page||1)-1)),col=index%7,row=Math.floor(index/7);
-  return {'--garden-source-x':`${col*100/6}%`,'--garden-source-y':`${row*100/9}%`} as CSSProperties;
 }
 
 export default function HerbGardenGame({member}:{member:Member}){
@@ -69,7 +65,7 @@ export default function HerbGardenGame({member}:{member:Member}){
             <article className={plant.can_fertilize?'care-due':''}><div><span className="fertilizer-icon">🌱</span><b>Bón phân</b></div><strong>{plant.fertilizer_count}/{plant.required_fertilizer_count}</strong><small>{plant.status==='growing'?(plant.can_fertilize?'Đang đến lượt bón phân':`Lần tiếp theo sau ${remaining(plant.next_fertilizer_at,now)}`):'Đã đóng chu kỳ bón phân'}</small></article>
           </div>
           {plant.status==='growing'&&!careComplete&&(plant.missed_water_slots>0||plant.missed_fertilizer_days>0)&&<div className="garden-warning">Cần hoàn tất đúng từng chu kỳ. Hiện còn thiếu {plant.missed_water_slots} lượt tưới và {plant.missed_fertilizer_days} lượt bón phân tính đến thời điểm hiện tại.</div>}
-          {revealed?<article className="herb-reveal herb-reveal-v2"><div className="herb-reveal-head"><div><span className="badge">Đã mở danh tính</span><h3>{plant.name}</h3><i>{plant.botanical_name}</i></div>{plant.source_page&&<div className="herb-source-thumb" style={sourceThumbStyle(plant.source_page)} title={`Trang ${plant.source_page} - Bộ tranh cây thuốc mẫu`}/>}</div>{plant.other_names&&<p><b>Tên khác:</b> {plant.other_names}</p>}<p><b>Họ:</b> {plant.family||'—'}</p><p><b>Bộ phận dùng:</b> {plant.used_part||'—'}</p><p><b>Công năng, chủ trị:</b> {plant.traditional_actions||'—'}</p><p><b>Liều lượng, cách dùng:</b> {plant.dosage?.trim()||'Trang nguồn không nêu liều lượng/cách dùng.'}</p><p><b>Kiêng kỵ/lưu ý:</b> {plant.caution?.trim()||'Trang nguồn không nêu kiêng kỵ/lưu ý riêng.'}</p><small>Nguồn: {plant.source_ref||'Dữ liệu game phiên bản trước'}{plant.source_page?` · trang ${plant.source_page}/70`:''}. Nội dung phục vụ học tập, không thay thế tư vấn/chỉ định chuyên môn.</small></article>:<article className="seed-mystery"><span>?</span><div><b>Hạt giống bí ẩn</b><small>Tên, loài và thông tin dược liệu chỉ mở khi cây đạt mốc 72 giờ.</small></div></article>}
+          {revealed?<article className="herb-reveal herb-reveal-v2"><div className="herb-reveal-head"><div><span className="badge">Đã mở danh tính</span><h3>{plant.name}</h3><i>{plant.botanical_name}</i></div>{plant.source_page&&<div className="herb-source-thumb" title={`Trang ${plant.source_page} - Bộ tranh cây thuốc mẫu`}><span>Trang</span><b>{plant.source_page}</b></div>}</div>{plant.other_names&&<p><b>Tên khác:</b> {plant.other_names}</p>}<p><b>Họ:</b> {plant.family||'—'}</p><p><b>Bộ phận dùng:</b> {plant.used_part||'—'}</p><p><b>Công năng, chủ trị:</b> {plant.traditional_actions||'—'}</p><p><b>Liều lượng, cách dùng:</b> {plant.dosage?.trim()||'Trang nguồn không nêu liều lượng/cách dùng.'}</p><p><b>Kiêng kỵ/lưu ý:</b> {plant.caution?.trim()||'Trang nguồn không nêu kiêng kỵ/lưu ý riêng.'}</p><small>Nguồn: {plant.source_ref||'Dữ liệu game phiên bản trước'}{plant.source_page?` · trang ${plant.source_page}/70`:''}. Nội dung phục vụ học tập, không thay thế tư vấn/chỉ định chuyên môn.</small></article>:<article className="seed-mystery"><span>?</span><div><b>Hạt giống bí ẩn</b><small>Tên, loài và thông tin dược liệu chỉ mở khi cây đạt mốc 72 giờ.</small></div></article>}
           <div className="garden-actions-v2">
             {plant.status==='growing'&&<><button className="secondary" disabled={busy||!plant.can_water} onClick={()=>void run('water')}><Droplets/>Tưới nước</button><button className="secondary" disabled={busy||!plant.can_fertilize} onClick={()=>void run('fertilize')}><span aria-hidden>🌱</span>Bón phân</button></>}
             {plant.status==='mature'&&<button disabled={busy||!plant.ready_for_harvest} onClick={()=>void run('harvest')}><ShoppingBasket/>Thu hoạch về kho</button>}
