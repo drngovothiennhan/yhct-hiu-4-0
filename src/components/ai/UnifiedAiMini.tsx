@@ -3,7 +3,8 @@ import {Bot,ChevronDown,History,MessageSquarePlus,Send,Sparkles,X} from 'lucide-
 import type {Member} from '../../types';
 import {supabase} from '../../services/authService';
 import {askServerAi,renderAiAnswer} from '../../services/aiRuntimeService';
-import {buildResearchLinks,checkDrlConversation,searchKnowledge} from '../../services/miniAiEngine';
+import {buildResearchLinks,checkDrlConversation} from '../../services/miniAiEngine';
+import {evidenceLabel,searchKnowledge} from '../../services/centralKnowledgeService';
 import {askGemini,getGeminiStatus} from '../../services/geminiByok';
 
 type HistoryItem={id:string;query:string;answer:string;at:string};
@@ -27,7 +28,17 @@ export default function UnifiedAiMini({member,onLogin}:{member:Member|null;onLog
   const ask=async()=>{const text=clean(query);if(!text||busy)return;setBusy(true);setMessage('');try{
     let output='',runtimeStatus='';
     try{const drl=await checkDrlConversation(text,member);if(drl)output=formatDrl(drl)}catch(e){if(/đăng nhập/i.test((e as Error).message)){setMessage((e as Error).message);onLogin();return}}
-    if(!output){const hits=await searchKnowledge(text,'all',5);if(hits.length){output=`Kết quả dữ liệu YHCT cục bộ: ${hits.slice(0,4).map(h=>`${h.record.name} (${h.record.kind})`).join(' · ')}. Nội dung dùng cho học tập; hãy mở nguồn chuyên môn trước khi áp dụng lâm sàng.`}}
+    if(!output){
+      const hits=await searchKnowledge(text,'all',5);
+      if(hits.length){
+        const names=hits.slice(0,4).map(h=>`${h.record.name} (${h.record.kind})`).join(' · '),central=hits.some(h=>h.source==='central');
+        const evidence=hits.flatMap(h=>h.evidence),citations=evidenceLabel(evidence,3);
+        output=central
+          ?`Kết quả kho YHCT tập trung: ${names}. ${citations?`Nguồn đối chiếu đã xác minh: ${citations}.`:'Các mục khớp hiện chưa có citation PubMed gắn trực tiếp.'} Nội dung dùng cho học tập; không thay thế đánh giá hoặc chỉ định lâm sàng.`
+          :`Kết quả dữ liệu YHCT offline: ${names}. Đang dùng kho cục bộ vì Central RAG không khả dụng hoặc chưa có kết quả. Nội dung dùng cho học tập; hãy kiểm tra nguồn chuyên môn trước khi áp dụng lâm sàng.`;
+        runtimeStatus=central?'Central RAG · Supabase · PubMed/Scholar evidence':'Offline knowledge fallback';
+      }
+    }
     if(!output&&member){try{const result=await askServerAi(text,'fast');if(!result.degraded){output=renderAiAnswer(result);runtimeStatus=`A.I cloud · ${result.provider} · ${Math.max(0,Math.round(result.latencyMs))} ms`}else runtimeStatus='A.I cloud đang ở chế độ degraded; tiếp tục fallback an toàn.'}catch(e){runtimeStatus=(e as Error).message}}
     if(!output&&getGeminiStatus().configured){try{const result=await askGemini(text);output=`${result.text}\n\nNguồn AI: Gemini BYOK fallback. Cần kiểm tra tài liệu chuyên môn trước khi áp dụng.`;runtimeStatus=`Gemini BYOK fallback · ${result.model}`}catch{}}
     if(!output){const links=buildResearchLinks(text);output=`Chưa có câu trả lời đủ chắc chắn. Tôi đã chuẩn bị hướng tra cứu: ${links.slice(0,3).map(x=>x.provider).join(', ')}. Mở Trung tâm nghiên cứu để kiểm tra nguồn.`}
@@ -35,7 +46,7 @@ export default function UnifiedAiMini({member,onLogin}:{member:Member|null;onLog
   }catch(e){setMessage((e as Error).message||'A.I Mini chưa thể xử lý yêu cầu.')}finally{setBusy(false)}};
   const submitFeedback=async()=>{const body=clean(feedback);if(!member){onLogin();return}if(body.length<5){setMessage('Góp ý cần ít nhất 5 ký tự.');return}setBusy(true);setMessage('');try{const {error}=await supabase.rpc('feedback_submit_v1',{p_kind:feedbackKind,p_body:body,p_context:{surface:'ai-mini',path:location.pathname,day:localDay()}});if(error)throw error;setFeedback('');setMessage('Đã gửi góp ý tới Admin. Cảm ơn bạn.')}catch(e){setMessage((e as Error).message)}finally{setBusy(false)}};
   return <div className={`ai-mini-unified ${open?'is-open':''}`}>
-    {open&&<section className="ai-mini-panel" role="dialog" aria-label="A.I Mini"><header><div className="row"><Bot/><div><b>A.I Mini</b><small>Local-first · cloud có kiểm soát · góp ý</small></div></div><button className="icon-btn" onClick={()=>setOpen(false)} aria-label="Đóng A.I Mini"><X/></button></header>
+    {open&&<section className="ai-mini-panel" role="dialog" aria-label="A.I Mini"><header><div className="row"><Bot/><div><b>A.I Mini</b><small>Central RAG · offline fallback · cloud có kiểm soát</small></div></div><button className="icon-btn" onClick={()=>setOpen(false)} aria-label="Đóng A.I Mini"><X/></button></header>
       <div className="ai-mini-greeting"><Sparkles/><p>{greeting}</p></div>
       <div className="ai-mini-tabs"><button className={mode==='assistant'?'active':''} onClick={()=>setMode('assistant')}><Bot/>Trao đổi</button><button className={mode==='feedback'?'active':''} onClick={()=>setMode('feedback')}><MessageSquarePlus/>Góp ý</button></div>
       {mode==='assistant'?<>
