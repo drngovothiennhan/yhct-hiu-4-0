@@ -21,7 +21,7 @@ if(!process.env.CHROME_SMOKE_URL){
 }
 
 async function openCdp(port){
-  for(let i=0;i<80;i++){
+  for(let i=0;i<160;i++){
     try{
       const list=await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
       const page=list.find(x=>x.type==='page');
@@ -29,7 +29,7 @@ async function openCdp(port){
     }catch{}
     await sleep(100);
   }
-  throw new Error(`Chrome DevTools endpoint ${port} did not become ready.`);
+  throw new Error(`Chrome DevTools endpoint ${port} did not become ready within 16 seconds.`);
 }
 
 async function stopChrome(proc,profile){
