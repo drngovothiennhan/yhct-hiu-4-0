@@ -33,7 +33,14 @@ DRL, membership, academic records, schedules/research and unread notifications a
 
 ## Off-site transfer staging
 
-`public.system_backup_exports` is a short-lived RLS-locked staging table. Direct `public`, `anon` and `authenticated` access is revoked. A prepared export expires after 20 minutes. `offsite-backup-export-v1` is versioned under `supabase/functions/` and is intended only for controlled off-site transfer.
+`public.system_backup_exports` is a short-lived RLS-locked staging table. Direct `public`, `anon` and `authenticated` access is revoked. A prepared export expires after 20 minutes.
+
+`offsite-backup-export-v1` is intended only for controlled off-site transfer and requires both:
+
+1. the short-lived export UUID; and
+2. the `X-YHCT-Backup-Key` internal credential, validated against `offsite_backup_export_secret` stored in Supabase Vault.
+
+The Vault secret is never returned by the frontend, never embedded in the export URL and must not be committed to source control. Invalid or missing credentials deliberately receive a generic `404 Not Found` response so the endpoint does not confirm whether an export UUID exists.
 
 Google Drive folder `HIU YHCT 4.0/01_BACKUP_SYSTEM` currently contains backup/release artifacts and the V2 backup manifest. Full automated payload mirroring requires a server-side Google Drive OAuth/service-account credential with write permission; the existing `GOOGLE_DRIVE_API_KEY` integration is read-only and cannot upload files.
 
