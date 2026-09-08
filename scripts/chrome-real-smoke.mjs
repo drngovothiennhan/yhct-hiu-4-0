@@ -1,0 +1,69 @@
+import {spawn,spawnSync} from 'node:child_process';
+import {mkdir,rm,writeFile} from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const explicit=process.env.CHROME_BIN?.trim();
+const chrome=explicit||spawnSync('bash',['-lc','command -v google-chrome'],{encoding:'utf8'}).stdout.trim();
+if(!chrome)throw new Error('Google Chrome is required for browser QA; google-chrome was not found on the runner.');
+const outDir=path.resolve('browser-artifacts');await mkdir(outDir,{recursive:true});
+let preview=null;
+const target=process.env.CHROME_SMOKE_URL||'http://127.0.0.1:4173/';
+if(!process.env.CHROME_SMOKE_URL){
+  preview=spawn('npm',['run','preview','--','--host','127.0.0.1','--port','4173'],{stdio:['ignore','pipe','pipe'],env:process.env});
+  let ready=false;
+  for(let i=0;i<60;i++){try{const r=await fetch(target);if(r.ok){ready=true;break}}catch{}await sleep(250)}
+  if(!ready){preview.kill('SIGTERM');throw new Error('Vite preview did not become ready for Chrome QA.');}
+}
+
+async function openCdp(port){
+  for(let i=0;i<80;i++){
+    try{
+      const list=await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
+      const page=list.find(x=>x.type==='page');
+      if(page?.webSocketDebuggerUrl)return page.webSocketDebuggerUrl;
+    }catch{}
+    await sleep(100);
+  }
+  throw new Error(`Chrome DevTools endpoint ${port} did not become ready.`);
+}
+
+async function runCase(name,width,height,port){
+  const profile=path.join(os.tmpdir(),`yhct-chrome-${name}-${process.pid}`);await rm(profile,{recursive:true,force:true});
+  const proc=spawn(chrome,[
+    '--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--hide-scrollbars',
+    `--remote-debugging-port=${port}`,`--user-data-dir=${profile}`,`--window-size=${width},${height}`,'about:blank'
+  ],{stdio:'ignore'});
+  const wsUrl=await openCdp(port);
+  const ws=new WebSocket(wsUrl);await new Promise((resolve,reject)=>{ws.addEventListener('open',resolve,{once:true});ws.addEventListener('error',reject,{once:true})});
+  let seq=0;const pending=new Map();const runtimeErrors=[];
+  ws.addEventListener('message',event=>{const m=JSON.parse(String(event.data));if(m.id&&pending.has(m.id)){const {resolve,reject}=pending.get(m.id);pending.delete(m.id);m.error?reject(new Error(m.error.message)):resolve(m.result)}if(m.method==='Runtime.exceptionThrown')runtimeErrors.push(m.params?.exceptionDetails?.text||'Runtime exception')});
+  const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++seq;pending.set(id,{resolve,reject});ws.send(JSON.stringify({id,method,params}))});
+  await send('Page.enable');await send('Runtime.enable');await send('Network.enable');
+  const version=await send('Browser.getVersion');
+  await send('Page.navigate',{url:target});
+  let loaded=false;const start=Date.now();
+  while(Date.now()-start<15000){const r=await send('Runtime.evaluate',{expression:'document.readyState',returnByValue:true});if(r?.result?.value==='complete'){loaded=true;break}await sleep(200)}
+  if(!loaded)throw new Error(`${name}: page did not reach complete readyState.`);
+  await sleep(2500);
+  const evalResult=await send('Runtime.evaluate',{expression:`(()=>({title:document.title,innerWidth:window.innerWidth,mode:document.documentElement.dataset.viewportMode||'',mobileUi:document.documentElement.dataset.mobileUi||'',bottomNav:!!document.querySelector('.mobile-bottom-nav')&&getComputedStyle(document.querySelector('.mobile-bottom-nav')).display!=='none',aside:!!document.querySelector('aside')&&getComputedStyle(document.querySelector('aside')).display!=='none',bodyText:(document.body.innerText||'').slice(0,500)}))()`,returnByValue:true});
+  const state=evalResult.result.value;
+  const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile(path.join(outDir,`chrome-${name}.png`),Buffer.from(shot.data,'base64'));
+  await writeFile(path.join(outDir,`chrome-${name}.json`),JSON.stringify({target,browser:version.product,state,runtimeErrors},null,2));
+  if(!String(version.product||'').startsWith('Chrome/'))throw new Error(`${name}: browser is not Chrome: ${version.product}`);
+  if(!state.title.includes('YHCT HIU 4.0'))throw new Error(`${name}: unexpected title ${state.title}`);
+  if(name==='mobile'&&(state.innerWidth>980||state.mode!=='mobile'||!state.bottomNav))throw new Error(`mobile: responsive contract failed: ${JSON.stringify(state)}`);
+  if(name==='desktop'&&(state.innerWidth<981||state.mode!=='desktop'||!state.aside))throw new Error(`desktop: responsive contract failed: ${JSON.stringify(state)}`);
+  if(runtimeErrors.length)throw new Error(`${name}: runtime exceptions: ${runtimeErrors.join(' | ')}`);
+  ws.close();proc.kill('SIGTERM');await rm(profile,{recursive:true,force:true});
+  console.log(`Chrome ${name} PASS`,version.product,state);
+}
+
+try{
+  await runCase('mobile',390,844,9222);
+  await runCase('desktop',1440,1000,9223);
+  console.log(`Real Google Chrome smoke passed against ${target}`);
+}finally{
+  if(preview)preview.kill('SIGTERM');
+}
