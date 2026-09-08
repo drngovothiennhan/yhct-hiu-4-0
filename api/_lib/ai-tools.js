@@ -26,8 +26,8 @@ const TOOL_REGISTRY={
   },
   search_yhct_knowledge:{
     minRole:'member',
-    rpc:'ai_knowledge_search_v2',
-    description:'Tìm kho tri thức YHCT tập trung theo dược liệu, phương tễ hoặc huyệt vị. Kết quả chỉ đọc và có thể kèm citation PubMed cùng liên kết đối chiếu Google Scholar.',
+    rpc:'ai_knowledge_search_v3',
+    description:'Tìm kho tri thức YHCT tập trung theo dược liệu, phương tễ hoặc huyệt vị. Kết quả chỉ đọc, có thể kèm bằng chứng PubMed/DOI và nguồn authority đã xác minh từ WHO, NCCIH/NIH hoặc Cochrane.',
     parameters:{type:'object',properties:{query:{type:'string',minLength:2,maxLength:180},kinds:{type:'array',items:{type:'string',enum:['formula','herb','acupoint']},maxItems:3},limit:{type:'integer',minimum:1,maximum:MAX_KNOWLEDGE_ITEMS}},required:['query','kinds','limit'],additionalProperties:false},
     rpcArgs:args=>({p_query:String(args.query||'').slice(0,180),p_kinds:Array.isArray(args.kinds)?args.kinds.filter(kind=>['formula','herb','acupoint'].includes(kind)).slice(0,3):[],p_limit:Math.min(MAX_KNOWLEDGE_ITEMS,Math.max(1,Number(args.limit)||4))}),
     normalize:data=>Array.isArray(data)?data.slice(0,MAX_KNOWLEDGE_ITEMS):[]
