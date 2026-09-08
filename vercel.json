@@ -5,6 +5,7 @@
     "deploymentEnabled": false
   },
   "rewrites": [
+    {"source": "/manifest.webmanifest", "destination": "/api/manifest"},
     {"source": "/research", "destination": "/"},
     {"source": "/profile", "destination": "/"},
     {"source": "/schedule", "destination": "/"},
