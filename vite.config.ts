@@ -9,13 +9,18 @@ function productionChunk(id:string){
   if(normalized.includes('/node_modules/@supabase/'))return 'vendor-supabase';
   if(normalized.includes('/node_modules/lucide-react/'))return 'vendor-icons';
   if(normalized.includes('/node_modules/xlsx/')||normalized.includes('/node_modules/mammoth/'))return 'vendor-documents';
-  if(normalized.includes('/src/components/admin/'))return 'feature-admin';
-  if(normalized.includes('/src/components/drl/'))return 'feature-drl';
-  if(normalized.includes('/src/components/research/'))return 'feature-research';
-  if(normalized.includes('/src/components/exam/'))return 'feature-exam';
-  if(normalized.includes('/src/components/schedule/'))return 'feature-schedule';
-  if(normalized.includes('/src/components/profile/'))return 'feature-profile';
-  if(normalized.includes('/src/components/notifications/'))return 'feature-notifications';
+
+  if(normalized.includes('/src/components/feed/'))return 'module-feed';
+  if(normalized.includes('/src/components/research/'))return 'module-research';
+  if(normalized.includes('/src/components/profile/'))return 'module-profile';
+  if(normalized.includes('/src/components/messages/'))return 'module-profile-inbox';
+  if(normalized.includes('/src/components/game/'))return 'module-garden';
+  if(normalized.includes('/src/components/notifications/'))return 'module-notifications';
+  if(normalized.includes('/src/components/schedule/'))return 'module-schedule';
+  if(normalized.includes('/src/components/drl/'))return 'module-drl';
+  if(normalized.includes('/src/components/exam/'))return 'module-exam';
+  if(normalized.includes('/src/components/admin/SystemAdminCenter')||normalized.includes('/src/components/admin/AdminOpsAssistant')||normalized.includes('/src/components/admin/AdminThemeControl'))return 'module-acc';
+  if(normalized.includes('/src/components/admin/'))return 'module-admin';
   return undefined;
 }
 
