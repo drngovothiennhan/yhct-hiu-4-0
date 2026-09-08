@@ -63,7 +63,7 @@ async function runCase(name,width,height,port){
     });
     const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++seq;const timer=setTimeout(()=>{pending.delete(id);reject(new Error(`${name}: CDP timeout on ${method}`))},7000);pending.set(id,{resolve,reject,timer});ws.send(JSON.stringify({id,method,params}))});
     const waitReady=async()=>{let loaded=false;const start=Date.now();while(Date.now()-start<15000){const r=await send('Runtime.evaluate',{expression:'document.readyState',returnByValue:true});if(r?.result?.value==='complete'){loaded=true;break}await sleep(200)}if(!loaded)throw new Error(`${name}: page did not reach complete readyState.`);await sleep(1800)};
-    const inspect=async()=>{const r=await send('Runtime.evaluate',{expression:`(()=>({title:document.title,innerWidth:window.innerWidth,innerHeight:window.innerHeight,devicePixelRatio:window.devicePixelRatio,pathname:location.pathname,mode:document.documentElement.dataset.viewportMode||'',mobileUi:document.documentElement.dataset.mobileUi||'',theme:document.documentElement.dataset.theme||'',themeColor:(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')||'').toLowerCase(),manifestHref:document.querySelector('link[rel="manifest"]')?.href||'',heading:document.querySelector('.top-title h1')?.textContent||'',bottomNav:!!document.querySelector('.mobile-bottom-nav')&&getComputedStyle(document.querySelector('.mobile-bottom-nav')).display!=='none',aside:!!document.querySelector('aside')&&getComputedStyle(document.querySelector('aside')).display!=='none',bodyText:(document.body.innerText||'').slice(0,500)}))()`,returnByValue:true});return r.result.value};
+    const inspect=async()=>{const r=await send('Runtime.evaluate',{expression:`(()=>({title:document.title,innerWidth:window.innerWidth,innerHeight:window.innerHeight,devicePixelRatio:window.devicePixelRatio,pathname:location.pathname,mode:document.documentElement.dataset.viewportMode||'',mobileUi:document.documentElement.dataset.mobileUi||'',theme:document.documentElement.dataset.theme||'',themeColor:(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')||'').toLowerCase(),manifestHref:document.querySelector('link[rel="manifest"]')?.href||'',legacyTheme:localStorage.getItem('yhct-hiu-ui-theme-v1'),heading:document.querySelector('.top-title h1')?.textContent||'',bottomNav:!!document.querySelector('.mobile-bottom-nav')&&getComputedStyle(document.querySelector('.mobile-bottom-nav')).display!=='none',aside:!!document.querySelector('aside')&&getComputedStyle(document.querySelector('aside')).display!=='none',bodyText:(document.body.innerText||'').slice(0,500)}))()`,returnByValue:true});return r.result.value};
     const auditMobileOverlays=async()=>{
       const r=await send('Runtime.evaluate',{expression:`(()=>{const rectOf=el=>{const r=el?.getBoundingClientRect();return r?{left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}:null};const intersects=(a,b)=>!!a&&!!b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;const visible=el=>!!el&&getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility!=='hidden';const search=document.querySelector('.research-search');const title=document.querySelector('.top-title');const selectors=['.copilot-fab','.ai-feedback-trigger','.mobile-more-button'];const controls=selectors.map(selector=>{const el=document.querySelector(selector);return{selector,visible:visible(el),rect:visible(el)?rectOf(el):null}});const searchRect=rectOf(search),titleRect=rectOf(title);return{searchRect,titleRect,controls,searchOverlaps:controls.filter(x=>x.visible&&intersects(searchRect,x.rect)).map(x=>x.selector),titleOverlaps:controls.filter(x=>x.visible&&intersects(titleRect,x.rect)).map(x=>x.selector),outOfViewport:controls.filter(x=>x.visible&&x.rect&&(x.rect.left<0||x.rect.top<0||x.rect.right>innerWidth||x.rect.bottom>innerHeight)).map(x=>x.selector)}})()`,returnByValue:true});return r.result.value;
     };
@@ -73,20 +73,23 @@ async function runCase(name,width,height,port){
       await send('Runtime.evaluate',{expression:`localStorage.setItem('yhct-hiu-ui-theme-v1',${JSON.stringify(stale)})`});
       await send('Page.reload',{ignoreCache:true});await waitReady();await sleep(1200);
       const recovered=await inspect();
-      const expectedColor=THEME_COLORS[initial.theme];
-      if(recovered.theme!==initial.theme)throw new Error(`${name}: stale local theme was not replaced by system theme: ${JSON.stringify({initial:initial.theme,stale,recovered:recovered.theme})}`);
-      if(recovered.themeColor!==expectedColor)throw new Error(`${name}: meta theme-color mismatch after recovery: expected ${expectedColor}, got ${recovered.themeColor}`);
+      if(recovered.legacyTheme!==null)throw new Error(`${name}: legacy local theme storage was not purged: ${JSON.stringify({stale,legacyTheme:recovered.legacyTheme})}`);
+      if(!THEME_COLORS[recovered.theme])throw new Error(`${name}: recovered unknown system theme ${recovered.theme}`);
+      if(recovered.theme===stale)throw new Error(`${name}: stale local theme still controls the UI: ${JSON.stringify({initial:initial.theme,stale,recovered:recovered.theme})}`);
+      const expectedColor=THEME_COLORS[recovered.theme];
+      if(recovered.themeColor!==expectedColor)throw new Error(`${name}: meta theme-color mismatch for recovered system theme ${recovered.theme}: expected ${expectedColor}, got ${recovered.themeColor}`);
       if(productionSmoke&&!recovered.manifestHref.includes('/api/manifest'))throw new Error(`${name}: browser manifest link is not dynamic: ${recovered.manifestHref}`);
       let manifest=null;
       if(productionSmoke){
         const result=await send('Runtime.evaluate',{expression:`fetch('/api/manifest?qa=theme-${Date.now()}',{cache:'no-store'}).then(async r=>({ok:r.ok,status:r.status,cache:r.headers.get('cache-control')||'',serverTheme:r.headers.get('x-yhct-system-theme')||'',body:await r.json()}))`,awaitPromise:true,returnByValue:true});
         manifest=result.result.value;
         if(!manifest?.ok)throw new Error(`${name}: dynamic manifest request failed: ${JSON.stringify(manifest)}`);
-        if(String(manifest.body?.theme_color||'').toLowerCase()!==expectedColor)throw new Error(`${name}: manifest theme_color mismatch: ${JSON.stringify(manifest)}`);
-        if(manifest.serverTheme!==initial.theme)throw new Error(`${name}: manifest backend theme mismatch: ${JSON.stringify(manifest)}`);
+        if(!THEME_COLORS[manifest.serverTheme])throw new Error(`${name}: manifest returned unknown backend theme: ${JSON.stringify(manifest)}`);
+        const manifestExpected=THEME_COLORS[manifest.serverTheme];
+        if(String(manifest.body?.theme_color||'').toLowerCase()!==manifestExpected)throw new Error(`${name}: manifest theme_color does not match its backend theme: ${JSON.stringify(manifest)}`);
         if(!String(manifest.cache).includes('no-store'))throw new Error(`${name}: manifest must be no-store: ${JSON.stringify(manifest)}`);
       }
-      return {initialTheme:initial.theme,staleTheme:stale,recoveredTheme:recovered.theme,themeColor:recovered.themeColor,manifestHref:recovered.manifestHref,manifest};
+      return {initialTheme:initial.theme,staleTheme:stale,recoveredTheme:recovered.theme,themeColor:recovered.themeColor,legacyTheme:recovered.legacyTheme,manifestHref:recovered.manifestHref,manifest};
     };
     await send('Page.enable');await send('Runtime.enable');await send('Network.enable');
     if(name==='mobile'){

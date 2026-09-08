@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import AppErrorBoundary from './components/system/AppErrorBoundary';
 import {clearLegacyThemeState} from './theme';
+import './design-system/tokens.css';
 import './styles.css';
 import './modules.css';
 import './mobile-audit.css';
