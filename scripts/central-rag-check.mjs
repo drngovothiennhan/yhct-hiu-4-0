@@ -7,7 +7,7 @@ const fail=message=>{console.error(`CENTRAL-RAG FAIL: ${message}`);process.exitC
 const ok=message=>console.log(`OK: ${message}`);
 const requireText=(text,needle,label)=>text.includes(needle)?ok(label):fail(`${label} (missing ${needle})`);
 
-const baseMigration=read('supabase/migrations/202609081215_ai_knowledge_central_rag_v1.sql');
+const baseMigration=read('supabase/migrations/20260908121556_ai_knowledge_central_rag_v1.sql');
 const evidenceMigration=read('supabase/migrations/202609081925_ai_knowledge_evidence_pubmed_scholar_v1.sql');
 const authorityMigration=read('supabase/migrations/202609082020_ai_knowledge_authority_sources_v3.sql');
 const service=read('src/services/centralKnowledgeService.ts');
