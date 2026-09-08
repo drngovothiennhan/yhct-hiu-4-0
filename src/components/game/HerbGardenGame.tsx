@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState} from 'react';
-import {Droplets,Leaf,PackageOpen,RefreshCw,Seedling,ShoppingBasket,Sparkles} from 'lucide-react';
+import {Droplets,Leaf,PackageOpen,RefreshCw,ShoppingBasket,Sparkles,Sprout} from 'lucide-react';
 import type {Member} from '../../types';
 import {supabase} from '../../services/authService';
 
@@ -20,8 +20,8 @@ export default function HerbGardenGame({member}:{member:Member}){
     {msg&&<div className="ai-note" role="status">{msg}</div>}
     <div className="garden-layout">
       <section className="garden-plot panel">
-        {!plant?<div className="garden-empty"><div className="seed-orb"><Seedling/></div><h3>Ô đất đang trống</h3><p>Mỗi lượt chỉ nuôi một cây. Hệ thống chọn ngẫu nhiên từ kho dược liệu học thuật và không tiết lộ loài trước khi cây trưởng thành.</p><button disabled={busy} onClick={()=>void action('plant')}><Leaf/>Nhận hạt và gieo</button></div>:<>
-          <div className={`garden-stage stage-${plant.ready?'mature':progress>=66?'sprout-3':progress>=33?'sprout-2':'sprout-1'}`}><div className="soil-bed"/><div className="plant-sprite"><Leaf/><Leaf/><Seedling/></div></div>
+        {!plant?<div className="garden-empty"><div className="seed-orb"><Sprout/></div><h3>Ô đất đang trống</h3><p>Mỗi lượt chỉ nuôi một cây. Hệ thống chọn ngẫu nhiên từ kho dược liệu học thuật và không tiết lộ loài trước khi cây trưởng thành.</p><button disabled={busy} onClick={()=>void action('plant')}><Leaf/>Nhận hạt và gieo</button></div>:<>
+          <div className={`garden-stage stage-${plant.ready?'mature':progress>=66?'sprout-3':progress>=33?'sprout-2':'sprout-1'}`}><div className="soil-bed"/><div className="plant-sprite"><Leaf/><Leaf/><Sprout/></div></div>
           <div className="garden-progress"><div className="between"><b>{plant.ready?'Cây đã trưởng thành':'Cây đang phát triển'}</b><span>{plant.ready?'100%':`${progress}%`}</span></div><div className="progress-track"><i style={{width:`${plant.ready?100:progress}%`}}/></div><small>{plant.ready?'Có thể thu hoạch ngay.':`Còn khoảng ${remaining(plant.matures_at,now)} · đã chăm ${plant.care_count} lần`}</small></div>
           {plant.ready?<article className="herb-reveal"><span className="badge">Đã nhận diện</span><h3>{plant.name}</h3><i>{plant.botanical_name}</i><p><b>{plant.category}</b> · {plant.traditional_actions}</p><small>{plant.caution}</small></article>:<article className="seed-mystery"><span>?</span><div><b>Hạt giống bí ẩn</b><small>Tên, loài và công dụng chỉ được mở khi đủ 72 giờ.</small></div></article>}
           <div className="garden-actions"><button className="secondary" disabled={busy||plant.ready} onClick={()=>void action('care')}><Droplets/>Chăm sóc</button><button disabled={busy||!plant.ready} onClick={()=>void action('harvest')}><ShoppingBasket/>Thu hoạch về kho</button></div>
