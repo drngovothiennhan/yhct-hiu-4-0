@@ -20,7 +20,7 @@ import ViewportModeToggle,{applyViewportMode,readViewportMode,type ViewportMode}
 import {logoutFast,readCachedMember,restoreMember,supabase,watchAuthSession} from './services/authService';
 import {loginOptimized} from './services/authRuntimeService';
 import {fetchAcademicFeed} from './services/dataService';
-import {applyTheme,fetchSystemTheme,readTheme,saveSystemTheme,type ThemeName} from './theme';
+import {applyTheme,fetchSystemTheme,readTheme,saveSystemTheme,watchSystemTheme,type ThemeName} from './theme';
 import {applyDeviceCapabilityProfile} from './services/deviceCapability';
 import {FiveElementsIcon} from './components/icons/YhctIcons';
 import './social-v5.css';
@@ -44,8 +44,8 @@ export default function App(){
   const loginGuard=useRef(false),canAdmin=roleAtLeast(member?.role,'mod'),canAcc=roleAtLeast(member?.role,'admin');
   const reload=async()=>{try{setPosts(await fetchAcademicFeed())}catch{}};
   useEffect(()=>{const cap=applyDeviceCapabilityProfile();return cap.dispose},[]);
-  useEffect(()=>{applyTheme(theme,true)},[theme]);
-  useEffect(()=>{let live=true;const sync=async()=>{try{const next=await fetchSystemTheme();if(live)setTheme(next)}catch{}};void sync();const interval=window.setInterval(()=>void sync(),30000),onFocus=()=>void sync(),onVisible=()=>{if(document.visibilityState==='visible')void sync()};window.addEventListener('focus',onFocus);document.addEventListener('visibilitychange',onVisible);return()=>{live=false;window.clearInterval(interval);window.removeEventListener('focus',onFocus);document.removeEventListener('visibilitychange',onVisible)}},[]);
+  useEffect(()=>{applyTheme(theme)},[theme]);
+  useEffect(()=>{let live=true;const sync=async()=>{try{const next=await fetchSystemTheme();if(live)setTheme(next)}catch{}};const stop=watchSystemTheme(next=>{if(live)setTheme(next)});void sync();const interval=window.setInterval(()=>void sync(),300000),onFocus=()=>void sync(),onVisible=()=>{if(document.visibilityState==='visible')void sync()};window.addEventListener('focus',onFocus);document.addEventListener('visibilitychange',onVisible);return()=>{live=false;stop();window.clearInterval(interval);window.removeEventListener('focus',onFocus);document.removeEventListener('visibilitychange',onVisible)}},[]);
   useEffect(()=>{applyViewportMode(viewportMode)},[viewportMode]);
   useEffect(()=>{let live=true;const stop=watchAuthSession((next)=>{if(!live)return;setMember(next);setAuthResolved(true)});void(async()=>{try{const restored=await restoreMember();if(live)setMember(restored)}finally{if(live)setAuthResolved(true)}})();void reload();return()=>{live=false;stop()}},[]);
   useEffect(()=>{const onPop=()=>setTab(tabFromLocation());window.addEventListener('popstate',onPop);return()=>window.removeEventListener('popstate',onPop)},[]);
@@ -57,7 +57,7 @@ export default function App(){
   const go=(next:Tab)=>{setTab(next);setMoreOpen(false);const desired=TAB_PATHS[next];if(normalizePath(window.location.pathname)!==desired)window.history.pushState(null,'',desired);window.scrollTo({top:0,behavior:'smooth'})};
   const requestMemberAction=(action:()=>void)=>{if(!member){setAuthOpen(true);return}action()};
   const requestCompose=()=>requestMemberAction(()=>{go('feed');setComposeNonce(x=>x+1)}),requestProfile=()=>requestMemberAction(()=>go('profile')),requestNotifications=()=>requestMemberAction(()=>go('notifications'));
-  const changeTheme=(next:ThemeName)=>{if(!canAcc)return;setTheme(next);void saveSystemTheme(next).then(setTheme).catch(()=>{void fetchSystemTheme().then(setTheme).catch(()=>{})})};
+  const changeTheme=(next:ThemeName)=>{if(!canAcc)return;void saveSystemTheme(next).then(setTheme).catch(()=>{void fetchSystemTheme().then(setTheme).catch(()=>{})})};
   const changeViewport=(next:ViewportMode)=>{setViewportMode(next);setMoreOpen(false)};
 
   return <div className={`app viewport-mode-${viewportMode}`}>

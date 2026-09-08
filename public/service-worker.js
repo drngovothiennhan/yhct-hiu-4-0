@@ -1,9 +1,9 @@
-const CACHE='yhct-hiu-4-final4-v2-offline';
+const CACHE='yhct-hiu-4-final4-v3-theme-sync';
 const SCOPE_URL=new URL(self.registration.scope);
 const ROOT=SCOPE_URL.pathname.endsWith('/')?SCOPE_URL.pathname:`${SCOPE_URL.pathname}/`;
 const path=name=>new URL(name,self.registration.scope).pathname;
 const SHELL=[path('./'),path('yhct-system-mark.svg')];
-const MANIFEST=path('manifest.webmanifest');
+const LEGACY_MANIFESTS=[path('manifest.webmanifest'),path('api/manifest')];
 const NAV_TIMEOUT_MS=4500;
 
 self.addEventListener('install',event=>{
@@ -15,7 +15,7 @@ self.addEventListener('activate',event=>{
     const keys=await caches.keys();
     await Promise.all(keys.filter(key=>key!==CACHE&&key.startsWith('yhct-hiu-4-')).map(key=>caches.delete(key)));
     const cache=await caches.open(CACHE);
-    await cache.delete(MANIFEST);
+    await Promise.all(LEGACY_MANIFESTS.map(entry=>cache.delete(entry)));
     await self.clients.claim();
   })());
 });
