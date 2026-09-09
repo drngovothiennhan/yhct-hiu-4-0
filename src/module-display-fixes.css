@@ -1,0 +1,48 @@
+/* Final guards for modules that can accumulate long dynamic content. */
+.notifications-retention-note{
+  margin:8px 0 12px;
+  font-size:.78rem;
+  line-height:1.4;
+}
+
+/* Research Center: the Drive/RAG rail must remain a compact tool rail instead of
+   growing indefinitely with imported documents, RAG results, or AI summaries. */
+.research-center-v2 .research-grid{
+  align-items:start!important;
+}
+.research-center-v2 .research-card.rag{
+  align-self:start!important;
+  height:fit-content!important;
+  min-height:0!important;
+  max-height:min(760px,calc(100dvh - 132px))!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+}
+.research-center-v2 .research-card.rag>*{
+  min-width:0!important;
+  max-width:100%!important;
+}
+.research-center-v2 .research-card.rag .rag-summary p,
+.research-center-v2 .research-card.rag .rag-results,
+.research-center-v2 .research-card.rag .doc-list{
+  overflow-wrap:anywhere;
+}
+
+/* Once Research Center collapses to one column, normal page scrolling is more
+   natural than a nested right-rail scroller. */
+@media(max-width:900px){
+  .research-center-v2 .research-card.rag{
+    height:auto!important;
+    max-height:none!important;
+    overflow:visible!important;
+    scrollbar-gutter:auto;
+  }
+}
+html[data-viewport-mode="mobile"] .research-center-v2 .research-card.rag{
+  height:auto!important;
+  max-height:none!important;
+  overflow:visible!important;
+  scrollbar-gutter:auto;
+}
