@@ -27,6 +27,7 @@ import './exam-v2.css';
 import './theme-runtime.css';
 import './feed-academic-ai.css';
 import './viewport-native-hotfix.css';
+import './desktop-phone-full.css';
 
 bootstrapThemeState();
 
