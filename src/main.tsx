@@ -29,6 +29,7 @@ import './feed-academic-ai.css';
 import './viewport-native-hotfix.css';
 import './desktop-phone-full.css';
 import './module-display-fixes.css';
+import './garden-professional-v7.css';
 
 bootstrapThemeState();
 
