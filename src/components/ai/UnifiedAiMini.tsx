@@ -1,75 +1,68 @@
-import {useEffect,useMemo,useState} from 'react';
-import {Bot,Check,ChevronDown,History,Languages,MessageSquarePlus,Send,Sparkles,X} from 'lucide-react';
+import {useEffect,useMemo,useRef,useState} from 'react';
+import {Bot,CalendarDays,ExternalLink,GripHorizontal,Mic,MicOff,Navigation,Send,Sparkles,Volume2,VolumeX,X} from 'lucide-react';
 import type {Member} from '../../types';
-import {supabase} from '../../services/authService';
-import {askServerAi,renderAiAnswer,type AiSource} from '../../modules/ai';
-import {buildResearchLinks,checkDrlConversation} from '../../services/miniAiEngine';
-import {searchKnowledge,type CentralKnowledgeHit} from '../../services/centralKnowledgeService';
-import {searchOpenAlex,type ResearchWork} from '../../services/researchService';
-import {searchDriveRag} from '../../services/driveRagService';
-import {translateAcademic} from '../../services/academicTranslationService';
-import {askGemini,getGeminiStatus} from '../../services/geminiByok';
+import {checkDrlConversation} from '../../services/miniAiEngine';
+import {fetchSchedules} from '../../services/scheduleService';
+import {askXiaoZhiMini,type XiaoZhiSource} from '../../services/xiaozhiMiniService';
+import '../../xiaozhi-mini.css';
 
-type HistoryItem={id:string;query:string;answer:string;at:string};
-type StoredHistory={day:string;items:HistoryItem[]};
-type Mode='assistant'|'feedback';
-type PendingAction={type:'message';recipientId:string;recipientName:string;body:string}|{type:'reminder';dueAt:string;body:string};
-type Provenance={label:string;url?:string|null};
-const HISTORY_KEY='yhct-ai-mini-visible-history-v1';
-const localDay=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-const safeHistory=():StoredHistory=>{const day=localDay();try{const raw=JSON.parse(localStorage.getItem(HISTORY_KEY)||'null') as StoredHistory|null;if(raw?.day===day&&Array.isArray(raw.items))return{day,items:raw.items.slice(0,3)};localStorage.removeItem(HISTORY_KEY)}catch{localStorage.removeItem(HISTORY_KEY)}return{day,items:[]}};
+type Message={id:string;role:'user'|'assistant';text:string;sources?:XiaoZhiSource[]};
+type Point={x:number;y:number};
+const VOICE_KEY='yhct-xiaozhi-voice-v1',POS_KEY='yhct-xiaozhi-pos-v1';
 const clean=(value:string)=>value.replace(/\s+/g,' ').trim();
-const academicIntent=(value:string)=>/(openalex|pubmed|y\s*văn|nghiên\s*cứu|bài\s*báo|bằng\s*chứng|systematic|meta[- ]?analysis|randomi[sz]ed|clinical\s*trial|study|doi|journal)/i.test(value);
-const openAlexSources=(works:ResearchWork[]):AiSource[]=>works.slice(0,5).map(w=>({id:`OpenAlex:${w.id}`,title:w.title,text:`${w.abstract||w.title} ${w.authors.join(', ')} ${w.source} ${w.year||''}`.slice(0,4200),url:w.url}));
-const openAlexFallback=(works:ResearchWork[])=>works.length?`OpenAlex tìm thấy ${works.length} công trình: ${works.slice(0,3).map((w,i)=>`${i+1}. ${w.title}${w.year?` (${w.year})`:''}`).join(' · ')}. Mở nguồn để kiểm chứng.`:'OpenAlex chưa trả về công trình phù hợp.';
-const centralSources=(hits:CentralKnowledgeHit[]):AiSource[]=>hits.filter(h=>h.source==='central').slice(0,4).map(h=>{const refs=[...h.evidence.map(e=>`${e.title} PMID ${e.pmid}`),...h.authoritySources.map(a=>`${a.provider.toUpperCase()}: ${a.title}`)].join(' | ');return{id:`central:${h.record.id}`,title:h.record.name,text:`${JSON.stringify(h.record).slice(0,3200)} ${refs}`.slice(0,4200),url:h.evidence[0]?.pubmedUrl||h.authoritySources[0]?.sourceUrl||null}});
-const uniqueSources=(items:AiSource[])=>[...new Map(items.map(x=>[x.id,x])).values()].slice(0,6);
+const academicIntent=(value:string)=>/\b(pubmed|openalex|doi|systematic|meta[- ]?analysis|clinical trial)\b|nghiên\s*cứu|y\s*văn|bài\s*báo\s*khoa\s*học|chẩn\s*đoán\s*lâm\s*sàng|điều\s*trị|kê\s*đơn|phương\s*tễ|huyệt\s*vị|dược\s*lý|bệnh\s*học/i.test(value);
+const drlIntent=(value:string)=>/điểm\s*(rèn\s*luyện|hoạt\s*động)|rèn\s*luyện|drl/i.test(value);
+const scheduleIntent=(value:string)=>/lịch\s*(clb|hoạt\s*động|họp|sự\s*kiện)|clb.*(khi|ngày|lúc)|hoạt\s*động.*(khi|ngày|lúc)/i.test(value);
+const appIntent=(value:string)=>/(gia\s*viên|hiu\s*[-–]?\s*y\s*[-–]?\s*quán|game|đăng\s*bài|tường\s*cá\s*nhân|thông\s*báo|trung\s*tâm\s*nghiên\s*cứu|luyện\s*thi|cài\s*đặt|ai\s*mini)/i.test(value);
+const readVoice=()=>{try{return localStorage.getItem(VOICE_KEY)!=='0'}catch{return true}};
+const readPos=():Point=>{try{const p=JSON.parse(localStorage.getItem(POS_KEY)||'null');if(Number.isFinite(p?.x)&&Number.isFinite(p?.y))return{x:p.x,y:p.y}}catch{}return{x:0,y:0}};
+const appHelp=(text:string)=>{
+  if(/hiu\s*[-–]?\s*y\s*[-–]?\s*quán/i.test(text))return'HIU - Y - Quán nằm trong khu Game cùng Gia Viên Dược Thảo. Bạn kích hoạt tên và giới tính nhân vật, tiếp nhận 1–2 khách mỗi giờ, đọc Vọng–Văn–Vấn–Thiết rồi chọn thể bệnh. Chẩn đúng được +1 tín dụng vào ví Gia Viên.';
+  if(/gia\s*viên|game/i.test(text))return'Gia Viên Dược Thảo là khu game trồng dược liệu. Bản mới dùng thế giới 2D có thể kéo để di chuyển; nút chuyển game ở phía trên cho phép sang HIU - Y - Quán. Tín dụng của hai game dùng chung.';
+  if(/đăng\s*bài/i.test(text))return'Đăng nhập thành viên, chọn nút Đăng bài ở thanh điều hướng. Nội dung học thuật vẫn đi qua quy trình của Bảng tin và các quyền kiểm duyệt hiện có.';
+  if(/tường\s*cá\s*nhân/i.test(text))return'Tường cá nhân nằm ở mục Cá nhân. Trên điện thoại, nút Cá nhân ở thanh điều hướng dưới màn hình.';
+  if(/trung\s*tâm\s*nghiên\s*cứu/i.test(text))return'Trung tâm nghiên cứu là nơi duy nhất dành cho A.I học thuật, tìm nguồn và hỗ trợ nghiên cứu. A.I Mini không trả lời nội dung chuyên môn học thuật.';
+  if(/luyện\s*thi/i.test(text))return'Luyện thi ĐGNL nằm trong mục Thêm chức năng trên mobile và thanh điều hướng bên trái trên desktop.';
+  if(/cài\s*đặt/i.test(text))return'Mở Cài đặt từ menu hệ thống để đổi chế độ hiển thị và các tùy chọn ứng dụng. Riêng giọng A.I Mini có công tắc loa ngay trong cửa sổ A.I.';
+  return'A.I Mini là trợ lý hệ thống và thông tin: hỗ trợ điểm hoạt động, lịch CLB, cách dùng mạng xã hội và tra cứu tin tức bên ngoài. Nội dung học thuật được chuyển sang Trung tâm nghiên cứu.';
+};
 function formatDrl(result:Awaited<ReturnType<typeof checkDrlConversation>>){if(!result)return'';if(result.mode==='mine')return result.items.length?`${result.semesterTitle||'Học kỳ hiện tại'}: ${result.total} điểm. ${result.items.slice(0,4).map(x=>`${x.label} ${x.points>=0?'+':''}${x.points}`).join(' · ')}`:`${result.semesterTitle||'Học kỳ hiện tại'}: chưa có hoạt động được công bố.`;const top=result.candidates?.[0];return top?`${top.full_name} · ${top.student_code_masked} · ${top.semester_title}: ${top.total_points} điểm.`:'Không tìm thấy kết quả điểm phù hợp.'}
-function translationCommand(text:string){const m=text.match(/^dịch(?:\s+sang\s+(tiếng\s+việt|tiếng\s+anh|english|vietnamese))?\s*[:\-]\s*([\s\S]+)/i);if(!m)return null;const target=/anh|english/i.test(m[1]||'')?'en':'vi';return{target,text:m[2].trim()}}
-function messageCommand(text:string){const m=text.match(/^gửi\s+(?:tin\s+nhắn|tin)\s+(?:cho\s+)?([^:]{2,80})\s*:\s*(.{1,2000})$/i);return m?{name:clean(m[1]),body:m[2].trim()}:null}
-function reminderDelay(text:string){const m=text.match(/nhắc(?:\s+tôi)?\s+tưới(?:\s+cây)?(?:\s+sau\s+(\d{1,3})\s*(phút|giờ))?/i);if(!m)return null;const n=Math.max(1,Number(m[1]||0));return m[1]?n*(/giờ/i.test(m[2])?3600000:60000):0}
+const forSpeech=(text:string)=>text.replace(/https?:\/\/\S+/g,'').replace(/[*#_`>]/g,'').replace(/\s+/g,' ').trim();
 
 export default function UnifiedAiMini({member,onLogin}:{member:Member|null;onLogin:()=>void}){
-  const [open,setOpen]=useState(false),[mode,setMode]=useState<Mode>('assistant'),[query,setQuery]=useState(''),[busy,setBusy]=useState(false),[answer,setAnswer]=useState(''),[message,setMessage]=useState('');
-  const [history,setHistory]=useState<StoredHistory>(()=>safeHistory()),[provenance,setProvenance]=useState<Provenance[]>([]),[pending,setPending]=useState<PendingAction|null>(null);
-  const [feedbackKind,setFeedbackKind]=useState<'suggestion'|'bug'|'other'>('suggestion'),[feedback,setFeedback]=useState('');
-  const greeting=useMemo(()=>`Xin chào ${member?.herbalAlias||member?.fullName||'bạn'}! A.I Mini ưu tiên Cloud + Kho Drive YHCT + Central RAG, trả lời ngắn gọn và hiển thị nguồn.`,[member?.herbalAlias,member?.fullName]);
-  useEffect(()=>{const id=window.setInterval(()=>{const day=localDay();setHistory(current=>{if(current.day===day)return current;localStorage.removeItem(HISTORY_KEY);setAnswer('');return{day,items:[]}})},60000);return()=>window.clearInterval(id)},[]);
-  useEffect(()=>{if(open)setMessage('')},[open]);
-  const saveHistory=(item:HistoryItem)=>setHistory(current=>{const day=localDay(),next:{day:string;items:HistoryItem[]}={day,items:[item,...(current.day===day?current.items:[])].slice(0,3)};localStorage.setItem(HISTORY_KEY,JSON.stringify(next));return next});
-  const stageMessage=async(name:string,body:string)=>{if(!member){onLogin();return true}const {data,error}=await supabase.rpc('message_recipients_v1',{p_query:name,p_limit:5});if(error)throw error;const rows=Array.isArray(data)?data:[];if(rows.length!==1){setAnswer(rows.length?`Tìm thấy ${rows.length} người khớp “${name}”. Hãy nhập tên cụ thể hơn trước khi gửi.`:`Không tìm thấy người nhận “${name}”.`);return true}const r=rows[0] as {id:string;full_name:string};setPending({type:'message',recipientId:r.id,recipientName:r.full_name,body});setAnswer(`Chuẩn bị gửi cho ${r.full_name}: “${body}”. Bấm Xác nhận gửi để thực hiện.`);setProvenance([{label:'Danh bạ thành viên · message_recipients_v1'}]);return true};
-  const stageWaterReminder=async(delay:number)=>{if(!member){onLogin();return true}const {data,error}=await supabase.rpc('herb_garden_ai_status_v1');if(error)throw error;const plants=Array.isArray((data as any)?.plants)?(data as any).plants:[],waterable=plants.filter((p:any)=>p?.status==='growing'&&p?.can_water),nextDates=plants.map((p:any)=>Date.parse(String(p?.next_water_at||''))).filter((n:number)=>Number.isFinite(n)&&n>Date.now());const due=delay?new Date(Date.now()+delay):waterable.length?new Date(Date.now()+60000):new Date(nextDates.length?Math.min(...nextDates):Date.now()+3600000);const body=waterable.length?`Gia Viên hiện có ${waterable.length} cây đến lượt tưới. Nhắc kiểm tra tưới cây.`:'Đã đến thời điểm kiểm tra chu kỳ tưới tiếp theo của Gia Viên.';setPending({type:'reminder',dueAt:due.toISOString(),body});setAnswer(`Sẽ tạo nhắc tưới lúc ${due.toLocaleString('vi-VN')}. Bấm Xác nhận để lưu nhắc việc.`);setProvenance([{label:'Gia Viên · herb_garden_ai_status_v1'}]);return true};
-  const confirmAction=async()=>{if(!pending||busy)return;setBusy(true);setMessage('');try{if(pending.type==='message'){const {error}=await supabase.rpc('messages_send_v1',{p_recipient_id:pending.recipientId,p_body:pending.body});if(error)throw error;setAnswer(`Đã gửi tin nhắn cho ${pending.recipientName}.`)}else{const {error}=await supabase.rpc('ai_assistant_reminder_create_v1',{p_kind:'garden_water',p_due_at:pending.dueAt,p_payload:{body:pending.body}});if(error)throw error;setAnswer(`Đã lưu nhắc tưới lúc ${new Date(pending.dueAt).toLocaleString('vi-VN')}. Thông báo sẽ được phát bởi hệ thống.`)}setPending(null)}catch(e){setMessage((e as Error).message)}finally{setBusy(false)}};
-  const ask=async()=>{const text=clean(query);if(!text||busy)return;setBusy(true);setMessage('');setPending(null);setProvenance([]);try{
-    const t=translationCommand(text);if(t){if(!member){onLogin();return}const translated=await translateAcademic(t.text,t.target);const output=translated.text||translated.note||'Chưa dịch được nội dung.';setAnswer(output);setMessage(`Dịch: ${translated.provider}${translated.degraded?' · degraded':''}`);setProvenance([{label:`Translation · ${translated.provider}`}]);saveHistory({id:crypto.randomUUID(),query:text,answer:output,at:new Date().toISOString()});setQuery('');return}
-    const msgCmd=messageCommand(text);if(msgCmd&&await stageMessage(msgCmd.name,msgCmd.body)){setQuery('');return}
-    const delay=reminderDelay(text);if(delay!==null&&await stageWaterReminder(delay)){setQuery('');return}
-    let output='',runtimeStatus='';
-    try{const drl=await checkDrlConversation(text,member);if(drl){output=formatDrl(drl);setProvenance([{label:'Điểm hoạt động · dữ liệu tài khoản'}])}}catch(e){if(/đăng nhập/i.test((e as Error).message)){setMessage((e as Error).message);onLogin();return}}
-    if(!output&&member){
-      const [drive,hits,oa]=await Promise.all([searchDriveRag(text,4),searchKnowledge(text,'all',5),academicIntent(text)?searchOpenAlex(text,5).catch(()=>[]):Promise.resolve([] as ResearchWork[])]);
-      const sources=uniqueSources([...drive.sources,...centralSources(hits),...openAlexSources(oa)]);
-      if(sources.length){try{const result=await askServerAi(`Trả lời ngắn gọn, trực tiếp câu hỏi sau và chỉ dùng nguồn được cung cấp khi nêu dữ kiện: ${text}`,'fast',sources);if(!result.degraded){output=renderAiAnswer(result);runtimeStatus=`Cloud A.I · Drive ${drive.sources.length} · Central ${hits.filter(h=>h.source==='central').length} · OpenAlex ${oa.length} · ${Math.round(result.latencyMs)} ms`;setProvenance(sources.map(s=>({label:s.title,url:s.url})).slice(0,5))}else runtimeStatus='Đang dùng fallback có nguồn.'}catch(e){runtimeStatus=(e as Error).message}
-        if(!output){const first=sources.slice(0,3);output=`Nguồn phù hợp: ${first.map((s,i)=>`${i+1}. ${s.title}`).join(' · ')}. Hệ thống đang dùng chế độ tra cứu có nguồn; mở nguồn để kiểm chứng.`;setProvenance(first.map(s=>({label:s.title,url:s.url})))}
-      }else if(academicIntent(text)&&oa.length){output=openAlexFallback(oa);setProvenance(oa.slice(0,3).map(w=>({label:w.title,url:w.url})))}
-    }
-    if(!output&&member){try{const result=await askServerAi(`Trả lời ngắn gọn: ${text}`,'fast');if(!result.degraded){output=renderAiAnswer(result);runtimeStatus=`Cloud A.I · ${result.provider} · ${Math.max(0,Math.round(result.latencyMs))} ms`;setProvenance(result.citations.map(c=>({label:c.label,url:c.url})))}else runtimeStatus='Đang dùng fallback học thuật.'}catch(e){runtimeStatus=(e as Error).message}}
-    if(!output&&getGeminiStatus().configured){try{const result=await askGemini(text);output=`${result.text}\n\nNguồn AI: Gemini BYOK fallback. Cần kiểm tra tài liệu chuyên môn.`;runtimeStatus=`Gemini BYOK · ${result.model}`;setProvenance([{label:'Gemini BYOK fallback'}])}catch{}}
-    if(!output){const links=buildResearchLinks(text);output=`Chưa có câu trả lời đủ chắc chắn. Hướng tra cứu: ${links.slice(0,3).map(x=>x.provider).join(', ')}. Mở Trung tâm nghiên cứu để kiểm tra nguồn.`}
-    setAnswer(output);if(runtimeStatus)setMessage(runtimeStatus);saveHistory({id:crypto.randomUUID(),query:text,answer:output,at:new Date().toISOString()});setQuery('');
-  }catch(e){setMessage((e as Error).message||'A.I Mini chưa thể xử lý yêu cầu.')}finally{setBusy(false)}};
-  const submitFeedback=async()=>{const body=clean(feedback);if(!member){onLogin();return}if(body.length<5){setMessage('Góp ý cần ít nhất 5 ký tự.');return}setBusy(true);setMessage('');try{const {error}=await supabase.rpc('feedback_submit_v1',{p_kind:feedbackKind,p_body:body,p_context:{surface:'ai-mini',path:location.pathname,day:localDay()}});if(error)throw error;setFeedback('');setMessage('Đã gửi góp ý tới Admin. Cảm ơn bạn.')}catch(e){setMessage((e as Error).message)}finally{setBusy(false)}};
-  return <div className={`ai-mini-unified ${open?'is-open':''}`}>
-    {open&&<section className="ai-mini-panel" role="dialog" aria-label="A.I Mini"><header><div className="row"><Bot/><div><b>A.I Mini</b><small>AI Platform · Cloud + Drive RAG + Central RAG + OpenAlex</small></div></div><button className="icon-btn" onClick={()=>setOpen(false)} aria-label="Đóng A.I Mini"><X/></button></header>
-      <div className="ai-mini-greeting"><Sparkles/><p>{greeting}</p></div>
-      <div className="ai-mini-tabs"><button className={mode==='assistant'?'active':''} onClick={()=>setMode('assistant')}><Bot/>Trao đổi</button><button className={mode==='feedback'?'active':''} onClick={()=>setMode('feedback')}><MessageSquarePlus/>Góp ý</button></div>
-      {mode==='assistant'?<>
-        {history.items.length>0&&<div className="ai-mini-history"><div className="between"><span><History/> 3 lịch sử gần nhất</span><small>Tự xóa hiển thị mỗi ngày</small></div>{history.items.map(item=><button key={item.id} onClick={()=>{setAnswer(item.answer);setQuery(item.query)}}><b>{item.query}</b><span className="ai-mini-history-preview">{item.answer}</span></button>)}</div>}
-        {answer&&<article className="ai-mini-answer"><b>A.I Mini</b><p>{answer}</p>{provenance.length>0&&<div className="ai-mini-provenance"><small>Nguồn:</small>{provenance.map((p,i)=>p.url?<a key={`${p.label}-${i}`} href={p.url} target="_blank" rel="noreferrer noopener">{p.label}</a>:<span key={`${p.label}-${i}`}>{p.label}</span>)}</div>}{pending&&<div className="ai-mini-confirm"><button disabled={busy} onClick={()=>void confirmAction()}><Check/>Xác nhận</button><button className="secondary" disabled={busy} onClick={()=>{setPending(null);setMessage('Đã hủy thao tác.')}}><X/>Hủy</button></div>}</article>}
-        <div className="ai-mini-compose"><textarea maxLength={2000} value={query} onChange={e=>setQuery(e.target.value)} placeholder="Hỏi, dịch, kiểm tra điểm, nhắc tưới hoặc: Gửi tin nhắn cho Tên: nội dung" onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();void ask()}}}/><button disabled={busy||!clean(query)} onClick={()=>void ask()}><Send/></button></div><small className="muted"><Languages/> Dịch: “Dịch sang tiếng Việt: …” · Trợ lý ghi dữ liệu chỉ thực hiện sau khi bạn xác nhận.</small>
-      </>:<div className="ai-mini-feedback"><label>Loại góp ý<select value={feedbackKind} onChange={e=>setFeedbackKind(e.target.value as typeof feedbackKind)}><option value="suggestion">Đề xuất</option><option value="bug">Báo lỗi</option><option value="other">Khác</option></select></label><label>Nội dung<textarea maxLength={3000} value={feedback} onChange={e=>setFeedback(e.target.value)} placeholder="Mô tả góp ý hoặc vấn đề bạn gặp…"/></label><button disabled={busy||clean(feedback).length<5} onClick={()=>void submitFeedback()}><Send/>Gửi góp ý</button></div>}
-      {message&&<div className="ai-note" role="status">{message}</div>}
+  const [open,setOpen]=useState(false),[query,setQuery]=useState(''),[busy,setBusy]=useState(false),[voiceOn,setVoiceOn]=useState(readVoice),[listening,setListening]=useState(false),[message,setMessage]=useState(''),[messages,setMessages]=useState<Message[]>([]),[position,setPosition]=useState<Point>(readPos);
+  const drag=useRef<{id:number;startX:number;startY:number;origin:Point}|null>(null),recognition=useRef<any>(null);
+  const greeting=useMemo(()=>`Xin chào ${member?.herbalAlias||member?.fullName||'bạn'}. Tôi là A.I Mini XiaoZhi của HIU YHCT 4.0.`,[member?.herbalAlias,member?.fullName]);
+
+  useEffect(()=>()=>{try{window.speechSynthesis?.cancel();recognition.current?.stop?.()}catch{}},[]);
+  const persistVoice=(next:boolean)=>{setVoiceOn(next);try{localStorage.setItem(VOICE_KEY,next?'1':'0')}catch{}if(!next)window.speechSynthesis?.cancel()};
+  const speak=(text:string)=>{if(!voiceOn||!('speechSynthesis'in window))return;const value=forSpeech(text);if(!value)return;window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(value);utterance.lang='vi-VN';utterance.rate=.98;utterance.pitch=1.04;const voices=window.speechSynthesis.getVoices(),preferred=voices.find(v=>v.lang.toLowerCase().startsWith('vi')&&/female|hoai|linh|an|my|mai|google/i.test(v.name))||voices.find(v=>v.lang.toLowerCase().startsWith('vi'));if(preferred)utterance.voice=preferred;window.speechSynthesis.speak(utterance)};
+  const addAssistant=(text:string,sources:XiaoZhiSource[]=[])=>{const next:Message={id:crypto.randomUUID(),role:'assistant',text,sources};setMessages(xs=>[...xs,next].slice(-8));speak(text)};
+
+  const runQuery=async(raw:string)=>{const text=clean(raw);if(!text||busy)return;if(!member){onLogin();return}setBusy(true);setMessage('');const userMessage:Message={id:crypto.randomUUID(),role:'user',text};setMessages(xs=>[...xs,userMessage].slice(-8));setQuery('');try{
+    if(appIntent(text)){addAssistant(appHelp(text));return}
+    if(academicIntent(text)){addAssistant('Nội dung này thuộc phần học thuật/chuyên môn. A.I Mini không xử lý nhóm này. Hãy mở Trung tâm nghiên cứu để dùng A.I nghiên cứu có nguồn.');return}
+    if(drlIntent(text)){const drl=await checkDrlConversation(text,member);const answer=formatDrl(drl)||'Tôi chưa tìm thấy dữ liệu điểm phù hợp trong tài khoản.';addAssistant(answer);return}
+    if(scheduleIntent(text)){const items=await fetchSchedules(),now=Date.now(),upcoming=items.filter(x=>Date.parse(x.startsAt)>=now-3600000).sort((a,b)=>Date.parse(a.startsAt)-Date.parse(b.startsAt)).slice(0,5);const answer=upcoming.length?`Lịch CLB sắp tới: ${upcoming.map((x,i)=>`${i+1}. ${x.title}, ${new Date(x.startsAt).toLocaleString('vi-VN')}${x.location?`, tại ${x.location}`:''}`).join(' · ')}`:'Hiện tôi chưa thấy lịch CLB sắp tới được công bố.';addAssistant(answer);return}
+    const reply=await askXiaoZhiMini(text,`Người dùng: ${member.fullName}. Chỉ sử dụng thông tin này để xưng hô. Không suy diễn dữ liệu cá nhân khác.`);addAssistant(reply.answer,reply.sources);setMessage(`${reply.provider}${reply.degraded?' · fallback':''}${reply.latencyMs?` · ${Math.round(reply.latencyMs)} ms`:''}`)
+  }catch(e){const error=(e as Error).message||'A.I Mini chưa thể xử lý yêu cầu.';setMessage(error);addAssistant(error)}finally{setBusy(false)}};
+
+  const startListening=()=>{if(listening){recognition.current?.stop?.();return}const SpeechRecognition=(window as any).SpeechRecognition||(window as any).webkitSpeechRecognition;if(!SpeechRecognition){setMessage('Trình duyệt này chưa hỗ trợ nhập giọng nói. Bạn vẫn có thể gõ câu hỏi.');return}const rec=new SpeechRecognition();recognition.current=rec;rec.lang='vi-VN';rec.interimResults=false;rec.continuous=false;rec.onstart=()=>setListening(true);rec.onend=()=>setListening(false);rec.onerror=()=>{setListening(false);setMessage('Không nhận được giọng nói. Hãy thử lại hoặc gõ câu hỏi.')};rec.onresult=(event:any)=>{const text=clean(event.results?.[0]?.[0]?.transcript||'');if(text){setQuery(text);void runQuery(text)}};rec.start()};
+  const openResearch=()=>{window.history.pushState(null,'','/research');window.dispatchEvent(new PopStateEvent('popstate'));setOpen(false)};
+  const dragStart=(e:React.PointerEvent)=>{if(window.matchMedia('(max-width: 760px)').matches)return;drag.current={id:e.pointerId,startX:e.clientX,startY:e.clientY,origin:position};(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)};
+  const dragMove=(e:React.PointerEvent)=>{const d=drag.current;if(!d||d.id!==e.pointerId)return;setPosition({x:d.origin.x+e.clientX-d.startX,y:d.origin.y+e.clientY-d.startY})};
+  const dragEnd=(e:React.PointerEvent)=>{if(drag.current?.id!==e.pointerId)return;drag.current=null;try{(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)}catch{}setPosition(p=>{try{localStorage.setItem(POS_KEY,JSON.stringify(p))}catch{}return p})};
+
+  return <div className={`xz-mini ${open?'is-open':''}`} style={{transform:`translate(${position.x}px,${position.y}px)`}}>
+    {open&&<section className="xz-panel" role="dialog" aria-label="A.I Mini XiaoZhi">
+      <header className="xz-header" onPointerDown={dragStart} onPointerMove={dragMove} onPointerUp={dragEnd} onPointerCancel={dragEnd}><div className="xz-title"><span className="xz-avatar"><Bot/></span><div><b>A.I Mini · XiaoZhi</b><small>Voice · Tools · Web Search</small></div></div><div className="xz-header-actions"><GripHorizontal className="xz-grip"/><button onPointerDown={e=>e.stopPropagation()} onClick={()=>setOpen(false)} aria-label="Đóng"><X/></button></div></header>
+      <div className="xz-greeting"><Sparkles/><span>{greeting}</span></div>
+      <div className="xz-chips"><button onClick={()=>void runQuery('Điểm rèn luyện của tôi hiện tại')}><Navigation/>Điểm của tôi</button><button onClick={()=>void runQuery('Lịch CLB sắp tới')}><CalendarDays/>Lịch CLB</button><button onClick={()=>void runQuery('HIU - Y - Quán chơi thế nào?')}><Sparkles/>Game mới</button></div>
+      <div className="xz-conversation" aria-live="polite">{messages.length===0?<div className="xz-empty"><Bot/><p>Hỏi về điểm hoạt động, lịch CLB, cách dùng HIU YHCT 4.0 hoặc tin tức bên ngoài. Nội dung học thuật được chuyển riêng sang Trung tâm nghiên cứu.</p></div>:messages.map(item=><article key={item.id} className={`xz-msg ${item.role}`}><p>{item.text}</p>{item.sources?.length?<div className="xz-sources">{item.sources.map(source=><a key={source.url} href={source.url} target="_blank" rel="noreferrer"><ExternalLink/>{source.title}</a>)}</div>:null}</article>)}{busy&&<div className="xz-thinking"><i/><i/><i/><span>Đang tìm thông tin…</span></div>}</div>
+      {message&&<div className="xz-status">{message}</div>}
+      <form className="xz-compose" onSubmit={e=>{e.preventDefault();void runQuery(query)}}><button type="button" className={listening?'active':''} onClick={startListening} aria-label={listening?'Dừng nghe':'Hỏi bằng giọng nói'}>{listening?<MicOff/>:<Mic/>}</button><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={listening?'Đang nghe…':'Hỏi A.I Mini…'} maxLength={1600}/><button type="submit" disabled={busy||!clean(query)} aria-label="Gửi"><Send/></button></form>
+      <footer className="xz-footer"><button className={voiceOn?'active':''} onClick={()=>persistVoice(!voiceOn)}>{voiceOn?<Volume2/>:<VolumeX/>}{voiceOn?'Giọng nữ: bật':'Giọng nói: tắt'}</button><button onClick={openResearch}>Học thuật → Trung tâm nghiên cứu</button></footer>
     </section>}
-    <button className="ai-mini-fab" onClick={()=>setOpen(v=>!v)} aria-expanded={open} aria-label={open?'Ẩn A.I Mini':'Mở A.I Mini'}><Bot/><span>A.I Mini</span><ChevronDown/></button>
+    <button className="xz-orb" onClick={()=>setOpen(x=>!x)} aria-label={open?'Đóng A.I Mini':'Mở A.I Mini'}><span><Bot/></span><i className={listening?'listening':''}/><b>A.I</b></button>
   </div>;
 }

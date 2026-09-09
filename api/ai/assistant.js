@@ -1,5 +1,6 @@
 import {cloudAiEnabled,cloudAiModel,memberAccess} from '../_lib/member-access.js';
 import {aiToolsForRole,executeAiTool} from '../_lib/ai-tools.js';
+import {handleXiaoZhiMini} from '../_lib/xiaozhi-mini-handler.js';
 
 const MAX_QUERY=4000;
 const MAX_SOURCES=6;
@@ -105,6 +106,7 @@ async function createOpenAiResponse({key,model,input,tools,mode,signal}){
 }
 
 export default async function handler(req,res){
+  if(req.body?.mode==='xiaozhi-mini')return handleXiaoZhiMini(req,res);
   const started=Date.now();
   res.setHeader('Cache-Control','no-store');
   res.setHeader('X-Content-Type-Options','nosniff');

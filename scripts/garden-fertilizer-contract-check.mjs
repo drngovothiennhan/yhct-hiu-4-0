@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 
-// CI contract v7.1: keep legacy facade compatibility while verifying the real v7 implementation.
+// CI contract v8: the stable v7 care engine remains authoritative while the
+// public facade adds the draggable Garden V8 world and HIU - Y - Quan hub.
 const read=(path)=>fs.readFileSync(path,'utf8');
 const migrationPath='supabase/migrations/202609091930_garden_care_engine_v7_and_constraint_repair.sql';
 const migration=read(migrationPath);
@@ -18,7 +19,11 @@ const checks=[
   ['event constraint permits care rewards',migration.includes("'care_reward'::text")],
   ['notification constraint permits garden help',migration.includes("'garden_help'::text")],
   ['reward events are keyed by achieved streak',/care_reward',new_streak/.test(migration)],
-  ['stable garden facade points to v7',facade.includes("import HerbGardenGameV7 from './HerbGardenGameV7'")&&facade.includes('export default HerbGardenGameV7')],
+  ['garden v8 facade retains v7 engine',
+    facade.includes("import HerbGardenGameV7 from './HerbGardenGameV7'")&&
+    facade.includes('<HerbGardenGameV7 member={member}/>')&&
+    facade.includes('garden-world-viewport')&&
+    facade.includes('HiuYQuanGame')],
   ['UI uses structured fertilizer v4',game.includes("fertilize:'herb_garden_fertilize_v4'")],
   ['UI presents one 72-hour care timeline',game.includes('Lịch chăm 72 giờ')&&game.includes('Chăm chung cùng tiến độ')],
   ['UI shows twelve water and three fertilizer markers',game.includes('total={12}')&&game.includes('total={3}')],
@@ -28,4 +33,4 @@ const checks=[
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks)console.log(`${ok?'PASS':'FAIL'}  ${name}`);
 if(failed.length){console.error(`Garden fertilizer contract failed: ${failed.length} check(s)`);process.exit(1)}
-console.log('PASS  Gia Vien fertilizer/gameplay has one authoritative care engine.');
+console.log('PASS  Gia Vien fertilizer/gameplay has one authoritative care engine inside Garden V8.');
