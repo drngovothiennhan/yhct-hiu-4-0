@@ -26,10 +26,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify adaptive mobile and Win11 layout on production
+      - name: Verify adaptive mobile, full desktop-on-phone and Win11 layout on production
         env:
           CHROME_SMOKE_URL: https://yhct-hiu-final4-stage.vercel.app
-        run: node scripts/adaptive-viewport-check.mjs
+        run: node scripts/adaptive-viewport-check-v2.mjs
       - name: Upload adaptive viewport evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -39,4 +39,4 @@ jobs:
           if-no-files-found: warn
           retention-days: 1
       - name: Publish verification summary
-        run: echo "Adaptive production matrix passed for mobile 390 and Win11 1024/1366/1920 viewports." >> "$GITHUB_STEP_SUMMARY"
+        run: echo "Adaptive production matrix passed for mobile 390, full Desktop-on-phone 390/430, and Win11 1024/1366/1920 viewports." >> "$GITHUB_STEP_SUMMARY"
