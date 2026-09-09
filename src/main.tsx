@@ -26,6 +26,7 @@ import './production-ui-sep8.css';
 import './research-ai-upgrade.css';
 import './exam-v2.css';
 import './theme-runtime.css';
+import './feed-academic-ai.css';
 
 bootstrapThemeState();
 
