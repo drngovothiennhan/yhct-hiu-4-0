@@ -3,7 +3,8 @@ import fs from 'node:fs';
 const read=(path)=>fs.readFileSync(path,'utf8');
 const migrationPath='supabase/migrations/202609091930_garden_care_engine_v7_and_constraint_repair.sql';
 const migration=read(migrationPath);
-const game=read('src/components/game/HerbGardenGame.tsx');
+const facade=read('src/components/game/HerbGardenGame.tsx');
+const game=read('src/components/game/HerbGardenGameV7.tsx');
 const main=read('src/main.tsx');
 
 const checks=[
@@ -16,6 +17,7 @@ const checks=[
   ['event constraint permits care rewards',migration.includes("'care_reward'::text")],
   ['notification constraint permits garden help',migration.includes("'garden_help'::text")],
   ['reward events are keyed by achieved streak',/care_reward',new_streak/.test(migration)],
+  ['stable garden facade points to v7',facade.includes("import HerbGardenGameV7 from './HerbGardenGameV7'")&&facade.includes('export default HerbGardenGameV7')],
   ['UI uses structured fertilizer v4',game.includes("fertilize:'herb_garden_fertilize_v4'")],
   ['UI presents one 72-hour care timeline',game.includes('Lịch chăm 72 giờ')&&game.includes('Chăm chung cùng tiến độ')],
   ['UI shows twelve water and three fertilizer markers',game.includes('total={12}')&&game.includes('total={3}')],
