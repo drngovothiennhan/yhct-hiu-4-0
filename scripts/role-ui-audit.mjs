@@ -37,7 +37,7 @@ const checks=[
  ['USER',[
   ['frozen module contract',has(files.contract,"ModuleId='feed'|'research'|'profile'|'garden'|'notifications'|'schedule'|'drl'|'exam'|'admin'|'acc'","if(path==='/messages')return'profile'")&&not(files.app,"tab==='messages'","go('messages')")],
   ['system theme received without selector',has(files.app,'fetchSystemTheme()','applyTheme(theme)','watchSystemTheme(next=>')&&not(files.app,'theme-quick-toggle','mobile-theme-action')],
-  ['AI news is fixed latest-three, non-looping',has(files.news,'MAX_NEWS=3',"tcm_news_feed_v1',{p_limit:MAX_NEWS}",'news-rotator-top3','data-ai-news-count','ai_provider')&&not(files.news,'ROTATE_MS=','scrollByPage','onMouseDown','onMouseMove')],
+  ['TCM news carousel + latest-three AI academic posts',has(files.news,'ROTATE_MS=8000',"tcm_news_feed_v1',{p_limit:20}",'news-rotator-track','scrollByPage','news-rotator-prev','news-rotator-next')&&not(files.news,'MAX_NEWS=3','news-rotator-top3','data-ai-news-count')&&has(files.feed,"SYSTEM_AI_CODE='AI-YHCT-SYSTEM'",'visibleSystemAiIds','slice(0,3)','data-system-ai-visible')],
   ['community public data safe',has(files.community,"supabase.rpc('community_sidebar_v2')",'ACTIVE_LIMIT=10')&&not(files.community,'student_code','email','phone')],
   ['profile wall + avatar + three-post server feed',has(files.profile,'member_wall_feed_v1','member_wall_post_create_v1','member_profile_update_v2',"storage.from('member-media')",'maxLength={500}','ProfileInbox')],
   ['private inbox embedded in profile',has(files.profileInbox,'messages_inbox_v1','MessagesCenter','member_messages','role="dialog"')&&has(files.messages,'messages_send_v1','message_recipients_v1')],
@@ -60,4 +60,4 @@ for(const [role,items] of checks){
  else console.log(`role-audit ${role} PASS: ${items.map(([name])=>name).join('; ')}`);
 }
 if(failed)process.exit(1);
-console.log('role-audit-ok: modular roles, atomic theme, fixed top-three AI news, private inbox, academic AI, PWA, wall identity, moderation, garden, DRL and RBAC contracts passed');
+console.log('role-audit-ok: modular roles, atomic theme, rolling TCM news carousel, latest-three AI academic posts, private inbox, academic AI, PWA, wall identity, moderation, garden, DRL and RBAC contracts passed');
