@@ -6,7 +6,7 @@ export type AiCitation={id:string;label:string;url:string|null};
 export type AiRuntimeAnswer={answer:string;citations:AiCitation[];confidence:'high'|'medium'|'low';safety:'educational'|'needs_source_check'|'refuse_clinical_advice';suggestedQueries:string[];provider:'openai'|'local';degraded:boolean;latencyMs:number;toolsUsed:string[]};
 export class AiRuntimeError extends Error{constructor(public kind:'auth'|'timeout'|'network'|'invalid',message:string){super(message);this.name='AiRuntimeError'}}
 
-const TIMEOUT_MS=11000;
+const TIMEOUT_MS=24000;
 const safe=(value:unknown,max=7000)=>String(value??'').replace(/\s+/g,' ').trim().slice(0,max);
 const validSafety=new Set(['educational','needs_source_check','refuse_clinical_advice']);
 const validConfidence=new Set(['high','medium','low']);
@@ -35,8 +35,8 @@ export async function askServerAi(query:string,mode:AiMode='fast',sources:AiSour
     return normalizeAnswer(await response.json());
   }catch(error){
     if(error instanceof AiRuntimeError)throw error;
-    if((error as Error)?.name==='AbortError')throw new AiRuntimeError('timeout','A.I cloud quá thời gian chờ; hệ thống đã chuyển sang chế độ cục bộ.');
-    throw new AiRuntimeError('network','Không kết nối được A.I cloud; hệ thống đã chuyển sang chế độ cục bộ.');
+    if((error as Error)?.name==='AbortError')throw new AiRuntimeError('timeout','A.I cloud quá thời gian chờ; hệ thống chuyển sang hỗ trợ cục bộ theo ngữ cảnh.');
+    throw new AiRuntimeError('network','Không kết nối được A.I cloud; hệ thống chuyển sang hỗ trợ cục bộ theo ngữ cảnh.');
   }finally{window.clearTimeout(timer)}
 }
 
