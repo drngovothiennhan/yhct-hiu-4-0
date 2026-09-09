@@ -27,12 +27,13 @@ need(app.includes("tab==='acc'&&canAcc&&<>")&&app.includes('AdminThemeControl th
 need(pwa.includes('beforeinstallprompt')&&pwa.includes('appinstalled')&&settings.includes('Cài ứng dụng mạng xã hội'),'real PWA installation controller is wired');
 need(research.includes('searchOpenAlex(query,12)')&&research.includes('A.I OpenAlex tổng hợp')&&researchMini.includes('searchOpenAlex(text,6)')&&researchMini.includes('Cloud + Drive RAG + OpenAlex'),'OpenAlex is restored to Research Center and Research AI Mini');
 
-const game=read('src/components/game/HerbGardenGame.tsx'),gardenSocial=read('src/components/game/HerbGardenSocialHub.tsx'),gardenCss=read('src/garden-v6.css'),gardenMigration=read('supabase/migrations/202609080630_admin_news_retention_and_garden_grid_v6.sql'),sprite=read('public/garden-decor-sprite.svg');
+const gardenFacade=read('src/components/game/HerbGardenGame.tsx'),game=read('src/components/game/HerbGardenGameV7.tsx'),gardenSocial=read('src/components/game/HerbGardenSocialHub.tsx'),gardenCss=read('src/garden-v6.css'),gardenMigration=read('supabase/migrations/202609080630_admin_news_retention_and_garden_grid_v6.sql'),sprite=read('public/garden-decor-sprite.svg');
 const catalog=[1,2,3,4,5].map((n,i)=>read(`supabase/migrations/20260908015${5+i}_herb_garden_catalog_qd4664_part${n}.sql`)).join('\n');
+need(gardenFacade.includes("import HerbGardenGameV7 from './HerbGardenGameV7'")&&gardenFacade.includes('export default HerbGardenGameV7'),'garden stable facade points to v7 implementation');
 need(!game.match(/openai|gemini|generateContent/i)&&!gardenSocial.match(/openai|gemini|generateContent/i),'game has no generative medical logic');
 need((catalog.match(/'Danh mục cây thuốc mẫu Bộ Y tế'/g)||[]).length===70,'official QD4664 catalog still contains exactly 70 plants');
-for(const rpc of ['herb_garden_state_v3','herb_garden_select_initial_plots_v3','herb_garden_plant_v3','herb_garden_water_v4','herb_garden_fertilize_v3','herb_garden_harvest_v3'])need(game.includes(rpc),`garden frontend uses ${rpc}`);
-need(game.includes('garden-nine-grid')&&game.includes('Chọn 3 ô khởi đầu')&&game.includes('Đã mở {unlockedCount}/9 ô'),'garden renders a 3x3 grid and explicit onboarding');
+for(const rpc of ['herb_garden_state_v3','herb_garden_select_initial_plots_v3','herb_garden_plant_v3','herb_garden_water_v4','herb_garden_fertilize_v4','herb_garden_harvest_v3'])need(game.includes(rpc),`garden frontend uses ${rpc}`);
+need(game.includes('garden-nine-grid')&&game.includes('Chọn 3 ô khởi đầu')&&game.includes('{unlockedCount}/9'),'garden renders a 3x3 grid and explicit onboarding');
 need(gardenMigration.includes('herb_garden_plots')&&gardenMigration.includes('harvested_n<unlocked_n')&&gardenMigration.includes('min(slot_no)'),'plot unlock is server-authoritative and sequential');
 need(gardenMigration.includes("interval '3 days'")&&gardenMigration.includes('water_count>=12')&&gardenMigration.includes('fertilizer_count>=3'),'each plot preserves lifecycle rules');
 need(gardenMigration.includes('herb_garden_maintenance_v3')&&gardenMigration.includes("'7 * * * *'"),'multi-plot maintenance remains hourly');
