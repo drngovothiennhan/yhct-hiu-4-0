@@ -1,0 +1,54 @@
+name: Feed Device Sync
+
+on:
+  workflow_run:
+    workflows: ["Vercel Production"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: feed-device-sync-production
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact production commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify authoritative feed on mobile and desktop Chrome
+        run: node scripts/feed-device-sync-check.mjs
+        env:
+          FEED_SYNC_URL: https://yhct-hiu-final4-stage.vercel.app
+
+      - name: Upload feed sync evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: feed-device-sync-${{ github.event.workflow_run.head_sha }}
+          path: feed-sync-artifacts/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Publish verification summary
+        if: success()
+        run: |
+          echo "### Production feed device sync" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: \`${{ github.event.workflow_run.head_sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Source of truth: Supabase \`academic_feed_v1\` via same-origin health gateway" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Mobile Chrome 390x844: authoritative top post rendered" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Desktop Chrome 1440x1000: same authoritative top post rendered" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Synthetic legacy demo content: absent" >> "$GITHUB_STEP_SUMMARY"
