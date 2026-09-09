@@ -14,7 +14,7 @@ need(profile,['ProfileInbox','<ProfileInbox member={member}/>','Tường cá nh�
 need(inbox,['messages_inbox_v1','member_messages','MessagesCenter','role="dialog"','inboxBadge'],'profile inbox dialog');
 need(adminTheme,['THEME_OPTIONS.length','Giao diện hệ thống','module khác chỉ nhận theme đồng bộ'],'ACC compact theme');
 need(research,['searchOpenAlex(query,12)','A.I OpenAlex tổng hợp','summarizeOpenAlex','askServerAi'],'research OpenAlex AI');
-need(researchMini,['searchOpenAlex(text,6)','searchDriveRag(text,4)','askServerAi(text,\'research\'','Cloud + Drive RAG + OpenAlex','searchKnowledge'],'Research AI mini shared academic retrieval');
+need(researchMini,['searchOpenAlex(text,6)','searchDriveRag(text,4)',"searchKnowledge(text,'all',5)",'askServerAi(text,\'research\'','Cloud + Drive RAG + Central RAG + OpenAlex'],'Research AI mini shared academic retrieval');
 need(mini,['academicIntent','askXiaoZhiMini','VOICE_KEY','startListening','Học thuật → Trung tâm nghiên cứu'],'global XiaoZhi AI mini system/voice routing');
 forbid(mini,['searchOpenAlex','searchDriveRag','searchKnowledge','centralKnowledgeService','feedback_submit_v1'],'global XiaoZhi AI mini academic separation');
 need(miniService,["fetch('/api/ai/assistant'","mode:'xiaozhi-mini'",'Authorization:`Bearer ${token}`'],'global XiaoZhi shared gateway client');
@@ -24,4 +24,4 @@ need(pwa,['beforeinstallprompt','appinstalled','requestPwaInstall','display-mode
 need(settings,['Cài ứng dụng mạng xã hội','PWA độc lập của Chrome','requestPwaInstall'],'app settings');
 
 if(errors.length){console.error('MODULE ISOLATION CHECK FAILED');for(const error of errors)console.error(`- ${error}`);process.exit(1)}
-console.log('module-isolation-ok: 10 final areas frozen, inbox embedded in profile, admin/ACC separation, root PWA install, research academic AI and global XiaoZhi separation present');
+console.log('module-isolation-ok: 10 final areas frozen, inbox embedded in profile, admin/ACC separation, root PWA install, Research AI Central/Drive/OpenAlex retrieval and global XiaoZhi separation present');
