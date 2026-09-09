@@ -2,7 +2,7 @@ import {useEffect,useMemo,useState} from 'react';
 import {Bot,Check,ChevronDown,History,Languages,MessageSquarePlus,Send,Sparkles,X} from 'lucide-react';
 import type {Member} from '../../types';
 import {supabase} from '../../services/authService';
-import {askServerAi,renderAiAnswer,type AiSource} from '../../services/aiRuntimeService';
+import {askServerAi,renderAiAnswer,type AiSource} from '../../modules/ai';
 import {buildResearchLinks,checkDrlConversation} from '../../services/miniAiEngine';
 import {searchKnowledge,type CentralKnowledgeHit} from '../../services/centralKnowledgeService';
 import {searchOpenAlex,type ResearchWork} from '../../services/researchService';
@@ -49,18 +49,18 @@ export default function UnifiedAiMini({member,onLogin}:{member:Member|null;onLog
     if(!output&&member){
       const [drive,hits,oa]=await Promise.all([searchDriveRag(text,4),searchKnowledge(text,'all',5),academicIntent(text)?searchOpenAlex(text,5).catch(()=>[]):Promise.resolve([] as ResearchWork[])]);
       const sources=uniqueSources([...drive.sources,...centralSources(hits),...openAlexSources(oa)]);
-      if(sources.length){try{const result=await askServerAi(`Trả lời ngắn gọn, trực tiếp câu hỏi sau và chỉ dùng nguồn được cung cấp khi nêu dữ kiện: ${text}`,'fast',sources);if(!result.degraded){output=renderAiAnswer(result);runtimeStatus=`Cloud A.I · Drive ${drive.sources.length} · Central ${hits.filter(h=>h.source==='central').length} · OpenAlex ${oa.length} · ${Math.round(result.latencyMs)} ms`;setProvenance(sources.map(s=>({label:s.title,url:s.url})).slice(0,5))}else runtimeStatus='Cloud A.I degraded; chuyển fallback có nguồn.'}catch(e){runtimeStatus=(e as Error).message}
-        if(!output){const first=sources.slice(0,3);output=`Nguồn phù hợp: ${first.map((s,i)=>`${i+1}. ${s.title}`).join(' · ')}. Cloud A.I đang tạm gián đoạn; mở nguồn để kiểm chứng.`;setProvenance(first.map(s=>({label:s.title,url:s.url})))}
+      if(sources.length){try{const result=await askServerAi(`Trả lời ngắn gọn, trực tiếp câu hỏi sau và chỉ dùng nguồn được cung cấp khi nêu dữ kiện: ${text}`,'fast',sources);if(!result.degraded){output=renderAiAnswer(result);runtimeStatus=`Cloud A.I · Drive ${drive.sources.length} · Central ${hits.filter(h=>h.source==='central').length} · OpenAlex ${oa.length} · ${Math.round(result.latencyMs)} ms`;setProvenance(sources.map(s=>({label:s.title,url:s.url})).slice(0,5))}else runtimeStatus='Đang dùng fallback có nguồn.'}catch(e){runtimeStatus=(e as Error).message}
+        if(!output){const first=sources.slice(0,3);output=`Nguồn phù hợp: ${first.map((s,i)=>`${i+1}. ${s.title}`).join(' · ')}. Hệ thống đang dùng chế độ tra cứu có nguồn; mở nguồn để kiểm chứng.`;setProvenance(first.map(s=>({label:s.title,url:s.url})))}
       }else if(academicIntent(text)&&oa.length){output=openAlexFallback(oa);setProvenance(oa.slice(0,3).map(w=>({label:w.title,url:w.url})))}
     }
-    if(!output&&member){try{const result=await askServerAi(`Trả lời ngắn gọn: ${text}`,'fast');if(!result.degraded){output=renderAiAnswer(result);runtimeStatus=`Cloud A.I · ${result.provider} · ${Math.max(0,Math.round(result.latencyMs))} ms`;setProvenance(result.citations.map(c=>({label:c.label,url:c.url})))}else runtimeStatus='Cloud A.I degraded; tiếp tục fallback.'}catch(e){runtimeStatus=(e as Error).message}}
+    if(!output&&member){try{const result=await askServerAi(`Trả lời ngắn gọn: ${text}`,'fast');if(!result.degraded){output=renderAiAnswer(result);runtimeStatus=`Cloud A.I · ${result.provider} · ${Math.max(0,Math.round(result.latencyMs))} ms`;setProvenance(result.citations.map(c=>({label:c.label,url:c.url})))}else runtimeStatus='Đang dùng fallback học thuật.'}catch(e){runtimeStatus=(e as Error).message}}
     if(!output&&getGeminiStatus().configured){try{const result=await askGemini(text);output=`${result.text}\n\nNguồn AI: Gemini BYOK fallback. Cần kiểm tra tài liệu chuyên môn.`;runtimeStatus=`Gemini BYOK · ${result.model}`;setProvenance([{label:'Gemini BYOK fallback'}])}catch{}}
     if(!output){const links=buildResearchLinks(text);output=`Chưa có câu trả lời đủ chắc chắn. Hướng tra cứu: ${links.slice(0,3).map(x=>x.provider).join(', ')}. Mở Trung tâm nghiên cứu để kiểm tra nguồn.`}
     setAnswer(output);if(runtimeStatus)setMessage(runtimeStatus);saveHistory({id:crypto.randomUUID(),query:text,answer:output,at:new Date().toISOString()});setQuery('');
   }catch(e){setMessage((e as Error).message||'A.I Mini chưa thể xử lý yêu cầu.')}finally{setBusy(false)}};
   const submitFeedback=async()=>{const body=clean(feedback);if(!member){onLogin();return}if(body.length<5){setMessage('Góp ý cần ít nhất 5 ký tự.');return}setBusy(true);setMessage('');try{const {error}=await supabase.rpc('feedback_submit_v1',{p_kind:feedbackKind,p_body:body,p_context:{surface:'ai-mini',path:location.pathname,day:localDay()}});if(error)throw error;setFeedback('');setMessage('Đã gửi góp ý tới Admin. Cảm ơn bạn.')}catch(e){setMessage((e as Error).message)}finally{setBusy(false)}};
   return <div className={`ai-mini-unified ${open?'is-open':''}`}>
-    {open&&<section className="ai-mini-panel" role="dialog" aria-label="A.I Mini"><header><div className="row"><Bot/><div><b>A.I Mini</b><small>Cloud + Drive RAG + Central RAG + OpenAlex</small></div></div><button className="icon-btn" onClick={()=>setOpen(false)} aria-label="Đóng A.I Mini"><X/></button></header>
+    {open&&<section className="ai-mini-panel" role="dialog" aria-label="A.I Mini"><header><div className="row"><Bot/><div><b>A.I Mini</b><small>AI Platform · Cloud + Drive RAG + Central RAG + OpenAlex</small></div></div><button className="icon-btn" onClick={()=>setOpen(false)} aria-label="Đóng A.I Mini"><X/></button></header>
       <div className="ai-mini-greeting"><Sparkles/><p>{greeting}</p></div>
       <div className="ai-mini-tabs"><button className={mode==='assistant'?'active':''} onClick={()=>setMode('assistant')}><Bot/>Trao đổi</button><button className={mode==='feedback'?'active':''} onClick={()=>setMode('feedback')}><MessageSquarePlus/>Góp ý</button></div>
       {mode==='assistant'?<>
