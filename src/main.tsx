@@ -40,4 +40,16 @@ const revealStableApp=()=>{
 };
 requestAnimationFrame(()=>requestAnimationFrame(revealStableApp));
 
-if('serviceWorker' in navigator&&import.meta.env.PROD){window.addEventListener('load',()=>{const base=import.meta.env.BASE_URL||'/';void navigator.serviceWorker.register(`${base}service-worker.js`,{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{})})}
+if('serviceWorker' in navigator&&import.meta.env.PROD){
+  window.addEventListener('load',()=>{
+    const base=import.meta.env.BASE_URL||'/';
+    const hadController=Boolean(navigator.serviceWorker.controller);
+    let refreshing=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(!hadController||refreshing)return;
+      refreshing=true;
+      window.location.reload();
+    });
+    void navigator.serviceWorker.register(`${base}service-worker.js`,{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{});
+  });
+}
