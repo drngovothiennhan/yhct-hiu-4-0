@@ -7,7 +7,13 @@ const waterMigration=read('supabase/migrations/202609091550_unify_herb_garden_wa
 const fertilizerAliasMigration=read('supabase/migrations/202609091615_unify_fertilizer_and_member_year_alias.sql');
 const viewport=read('src/viewport-native-hotfix.css');
 
-need(facade.includes("import HerbGardenGameV7 from './HerbGardenGameV7'")&&facade.includes('export default HerbGardenGameV7'),'stable garden facade resolves to v7 implementation');
+need(
+  facade.includes("import HerbGardenGameV7 from './HerbGardenGameV7'")&&
+  facade.includes('<HerbGardenGameV7 member={member}/>')&&
+  facade.includes('garden-world-viewport')&&
+  facade.includes('HiuYQuanGame'),
+  'stable garden facade wraps v7 care engine inside v8 world/game hub'
+);
 need(!game.includes('2 giờ đầu'),'garden UI no longer exposes the legacy two-hour watering rule');
 need(game.includes('1 lần mỗi lượt 6 giờ')&&game.includes('12 lượt tưới'),'garden UI exposes one canonical 6-hour watering rule');
 need(game.includes('busy||!selected.can_water'),'water control follows the authoritative can_water state');
