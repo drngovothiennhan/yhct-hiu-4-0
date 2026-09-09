@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState} from 'react';
-import {CheckCircle2,Clock3,Coins,Droplets,Gift,Grid3X3,HeartHandshake,Leaf,LockKeyhole,PackageOpen,RefreshCw,ShoppingBasket,Sparkles,Sprout} from 'lucide-react';
+import {CheckCircle2,ChevronDown,ChevronUp,Clock3,Coins,Droplets,Gift,Grid3X3,HeartHandshake,Leaf,LockKeyhole,MoveHorizontal,PackageOpen,RefreshCw,ShoppingBasket,Sparkles,Sprout} from 'lucide-react';
 import type {Member} from '../../types';
 import {supabase} from '../../services/authService';
 import '../../herb-garden-v2.css';
@@ -35,6 +35,7 @@ export default function HerbGardenGame({member}:{member:Member}){
   const [busy,setBusy]=useState(false);
   const [msg,setMsg]=useState('');
   const [now,setNow]=useState(Date.now());
+  const [plotDeckOpen,setPlotDeckOpen]=useState(true);
 
   const applyPlotRows=(rows:Plot[])=>{
     setPlots(rows);
@@ -129,9 +130,12 @@ export default function HerbGardenGame({member}:{member:Member}){
     <div className="garden-v3-layout garden-pro-layout">
       <section className={`garden-board-v3 garden-pro-board garden-scene-theme-${profile.theme}`} aria-label="Gia Viên 9 ô">
         <div className="garden-board-decor-art" aria-label="Trang trí vườn">{profile.decor.map(x=><DecorArt key={x} name={x}/>)}</div>
-        <div className="garden-board-heading"><div><b>Khu vườn 3×3</b><small>{initialComplete?`${harvestedPlots} ô đã từng thu hoạch`:'Chọn 3 ô để bắt đầu'}</small></div><span>72h</span></div>
+        <div className="garden-board-heading"><div><b>Khu vườn 3×3</b><small>{initialComplete?`${harvestedPlots} ô đã từng thu hoạch`:'Chọn 3 ô để bắt đầu'}</small></div><div className="garden-board-heading-actions"><span>72h</span><button type="button" className="garden-plot-toggle" aria-expanded={plotDeckOpen} aria-controls="garden-plot-deck" onClick={()=>setPlotDeckOpen(open=>!open)}>{plotDeckOpen?<ChevronUp/>:<ChevronDown/>}<b>{plotDeckOpen?'Thu gọn':'Mở 9 ô'}</b></button></div></div>
         {!initialComplete&&<div className="garden-v3-initial-note"><b>Chọn 3 ô khởi đầu</b><p>Chạm đúng 3 ô bất kỳ. Sau khi thu hoạch toàn bộ các ô đang mở, hệ thống tự mở thêm ô mới.</p><div className="garden-v3-initial-actions"><span>{initialChoice.length}/3 ô đã chọn</span><button disabled={busy||initialChoice.length!==3} onClick={()=>void confirmInitial()}><CheckCircle2/>Xác nhận</button></div></div>}
-        <div className="garden-nine-grid">{plots.map(plot=>{const progress=growth(plot,now),chosen=initialChoice.includes(plot.slot_no);return <button type="button" key={plot.slot_no} onClick={()=>choosePlot(plot)} disabled={busy||initialComplete&&!plot.unlocked} className={`garden-cell ${!plot.unlocked?'is-locked':''} ${selectedSlot===plot.slot_no&&initialComplete?'is-selected':''} ${chosen?'is-initial-choice':''} ${plot.status?`stage-${plot.status}`:''}`} aria-label={`Ô ${plot.slot_no}${plot.id?`, tiến độ ${progress}%`:plot.unlocked?', ô trống':', đang khóa'}`}><span className="garden-cell-top"><i className="garden-cell-index">{plot.slot_no}</i>{plot.id&&<i className="garden-cell-status">{plot.status==='mature'?'Thu hoạch':`${progress}%`}</i>}</span><span className="garden-cell-soil"/>{plot.id?<span className="garden-cell-plant"><i/><i/><i/></span>:plot.unlocked?<span className="garden-cell-empty"><Sprout/><small>Ô trống</small></span>:<span className="garden-lock"><LockKeyhole/><small>{!initialComplete?'Chọn ô':'Chưa mở'}</small></span>}{plot.harvest_count>0&&<span className="garden-harvest-badge">×{plot.harvest_count}</span>}</button>})}</div>
+        <div id="garden-plot-deck" className={`garden-plot-viewport ${plotDeckOpen?'is-open':'is-collapsed'}`} aria-hidden={!plotDeckOpen}>
+          <div className="garden-plot-scroll-hint"><MoveHorizontal/>Vuốt/kéo riêng khối 9 ô</div>
+          <div className="garden-nine-grid">{plots.map(plot=>{const progress=growth(plot,now),chosen=initialChoice.includes(plot.slot_no);return <button type="button" key={plot.slot_no} onClick={()=>choosePlot(plot)} disabled={busy||initialComplete&&!plot.unlocked} className={`garden-cell ${!plot.unlocked?'is-locked':''} ${selectedSlot===plot.slot_no&&initialComplete?'is-selected':''} ${chosen?'is-initial-choice':''} ${plot.status?`stage-${plot.status}`:''}`} aria-label={`Ô ${plot.slot_no}${plot.id?`, tiến độ ${progress}%`:plot.unlocked?', ô trống':', đang khóa'}`}><span className="garden-cell-top"><i className="garden-cell-index">{plot.slot_no}</i>{plot.id&&<i className="garden-cell-status">{plot.status==='mature'?'Thu hoạch':`${progress}%`}</i>}</span><span className="garden-cell-soil"/>{plot.id?<span className="garden-cell-plant"><i/><i/><i/></span>:plot.unlocked?<span className="garden-cell-empty"><Sprout/><small>Ô trống</small></span>:<span className="garden-lock"><LockKeyhole/><small>{!initialComplete?'Chọn ô':'Chưa mở'}</small></span>}{plot.harvest_count>0&&<span className="garden-harvest-badge">×{plot.harvest_count}</span>}</button>})}</div>
+        </div>
       </section>
 
       <aside className="panel garden-v3-detail garden-pro-inspector">
