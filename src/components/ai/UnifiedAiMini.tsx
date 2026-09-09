@@ -37,9 +37,9 @@ export default function UnifiedAiMini({member,onLogin}:{member:Member|null;onLog
   useEffect(()=>()=>{try{window.speechSynthesis?.cancel();recognition.current?.stop?.()}catch{}},[]);
   const persistVoice=(next:boolean)=>{setVoiceOn(next);try{localStorage.setItem(VOICE_KEY,next?'1':'0')}catch{}if(!next)window.speechSynthesis?.cancel()};
   const speak=(text:string)=>{if(!voiceOn||!('speechSynthesis'in window))return;const value=forSpeech(text);if(!value)return;window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(value);utterance.lang='vi-VN';utterance.rate=.98;utterance.pitch=1.04;const voices=window.speechSynthesis.getVoices(),preferred=voices.find(v=>v.lang.toLowerCase().startsWith('vi')&&/female|hoai|linh|an|my|mai|google/i.test(v.name))||voices.find(v=>v.lang.toLowerCase().startsWith('vi'));if(preferred)utterance.voice=preferred;window.speechSynthesis.speak(utterance)};
-  const addAssistant=(text:string,sources:XiaoZhiSource[]=[])=>{setMessages(xs=>[...xs,{id:crypto.randomUUID(),role:'assistant',text,sources}].slice(-8));speak(text)};
+  const addAssistant=(text:string,sources:XiaoZhiSource[]=[])=>{const next:Message={id:crypto.randomUUID(),role:'assistant',text,sources};setMessages(xs=>[...xs,next].slice(-8));speak(text)};
 
-  const runQuery=async(raw:string)=>{const text=clean(raw);if(!text||busy)return;if(!member){onLogin();return}setBusy(true);setMessage('');setMessages(xs=>[...xs,{id:crypto.randomUUID(),role:'user',text}].slice(-8));setQuery('');try{
+  const runQuery=async(raw:string)=>{const text=clean(raw);if(!text||busy)return;if(!member){onLogin();return}setBusy(true);setMessage('');const userMessage:Message={id:crypto.randomUUID(),role:'user',text};setMessages(xs=>[...xs,userMessage].slice(-8));setQuery('');try{
     if(appIntent(text)){addAssistant(appHelp(text));return}
     if(academicIntent(text)){addAssistant('Nội dung này thuộc phần học thuật/chuyên môn. A.I Mini không xử lý nhóm này. Hãy mở Trung tâm nghiên cứu để dùng A.I nghiên cứu có nguồn.');return}
     if(drlIntent(text)){const drl=await checkDrlConversation(text,member);const answer=formatDrl(drl)||'Tôi chưa tìm thấy dữ liệu điểm phù hợp trong tài khoản.';addAssistant(answer);return}
