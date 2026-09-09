@@ -2,7 +2,7 @@ import type { AcademicMedia,AcademicPost,AppointmentTitle,Member,MemberStatus,Sy
 import { mapMember,supabase } from './authService';
 import { cacheGet,cachePut } from './offlineCache';
 
-const FEED_CACHE_KEY='academic-feed-v1';
+const FEED_CACHE_KEY='academic-feed-v2-authoritative';
 const FEED_CACHE_TTL=10*60*1000;
 const asStrings=(v:unknown):string[]=>Array.isArray(v)?v.map(x=>typeof x==='string'?x:JSON.stringify(x)).filter(Boolean):[];
 const asObject=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{};
@@ -19,5 +19,34 @@ function mapAcademicRows(data:unknown):AcademicPost[]{
   });
 }
 
-export async function fetchAcademicFeed(limit=50):Promise<AcademicPost[]>{const normalizedLimit=Math.max(1,Math.min(100,Math.trunc(limit)||50));try{const {data,error}=await supabase.rpc('academic_feed_v1',{p_limit:normalizedLimit});if(error)throw error;const posts=mapAcademicRows(data);void cachePut(`${FEED_CACHE_KEY}:${normalizedLimit}`,posts,FEED_CACHE_TTL);return posts}catch(error){const cached=await cacheGet<AcademicPost[]>(`${FEED_CACHE_KEY}:${normalizedLimit}`,{allowStale:true});if(cached)return cached;throw error}}
+async function fetchFeedSameOrigin(limit:number):Promise<unknown>{
+  const response=await fetch(`/api/public/feed?limit=${encodeURIComponent(String(limit))}`,{cache:'no-store',headers:{accept:'application/json'}});
+  if(!response.ok)throw new Error(`Feed gateway failed ${response.status}`);
+  const payload=await response.json();
+  return Array.isArray(payload)?payload:(payload&&Array.isArray(payload.posts)?payload.posts:[]);
+}
+
+export async function fetchAcademicFeed(limit=50):Promise<AcademicPost[]>{
+  const normalizedLimit=Math.max(1,Math.min(100,Math.trunc(limit)||50));
+  const cacheKey=`${FEED_CACHE_KEY}:${normalizedLimit}`;
+  let directError:unknown=null;
+  try{
+    const {data,error}=await supabase.rpc('academic_feed_v1',{p_limit:normalizedLimit});
+    if(error)throw error;
+    const posts=mapAcademicRows(data);
+    void cachePut(cacheKey,posts,FEED_CACHE_TTL);
+    return posts;
+  }catch(error){directError=error}
+  try{
+    const posts=mapAcademicRows(await fetchFeedSameOrigin(normalizedLimit));
+    void cachePut(cacheKey,posts,FEED_CACHE_TTL);
+    return posts;
+  }catch(gatewayError){
+    const cached=await cacheGet<AcademicPost[]>(cacheKey,{allowStale:false});
+    if(cached)return cached;
+    const directMessage=directError instanceof Error?directError.message:String(directError||'direct feed unavailable');
+    const gatewayMessage=gatewayError instanceof Error?gatewayError.message:String(gatewayError||'gateway unavailable');
+    throw new Error(`Không thể đồng bộ bảng tin. Supabase: ${directMessage}; gateway: ${gatewayMessage}`);
+  }
+}
 export async function searchMembersRemote(query:string,limit=12):Promise<Member[]>{const q=query.trim();if(q.length<2)return[];const {data,error}=await supabase.rpc('management_member_search_v1',{p_query:q,p_limit:limit});if(error)throw error;if(!Array.isArray(data))return[];return data.map((row:Record<string,unknown>)=>mapMember(row))}
