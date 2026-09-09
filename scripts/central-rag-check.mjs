@@ -16,6 +16,8 @@ const tools=read('api/_lib/ai-tools.js');
 const access=read('api/_lib/member-access.js');
 const health=read('api/ai/health.js');
 const mini=read('src/components/ai/UnifiedAiMini.tsx');
+const research=read('src/components/research/ResearchCenter.tsx');
+const researchMini=read('src/components/research/ResearchAiMini.tsx');
 
 requireText(baseMigration,'create table if not exists public.ai_knowledge_items','base central knowledge table is versioned in repo');
 const baseSeeds=[...baseMigration.matchAll(/\('(?:formula|herb|acupoint)-/g)].length;
@@ -76,13 +78,15 @@ const memberTools=toolModule.aiToolsForRole('member').map(tool=>tool.name);
 if(memberTools.includes('search_yhct_knowledge'))ok('approved member receives central YHCT search tool');else fail('member is missing central YHCT search tool');
 if(!guestTools.includes('search_yhct_knowledge'))ok('guest cannot receive authenticated AI knowledge tool');else fail('guest must not receive central AI tool through cloud gateway');
 
-requireText(mini,"from '../../services/centralKnowledgeService'",'A.I Mini uses centralized knowledge service');
-requireText(mini,"searchKnowledge(text,'all',5)",'A.I Mini executes central-first knowledge search before cloud escalation');
-requireText(mini,'centralSources','A.I Mini maps central evidence into bounded AI sources');
-requireText(mini,'h.evidence','A.I Mini includes publication evidence in source context');
-requireText(mini,'h.authoritySources','A.I Mini includes WHO/NCCIH/Cochrane authority evidence in source context');
-requireText(mini,'Cloud + Drive RAG + Central RAG + OpenAlex','A.I Mini visibly communicates shared retrieval architecture');
-requireText(mini,'Nguồn phù hợp:','A.I Mini visibly exposes source-backed fallback when cloud AI degrades');
+requireText(researchMini,"from '../../services/centralKnowledgeService'",'Research A.I Mini uses centralized academic knowledge service');
+requireText(researchMini,"searchKnowledge(text,'all',5)",'Research A.I Mini executes central-first knowledge search before cloud escalation');
+requireText(researchMini,'centralSources','Research A.I Mini maps central evidence into bounded AI sources');
+requireText(researchMini,'h.evidence','Research A.I Mini includes publication evidence in source context');
+requireText(researchMini,'h.authoritySources','Research A.I Mini includes WHO/NCCIH/Cochrane authority evidence in source context');
+requireText(researchMini,'Cloud + Drive RAG + OpenAlex','Research A.I Mini visibly communicates shared retrieval architecture');
+requireText(researchMini,'Nguồn phù hợp:','Research A.I Mini visibly exposes source-backed fallback when cloud AI degrades');
+requireText(research,'searchOpenAlex(query,12)','Research Center retains academic OpenAlex retrieval');
+if(!mini.includes('centralKnowledgeService')&&!mini.includes('searchKnowledge(')&&!mini.includes('searchOpenAlex')&&!mini.includes('searchDriveRag'))ok('Global A.I Mini is cleanly separated from academic RAG');else fail('Global A.I Mini must not load academic RAG providers');
 
 requireText(access,'export async function publicRpc','server provides bounded public RPC transport for readiness checks');
 requireText(access,'safeRpcName','public/member RPC transports validate RPC names');
@@ -94,4 +98,4 @@ requireText(health,"evidenceSources:['pubmed','doi','google_scholar','who','ncci
 requireText(health,'offlineFallback:true','AI health advertises offline fallback');
 requireText(health,'authority>=8&&who>=3&&nccih>=4&&cochrane>=1','AI health requires live authority-source minimums');
 
-if(!process.exitCode)ok('Central RAG acceptance passed');
+if(!process.exitCode)ok('Central RAG acceptance passed with academic retrieval isolated to Research Center');
