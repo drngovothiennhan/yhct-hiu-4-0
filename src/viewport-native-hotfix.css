@@ -1,8 +1,9 @@
-/* Final viewport hardening. The retired horizontal-news gesture layer was removed. */
-html[data-viewport-mode="desktop"],html[data-viewport-mode="desktop"] body,html[data-viewport-mode="desktop"] #root{max-width:none!important;overflow-x:hidden!important}
-html[data-viewport-mode="desktop"] .app{max-width:none!important;overflow-x:visible!important}
+/* Final viewport hardening. Desktop mode uses one canonical 1280px canvas on every browser. */
+html[data-viewport-mode="desktop"]{--yhct-desktop-canvas:1280px;min-width:var(--yhct-desktop-canvas)!important;max-width:none!important;overflow-x:auto!important}
+html[data-viewport-mode="desktop"] body,html[data-viewport-mode="desktop"] #root{min-width:var(--yhct-desktop-canvas)!important;max-width:none!important;overflow-x:visible!important}
+html[data-viewport-mode="desktop"] .app{width:var(--yhct-desktop-canvas)!important;min-width:var(--yhct-desktop-canvas)!important;max-width:var(--yhct-desktop-canvas)!important;margin-inline:auto!important;overflow-x:visible!important}
 
-/* Final mobile rhythm + system-brand scaling. This file loads before news-rotator.css. */
+/* Final mobile rhythm + system-brand scaling. */
 html[data-viewport-mode="mobile"]{--mobile-module-gap:clamp(10px,3.2vw,14px)}
 .system-brand-mark{max-inline-size:100%;max-block-size:100%}
 .system-brand-mark__icon{max-width:100%;max-height:100%}
