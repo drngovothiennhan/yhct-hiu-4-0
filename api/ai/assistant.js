@@ -4,7 +4,7 @@ import {aiToolsForRole,executeAiTool} from '../_lib/ai-tools.js';
 const MAX_QUERY=4000;
 const MAX_SOURCES=6;
 const MAX_SOURCE_TEXT=4200;
-const AI_TIMEOUT_MS=9500;
+const AI_TIMEOUT_MS=20000;
 const MAX_TOOL_ROUNDS=2;
 const MAX_TOOL_CALLS_PER_ROUND=3;
 const MODES=new Set(['fast','research','exam']);
@@ -27,9 +27,11 @@ function normalizeSources(raw){
   return out;
 }
 
-function fallback(query,sources){
-  const sourceNote=sources.length?` Có ${sources.length} nguồn đã được cung cấp nhưng cloud AI hiện không khả dụng.`:' Chưa có nguồn đã kiểm chứng đi kèm.';
-  return{answer:`A.I cloud hiện không khả dụng.${sourceNote} Hệ thống giữ chế độ an toàn: tiếp tục dùng tra cứu cục bộ và Trung tâm nghiên cứu thay vì tự suy đoán cho câu hỏi “${clean(query,180)}”.`,citations:[],confidence:'low',safety:'needs_source_check',suggestedQueries:[],provider:'local',degraded:true,latencyMs:0,toolsUsed:[]};
+function fallback(sources){
+  const answer=sources.length
+    ?`Đã chuyển sang chế độ hỗ trợ cục bộ an toàn. ${sources.length} nguồn học thuật vẫn được giữ để đối chiếu; mở nguồn hoặc dùng Trung tâm nghiên cứu nếu cần kiểm chứng sâu hơn.`
+    :'Đã chuyển sang chế độ hỗ trợ cục bộ an toàn. Hãy dùng tra cứu kiến thức hoặc Trung tâm nghiên cứu để bổ sung nguồn trước khi kết luận.';
+  return{answer,citations:[],confidence:'low',safety:'needs_source_check',suggestedQueries:[],provider:'local',degraded:true,latencyMs:0,toolsUsed:[]};
 }
 
 function extractOutputText(payload){
@@ -45,7 +47,7 @@ function parseStructured(raw,sources){
   const parsed=JSON.parse(raw),allowed=new Map(sources.map(x=>[x.id,x]));
   const ids=Array.isArray(parsed?.sourceIds)?parsed.sourceIds.map(sourceId).filter(id=>allowed.has(id)).slice(0,MAX_SOURCES):[];
   const citations=[...new Set(ids)].map(id=>{const source=allowed.get(id);return{id,label:source.title,url:source.url||null}});
-  const answer=clean(parsed?.answer,7000);if(!answer)throw new Error('AI response missing answer');
+  const answer=clean(parsed?.answer,7000);if(!answer)throw new Error('invalid_response:missing_answer');
   const confidence=CONFIDENCE.has(parsed?.confidence)?parsed.confidence:'low';
   let safety=SAFETY.has(parsed?.safety)?parsed.safety:'needs_source_check';
   if(!sources.length&&safety==='educational')safety='needs_source_check';
@@ -66,18 +68,40 @@ const RESPONSE_SCHEMA={
   additionalProperties:false
 };
 
-async function createOpenAiResponse({key,model,input,tools,signal}){
+function providerFailureClass(error){
+  const message=String(error?.message||'');
+  if(error?.name==='AbortError'||message.includes('timeout'))return'timeout';
+  if(message.includes('OpenAI 401'))return'auth';
+  if(message.includes('OpenAI 403')||message.includes('model_not_found'))return'access';
+  if(message.includes('OpenAI 429'))return message.includes('insufficient_quota')?'quota':'rate_limit';
+  if(/OpenAI 5\d\d/.test(message))return'provider_5xx';
+  if(message.includes('incomplete'))return'incomplete';
+  if(message.includes('invalid_response')||message.includes('JSON'))return'invalid_response';
+  return'provider_error';
+}
+
+async function createOpenAiResponse({key,model,input,tools,mode,signal}){
+  const body={
+    model,
+    store:false,
+    max_output_tokens:mode==='research'?2600:1800,
+    reasoning:{effort:mode==='research'?'low':'none'},
+    input,
+    text:{format:{type:'json_schema',name:'yhct_ai_answer_v1',strict:true,schema:RESPONSE_SCHEMA}}
+  };
+  if(Array.isArray(tools)&&tools.length){body.tools=tools;body.tool_choice='auto';body.parallel_tool_calls=false}
   const response=await fetch('https://api.openai.com/v1/responses',{
     method:'POST',signal,
     headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},
-    body:JSON.stringify({
-      model,store:false,max_output_tokens:900,input,
-      tools,tool_choice:'auto',parallel_tool_calls:false,
-      text:{format:{type:'json_schema',name:'yhct_ai_answer_v1',strict:true,schema:RESPONSE_SCHEMA}}
-    })
+    body:JSON.stringify(body)
   });
-  if(!response.ok)throw new Error(`OpenAI ${response.status}`);
-  return await response.json();
+  if(!response.ok){
+    const detail=await response.json().catch(()=>null),code=clean(detail?.error?.code||detail?.error?.type||'',80),message=clean(detail?.error?.message||'',120);
+    throw new Error(`OpenAI ${response.status}${code?` ${code}`:''}${message?` ${message}`:''}`);
+  }
+  const payload=await response.json();
+  if(payload?.status==='incomplete')throw new Error(`incomplete:${clean(payload?.incomplete_details?.reason||'unknown',80)}`);
+  return payload;
 }
 
 export default async function handler(req,res){
@@ -92,9 +116,9 @@ export default async function handler(req,res){
 
   const query=clean(req.body?.query,MAX_QUERY),mode=MODES.has(req.body?.mode)?req.body.mode:'fast',sources=normalizeSources(req.body?.sources);
   if(query.length<2)return res.status(400).json({error:'Query is required'});
-  const baseFallback=fallback(query,sources);
+  const baseFallback=fallback(sources);
   const key=process.env.OPENAI_API_KEY,model=cloudAiModel();
-  if(!cloudAiEnabled()||!key||!model)return res.status(200).json(baseFallback);
+  if(!cloudAiEnabled()||!key||!model){res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class','configuration');return res.status(200).json(baseFallback)}
 
   const sourceBlock=sources.length?sources.map(s=>`[${s.id}] ${s.title}\n${s.text}`).join('\n\n'):'(không có nguồn đính kèm)';
   const developer=[
@@ -108,14 +132,14 @@ export default async function handler(req,res){
   ].join(' ');
   const user=`MODE=${mode}\nCÂU HỎI=${query}\nNGUỒN ĐƯỢC PHÉP TRÍCH DẪN:\n${sourceBlock}\nHãy trả về JSON đúng schema sau khi đã dùng tool nếu thực sự cần.`;
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),AI_TIMEOUT_MS);
-  const tools=aiToolsForRole(access.role),toolsUsed=[];
+  const tools=mode==='fast'?aiToolsForRole(access.role):[],toolsUsed=[];
   let input=[{role:'developer',content:developer},{role:'user',content:user}],payload=null;
   try{
     for(let round=0;round<=MAX_TOOL_ROUNDS;round++){
-      payload=await createOpenAiResponse({key,model,input,tools,signal:controller.signal});
+      payload=await createOpenAiResponse({key,model,input,tools,mode,signal:controller.signal});
       const calls=(Array.isArray(payload?.output)?payload.output:[]).filter(item=>item?.type==='function_call');
       if(!calls.length)break;
-      if(round>=MAX_TOOL_ROUNDS)throw new Error('AI tool round limit exceeded');
+      if(round>=MAX_TOOL_ROUNDS)throw new Error('tool_round_limit');
       const outputs=[];
       for(const call of calls.slice(0,MAX_TOOL_CALLS_PER_ROUND)){
         const output=await executeAiTool(req,access.role,call);
@@ -125,12 +149,13 @@ export default async function handler(req,res){
       input=[...input,...payload.output,...outputs];
     }
     const structured=parseStructured(extractOutputText(payload),sources),latencyMs=Date.now()-started,uniqueTools=[...new Set(toolsUsed)];
-    res.setHeader('Server-Timing',`ai;dur=${latencyMs}`);res.setHeader('X-AI-Provider','openai');res.setHeader('X-AI-Model',model);res.setHeader('X-AI-Tools-Used',String(uniqueTools.length));
+    res.setHeader('Server-Timing',`ai;dur=${latencyMs}`);res.setHeader('X-AI-Provider','openai');res.setHeader('X-AI-Model',model);res.setHeader('X-AI-Tools-Used',String(uniqueTools.length));res.setHeader('X-AI-Degraded','0');
     console.info(JSON.stringify({event:'ai_gateway',ok:true,provider:'openai',model,mode,role:access.role,sourceCount:sources.length,toolCount:uniqueTools.length,tools:uniqueTools,latencyMs}));
     return res.status(200).json({...structured,provider:'openai',degraded:false,latencyMs,toolsUsed:uniqueTools});
   }catch(error){
-    const latencyMs=Date.now()-started,reason=error?.name==='AbortError'?'timeout':clean(error?.message,180)||'provider_error';
-    console.warn(JSON.stringify({event:'ai_gateway',ok:false,provider:'openai',model,mode,role:access.role,sourceCount:sources.length,toolCount:toolsUsed.length,latencyMs,reason}));
+    const latencyMs=Date.now()-started,failureClass=providerFailureClass(error);
+    res.setHeader('Server-Timing',`ai;dur=${latencyMs}`);res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class',failureClass);
+    console.warn(JSON.stringify({event:'ai_gateway',ok:false,provider:'openai',model,mode,role:access.role,sourceCount:sources.length,toolCount:toolsUsed.length,latencyMs,failureClass}));
     return res.status(200).json({...baseFallback,latencyMs,toolsUsed:[...new Set(toolsUsed)]});
   }finally{clearTimeout(timer)}
 }
