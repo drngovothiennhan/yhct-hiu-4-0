@@ -2,6 +2,10 @@
 html[data-viewport-mode="desktop"]{--yhct-desktop-canvas:1280px;min-width:var(--yhct-desktop-canvas)!important;max-width:none!important;overflow-x:auto!important}
 html[data-viewport-mode="desktop"] body,html[data-viewport-mode="desktop"] #root{min-width:var(--yhct-desktop-canvas)!important;max-width:none!important;overflow-x:visible!important}
 html[data-viewport-mode="desktop"] .app{width:var(--yhct-desktop-canvas)!important;min-width:var(--yhct-desktop-canvas)!important;max-width:var(--yhct-desktop-canvas)!important;margin-inline:auto!important;overflow-x:visible!important}
+/* Keep the same desktop composition even when the physical Win11 window exceeds 1360/1600px. */
+html[data-viewport-mode="desktop"] main{max-width:1240px!important}
+html[data-viewport-mode="desktop"] .feed-layout{grid-template-columns:minmax(560px,740px) minmax(268px,292px)!important;grid-template-areas:"news side" "main side"!important;gap:18px 22px!important;align-items:start!important;justify-content:center!important;width:100%!important}
+html[data-viewport-mode="desktop"] .desktop-academic-widgets{display:none!important}
 
 /* Final mobile rhythm + system-brand scaling. */
 html[data-viewport-mode="mobile"]{--mobile-module-gap:clamp(10px,3.2vw,14px)}
