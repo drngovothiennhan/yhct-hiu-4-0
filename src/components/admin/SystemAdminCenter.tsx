@@ -3,6 +3,7 @@ import {Activity,BrainCircuit,CheckCircle2,CloudSun,DatabaseBackup,Download,Penc
 import {SUPABASE_PUBLISHABLE_KEY,SUPABASE_URL,supabase} from '../../services/authService';
 import {formatLunar} from '../../utils/lunar';
 import {TaijiIcon} from '../icons/YhctIcons';
+import AiOperationsPanel from './AiOperationsPanel';
 
 type Snapshot={id:string;scope:string;checksum_sha256:string;row_counts:Record<string,number>;created_at:string};
 type Audit={id:string;action:string;severity:string;entity_type?:string|null;entity_id?:string|null;metadata:Record<string,unknown>;created_at:string};
@@ -39,6 +40,8 @@ export default function SystemAdminCenter(){
     <div className="between"><div className="row panel-title"><ShieldAlert/><div><h2>Admin Control Center · System</h2><p>Mỗi khối vận hành chỉ hiển thị 5 nội dung gần nhất để giảm nhiễu.</p></div></div><button className="secondary" disabled={busy} onClick={()=>void load()}><RefreshCw/>Làm mới</button></div>
     {msg&&<div className="ai-note" role="status">{msg}</div>}
     <div className="acc-grid"><section className="panel acc-status"><div className="row"><TaijiIcon/><div><b>{now.toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})}</b><small>Âm lịch Việt Nam: {formatLunar(now)}</small></div></div><div className="row"><CloudSun/><div><b>{weather?.available?`${weather.temperature}°C · ${weather.condition}`:'Thời tiết chưa xác định'}</b><small>{weather?.available?`Cảm giác ${weather.apparentTemperature}°C · Ẩm ${weather.humidity}% · Gió ${weather.windSpeed} km/h`:'Dùng GPS thiết bị để tăng độ chính xác.'}</small></div></div><button className="secondary" onClick={gps}>Dùng GPS thiết bị</button></section><section className="panel"><div className="row"><Activity/><h3>System Health</h3></div>{health&&<><div className="health-kpis">{Object.entries(health.counts||{}).slice(0,5).map(([k,v])=><span key={k}><b>{v}</b><small>{k}</small></span>)}</div><p className="muted">Postgres {health.postgres} · {new Date(health.serverTime).toLocaleString('vi-VN')}</p></>}<div className="schedule-actions"><button onClick={()=>void purge()}><Trash2/>Purge cache</button><button className="secondary" disabled={busy} onClick={()=>void diagnose()}><BrainCircuit/>A.I Diagnostic</button></div>{diag&&<pre className="diagnostic-output">{diag}</pre>}</section></div>
+
+    <AiOperationsPanel/>
 
     <div className="admin-v6-grid">
       <section className="panel admin-v6-block"><BlockTitle title="Hạn chót khóa điểm"/><div className="semester-grid compact">{semesters.map(s=><article key={s.id}><b>{s.title}</b><small>{s.code} · {s.is_locked?'Đã khóa':'Đang mở'}</small><label>Khóa lúc<input type="datetime-local" defaultValue={localDateTime(s.lock_at)} disabled={busy} onBlur={e=>{if(e.currentTarget.value!==localDateTime(s.lock_at))void setDeadline(s,e.currentTarget.value)}}/></label></article>)}</div></section>
