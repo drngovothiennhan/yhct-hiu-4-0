@@ -30,12 +30,10 @@ if(app.includes('theme-quick-toggle')||app.includes('mobile-theme-action'))error
 if(app.includes("tab==='messages'")||app.includes("go('messages')"))errors.push('Inbox must not remain a top-level module');
 if(app.includes("tab==='admin'&&canAdmin&&<>{canAcc&&<AdminThemeControl"))errors.push('Điều hành must not expose theme selector');
 
-const rotator=read('src/components/news/TcmNewsRotator.tsx'),rotatorCss=read('src/news-rotator.css'),newsRetention=read('supabase/migrations/202609090020_academic_news_top3_archive_v1.sql');
-need(rotator,['MAX_NEWS=3',"tcm_news_feed_v1',{p_limit:MAX_NEWS}",'news-rotator-top3','data-ai-news-count','ai_provider','target="_blank"'],'fixed top-three AI news');
-need(rotatorCss,['news-rotator-top3','grid-template-columns:minmax(0,1fr)','@media(max-width:760px)'],'fixed top-three news CSS');
-need(newsRetention,['private.tcm_news_archive','private.tcm_news_retention_v3','superseded_top3',"limit least(3,greatest(1,coalesce(p_limit,3)))",'tcm-news-retention-hourly'],'AI news archive-before-delete retention');
-for(const token of ['ROTATE_MS=','scrollByPage','onMouseDown','onMouseMove','news-rotator-prev','news-rotator-next'])if(rotator.includes(token))errors.push(`fixed AI news must not retain carousel behavior ${token}`);
-for(const token of ['overflow-x:auto','scroll-snap-type:x mandatory','cursor:grab','cursor:grabbing'])if(rotatorCss.includes(token))errors.push(`fixed AI news CSS must not retain looping carousel token ${token}`);
+const rotator=read('src/components/news/TcmNewsRotator.tsx'),rotatorCss=read('src/news-rotator.css');
+need(rotator,['ROTATE_MS=8000',"tcm_news_feed_v1',{p_limit:20}",'news-rotator-track','scrollByPage','onMouseDown','onMouseMove','news-rotator-prev','news-rotator-next','target="_blank"'],'rolling TCM news carousel');
+need(rotatorCss,['news-rotator-track','overflow-x:auto','scroll-snap-type:x mandatory','flex:0 0 calc((100% - var(--news-gap))/2)','@media(max-width:760px)','flex-basis:100%'],'two-up desktop / one-up mobile news carousel CSS');
+if(rotator.includes('MAX_NEWS=3')||rotator.includes('news-rotator-top3')||rotator.includes('data-ai-news-count'))errors.push('TCM news carousel must not be constrained to fixed top-three AI news');
 
 const worker=read('src/workers/drlParseWorker.ts'),drl=read('src/components/drl/DrlCenter.tsx');
 need(worker,['mssv','ho_ten','ten_hoat_dong','hoc_ky','diem_cong','logicalKey','duplicateRows','toUpperCase()'],'DRL parser');
@@ -81,4 +79,4 @@ if(!String(pkg.scripts?.prebuild||'').includes('audit:roles'))errors.push('prebu
 if(!String(pkg.scripts?.prebuild||'').includes('audit:modules'))errors.push('prebuild must enforce module isolation');
 
 if(errors.length){console.error('FINAL 4 ACCEPTANCE CHECK FAILED');for(const error of errors)console.error(`- ${error}`);process.exit(1)}
-console.log(`final4-acceptance-ok: ${sourceFiles.length} source files scanned; modular routing, fixed top-three AI news, embedded inbox, ACC-only theme, root installable PWA, anti-flash boot, offline and RBAC gates passed`);
+console.log(`final4-acceptance-ok: ${sourceFiles.length} source files scanned; modular routing, rolling two-up TCM news carousel, embedded inbox, ACC-only theme, root installable PWA, anti-flash boot, offline and RBAC gates passed`);
