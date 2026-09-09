@@ -1,4 +1,4 @@
-import {useRef,useState} from 'react';
+import {useRef,useState,type PointerEvent as ReactPointerEvent} from 'react';
 import {Leaf,Stethoscope} from 'lucide-react';
 import type {Member} from '../../types';
 import HerbGardenGameV7 from './HerbGardenGameV7';
@@ -24,12 +24,12 @@ type DragState={pointerId:number;startX:number;startY:number;scrollLeft:number;s
 export default function HerbGardenGame({member}:{member:Member}){
   const [mode,setMode]=useState<'garden'|'clinic'>('garden');
   const viewport=useRef<HTMLDivElement>(null),drag=useRef<DragState>(null);
-  const onPointerDown=(event:React.PointerEvent<HTMLDivElement>)=>{
+  const onPointerDown=(event:ReactPointerEvent<HTMLDivElement>)=>{
     const target=event.target as Element;if(target.closest('button,a,input,select,textarea,[role="button"]'))return;
     const node=viewport.current;if(!node)return;drag.current={pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,scrollLeft:node.scrollLeft,scrollTop:node.scrollTop};node.setPointerCapture(event.pointerId);node.classList.add('is-dragging');
   };
-  const onPointerMove=(event:React.PointerEvent<HTMLDivElement>)=>{const state=drag.current,node=viewport.current;if(!state||!node||state.pointerId!==event.pointerId)return;node.scrollLeft=state.scrollLeft-(event.clientX-state.startX);node.scrollTop=state.scrollTop-(event.clientY-state.startY)};
-  const release=(event:React.PointerEvent<HTMLDivElement>)=>{const node=viewport.current;if(drag.current?.pointerId!==event.pointerId)return;drag.current=null;node?.classList.remove('is-dragging');try{node?.releasePointerCapture(event.pointerId)}catch{}};
+  const onPointerMove=(event:ReactPointerEvent<HTMLDivElement>)=>{const state=drag.current,node=viewport.current;if(!state||!node||state.pointerId!==event.pointerId)return;node.scrollLeft=state.scrollLeft-(event.clientX-state.startX);node.scrollTop=state.scrollTop-(event.clientY-state.startY)};
+  const release=(event:ReactPointerEvent<HTMLDivElement>)=>{const node=viewport.current;if(drag.current?.pointerId!==event.pointerId)return;drag.current=null;node?.classList.remove('is-dragging');try{node?.releasePointerCapture(event.pointerId)}catch{}};
 
   return <div className="garden-game-hub" data-mode={mode}>
     <div className="garden-game-switcher" role="tablist" aria-label="Game YHCT">
