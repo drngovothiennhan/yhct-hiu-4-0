@@ -57,7 +57,7 @@ need(widgets,['apparentSolarLongitude','drl_deadline_public_v1','member_profile_
 if(/openai|gemini|generateContent|chat\.completions/i.test(widgets))errors.push('medical interaction widget must not call generative AI');
 
 const researchMini=read('src/components/research/ResearchAiMini.tsx'),exam=read('src/components/exam/ExamCenter.tsx'),examService=read('src/services/examSessionService.ts');
-need(researchMini,['Cloud + Drive RAG + OpenAlex','searchOpenAlex(text,6)','searchDriveRag','translateAcademic'],'Research AI shared retrieval');
+need(researchMini,['Cloud + Drive RAG + Central RAG + OpenAlex','searchOpenAlex(text,6)','searchDriveRag',"searchKnowledge(text,'all',5)",'translateAcademic'],'Research AI shared retrieval');
 need(exam,['Thi thử 50 câu','A.I hướng dẫn suy luận','server integrity','getExamConfigV2'],'exam v2 UI');
 need(examService,['exam_config_v2','exam_session_start_v2','exam_session_answer_v2','exam_session_submit_v2'],'exam v2 RPC client');
 
