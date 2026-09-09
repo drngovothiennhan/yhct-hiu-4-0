@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+const read=p=>fs.readFileSync(p,'utf8');
+const need=(ok,msg)=>{if(!ok){console.error(`FAIL: ${msg}`);process.exitCode=1}else console.log(`OK: ${msg}`)};
+const game=read('src/components/game/HerbGardenGame.tsx');
+const migration=read('supabase/migrations/202609091550_unify_herb_garden_water_cycle_v5.sql');
+need(!game.includes('2 giờ đầu'),'garden UI no longer exposes the legacy two-hour watering rule');
+need(game.includes('1 lần mỗi chu kỳ 6 giờ')&&game.includes('12 lần/72 giờ'),'garden UI exposes one canonical 6-hour watering rule');
+need(game.includes('busy||!selected.can_water'),'water control follows the authoritative can_water state');
+need(game.includes('selected.required_water_count'),'water progress uses server-required count instead of a duplicated hardcoded denominator');
+need(migration.includes("'one-per-6h-slot'")&&migration.includes('missed_between'),'server migration defines one 6-hour rule and streak reset on skipped slots');
+need(!migration.includes("interval '2 hours'"),'server migration contains no separate two-hour reward window');
+need(migration.includes('herb_garden_reward_care_v1(mid,pid,true)'),'each accepted watering uses the same validity result for care rewards');
+if(process.exitCode)process.exit(process.exitCode);
+console.log('Garden watering contract passed.');

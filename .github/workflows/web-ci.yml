@@ -40,16 +40,22 @@ jobs:
       - run: node scripts/acceptance-check.mjs
       - run: node scripts/platform-upgrade-check.mjs
       - run: node scripts/feed-ai-contract-check.mjs
+      - run: node scripts/research-provider-contract-check.mjs
+      - run: node scripts/garden-water-contract-check.mjs
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run build
       - name: Real Google Chrome responsive smoke
         run: node scripts/chrome-real-smoke.mjs
+      - name: Adaptive mobile and Win11 viewport matrix
+        run: node scripts/adaptive-viewport-check.mjs
       - name: Upload Chrome QA evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: chrome-smoke-${{ github.sha }}
-          path: browser-artifacts/
+          path: |
+            browser-artifacts/
+            adaptive-viewport-artifacts/
           if-no-files-found: warn
           retention-days: 1
       - run: node -e "const fs=require('fs'); for(const f of ['dist/index.html','dist/manifest.webmanifest','dist/service-worker.js']) if(!fs.existsSync(f)){console.error('missing '+f);process.exit(1)}"

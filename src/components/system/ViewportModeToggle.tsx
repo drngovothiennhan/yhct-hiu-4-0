@@ -3,11 +3,11 @@ import {Monitor,Smartphone} from 'lucide-react';
 export type ViewportMode='desktop'|'mobile';
 export const VIEWPORT_MODE_KEY='yhct-viewport-mode-v1';
 export const FORCE_DESKTOP_MOBILE_KEY='yhct-force-desktop-on-mobile-v1';
-export const VIEWPORT_CONTRACT_KEY='yhct-viewport-contract-v2';
+export const VIEWPORT_CONTRACT_KEY='yhct-viewport-contract-v3';
 const LEGACY_KEY='yhct-mobile-ui-v2';
-const MOBILE_VIEWPORT='width=device-width, initial-scale=1, viewport-fit=cover';
-const DESKTOP_VIEWPORT='width=1280, viewport-fit=cover';
-const isCompactScreen=()=>typeof window!=='undefined'&&window.matchMedia('(max-width: 979px)').matches;
+const DEVICE_VIEWPORT='width=device-width, initial-scale=1, viewport-fit=cover';
+const hasFinePointer=()=>typeof window!=='undefined'&&window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+const isCompactScreen=()=>typeof window!=='undefined'&&window.matchMedia('(max-width: 979px)').matches&&!hasFinePointer();
 
 function ensureViewportContract(){
   try{
@@ -50,7 +50,7 @@ export function applyViewportMode(mode:ViewportMode){
   root.dataset.mobileUi=mode==='mobile'?'social':'pc';
   let viewport=document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
   if(!viewport){viewport=document.createElement('meta');viewport.name='viewport';document.head.appendChild(viewport)}
-  viewport.content=mode==='desktop'?DESKTOP_VIEWPORT:MOBILE_VIEWPORT;
+  viewport.content=DEVICE_VIEWPORT;
   try{
     localStorage.setItem(VIEWPORT_CONTRACT_KEY,'1');
     localStorage.setItem(VIEWPORT_MODE_KEY,mode);

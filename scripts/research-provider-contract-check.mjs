@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+const read=p=>fs.readFileSync(p,'utf8');
+const need=(ok,msg)=>{if(!ok){console.error(`FAIL: ${msg}`);process.exitCode=1}else console.log(`OK: ${msg}`)};
+const service=read('src/services/researchService.ts'),registry=read('src/modules/ai/providers/registry.ts');
+need(service.includes('searchSemanticScholar')&&service.includes('fallback Semantic Scholar'),'OpenAlex has bounded Semantic Scholar fallback');
+need(service.includes('citationCountOpenCitations')&&service.includes('enrichOpenCitationCounts'),'OpenCitations DOI enrichment is active and bounded');
+need(registry.includes("id:'semantic-scholar'")&&registry.match(/id:'semantic-scholar'[\s\S]{0,220}state:'active'/),'Semantic Scholar registry state is active');
+need(registry.includes("id:'opencitations'")&&registry.match(/id:'opencitations'[\s\S]{0,220}state:'active'/),'OpenCitations registry state is active');
+need(registry.includes("id:'unpaywall'")&&registry.match(/id:'unpaywall'[\s\S]{0,220}state:'optional'/),'Unpaywall remains explicit optional rather than silently requiring contact identity');
+if(process.exitCode)process.exit(process.exitCode);console.log('Research provider resilience contract passed.');
