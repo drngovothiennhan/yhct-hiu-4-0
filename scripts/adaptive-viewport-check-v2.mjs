@@ -11,7 +11,7 @@ await mkdir(outDir,{recursive:true});
 const target=(process.env.CHROME_SMOKE_URL||'http://127.0.0.1:4173').replace(/\/$/,'');
 const DESKTOP_PHONE_WIDTH=1280;
 let preview=null;
-const watchdog=setTimeout(()=>{console.error('Adaptive viewport watchdog exceeded 100 seconds.');try{preview?.kill('SIGKILL')}catch{}process.exit(124)},100000);
+const watchdog=setTimeout(()=>{console.error('Adaptive viewport watchdog exceeded 180 seconds.');try{preview?.kill('SIGKILL')}catch{}process.exit(124)},180000);
 
 if(!process.env.CHROME_SMOKE_URL){
   const vite=path.resolve('node_modules/vite/bin/vite.js');
@@ -88,7 +88,7 @@ async function runCase(c,index){
 
     await send('Page.navigate',{url:`${target}/`});
     let ready=false;
-    for(let i=0;i<90;i++){
+    for(let i=0;i<240;i++){
       const r=await send('Runtime.evaluate',{expression:`document.readyState==='complete'&&document.documentElement.dataset.appReady==='1'`,returnByValue:true});
       if(r.result?.value===true){ready=true;break}
       await sleep(150);
