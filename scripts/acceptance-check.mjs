@@ -60,7 +60,7 @@ need(xiaozhiHandler,['web_search_preview','handleXiaoZhiMini','policy-router','r
 need(assistantGateway,["req.body?.mode==='xiaozhi-mini'",'handleXiaoZhiMini'],'shared AI function routing');
 for(const stale of ['searchOpenAlex','searchDriveRag','searchKnowledge','buildResearchLinks'])if(mini.includes(stale))errors.push(`academic retrieval must not remain in UnifiedAiMini: ${stale}`);
 need(research,['searchOpenAlex(query,12)','A.I OpenAlex tổng hợp','summarizeOpenAlex'],'research OpenAlex AI');
-need(researchMini,['searchOpenAlex(text,6)','Cloud + Drive RAG + OpenAlex','translateAcademic','searchDriveRag'],'research mini shared AI retrieval');
+need(researchMini,['searchOpenAlex(text,6)','Cloud + Drive RAG + Central RAG + OpenAlex','translateAcademic','searchDriveRag',"searchKnowledge(text,'all',5)"],'research mini shared AI retrieval');
 need(proposal,['Lưu ý trước khi chốt đề cương','PubMed/OpenAlex','CONSORT extension/STRICTA','PMID, DOI'],'research proposal methodology guardrails');
 need(translation,['translateAcademic','/api/translate'],'academic translation gateway');
 need(driveRag,['searchDriveRag','/api/ai/drive-rag'],'shared Drive RAG client');
