@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 
+// CI contract v7.1: keep legacy facade compatibility while verifying the real v7 implementation.
 const read=(path)=>fs.readFileSync(path,'utf8');
 const migrationPath='supabase/migrations/202609091930_garden_care_engine_v7_and_constraint_repair.sql';
 const migration=read(migrationPath);
