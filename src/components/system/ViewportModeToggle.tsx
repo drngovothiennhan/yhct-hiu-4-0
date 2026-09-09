@@ -3,12 +3,24 @@ import {Monitor,Smartphone} from 'lucide-react';
 export type ViewportMode='desktop'|'mobile';
 export const VIEWPORT_MODE_KEY='yhct-viewport-mode-v1';
 export const FORCE_DESKTOP_MOBILE_KEY='yhct-force-desktop-on-mobile-v1';
+export const VIEWPORT_CONTRACT_KEY='yhct-viewport-contract-v2';
 const LEGACY_KEY='yhct-mobile-ui-v2';
 const MOBILE_VIEWPORT='width=device-width, initial-scale=1, viewport-fit=cover';
 const DESKTOP_VIEWPORT='width=1280, viewport-fit=cover';
-const isCompactScreen=()=>typeof window!=='undefined'&&window.matchMedia('(max-width: 980px)').matches;
+const isCompactScreen=()=>typeof window!=='undefined'&&window.matchMedia('(max-width: 979px)').matches;
+
+function ensureViewportContract(){
+  try{
+    if(localStorage.getItem(VIEWPORT_CONTRACT_KEY)==='1')return;
+    localStorage.removeItem(VIEWPORT_MODE_KEY);
+    localStorage.removeItem(FORCE_DESKTOP_MOBILE_KEY);
+    localStorage.removeItem(LEGACY_KEY);
+    localStorage.setItem(VIEWPORT_CONTRACT_KEY,'1');
+  }catch{}
+}
 
 export function readViewportMode():ViewportMode{
+  ensureViewportContract();
   try{
     const compact=isCompactScreen();
     const forceDesktop=localStorage.getItem(FORCE_DESKTOP_MOBILE_KEY)==='1';
@@ -24,6 +36,7 @@ export function readViewportMode():ViewportMode{
 
 export function rememberExplicitViewportMode(mode:ViewportMode){
   try{
+    localStorage.setItem(VIEWPORT_CONTRACT_KEY,'1');
     if(isCompactScreen()&&mode==='desktop')localStorage.setItem(FORCE_DESKTOP_MOBILE_KEY,'1');
     else localStorage.removeItem(FORCE_DESKTOP_MOBILE_KEY);
     localStorage.setItem(VIEWPORT_MODE_KEY,mode);
@@ -39,6 +52,7 @@ export function applyViewportMode(mode:ViewportMode){
   if(!viewport){viewport=document.createElement('meta');viewport.name='viewport';document.head.appendChild(viewport)}
   viewport.content=mode==='desktop'?DESKTOP_VIEWPORT:MOBILE_VIEWPORT;
   try{
+    localStorage.setItem(VIEWPORT_CONTRACT_KEY,'1');
     localStorage.setItem(VIEWPORT_MODE_KEY,mode);
     localStorage.setItem(LEGACY_KEY,mode==='desktop'?'pc':'social');
   }catch{}
