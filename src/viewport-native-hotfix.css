@@ -46,7 +46,7 @@ html[data-viewport-mode="mobile"]{--mobile-module-gap:clamp(10px,3.2vw,14px);min
 html[data-viewport-mode="mobile"] body,html[data-viewport-mode="mobile"] #root,html[data-viewport-mode="mobile"] .app,html[data-viewport-mode="mobile"] main{min-width:0!important;max-width:100%!important;overflow-x:hidden!important}
 .system-brand-mark{max-inline-size:100%;max-block-size:100%}
 .system-brand-mark__icon{max-width:100%;max-height:100%}
-html[data-viewport-mode="mobile"] .mobile-top-mark{width:clamp(34px,10vw,40px)!important;height:clamp(34px,10vw,40px)!important;flex:0 0 clamp(34px,10vw,40px)!important}
+html[data-viewport-mode="mobile"] .mobile-top-mark{width:clamp(30px,8.5vw,34px)!important;height:clamp(30px,8.5vw,34px)!important;flex:0 0 clamp(30px,8.5vw,34px)!important}
 html[data-viewport-mode="mobile"] .auth-brand-mark{width:clamp(82px,24vw,96px)!important;height:clamp(82px,24vw,96px)!important}
 html[data-viewport-mode="mobile"] main>.top+*{margin-top:var(--mobile-module-gap)!important}
 html[data-viewport-mode="mobile"] .feed-layout{gap:var(--mobile-module-gap)!important;min-width:0!important;max-width:100%!important}
@@ -64,3 +64,20 @@ html[data-viewport-mode="mobile"] .data-list,
 html[data-viewport-mode="mobile"] .log-list{gap:var(--mobile-module-gap)!important;min-width:0!important;max-width:100%!important}
 html[data-viewport-mode="mobile"] .mobile-more-grid{gap:10px!important}
 html[data-viewport-mode="mobile"] .mobile-ui-choice{margin-top:14px!important}
+
+/* Compact hashtag rail: always one row, horizontally scrollable, low vertical footprint. */
+.feed-toolbar .chips{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;overflow-y:hidden!important;max-width:100%!important;min-width:0!important;gap:6px!important;margin-top:7px!important;padding:0 0 2px!important;scrollbar-width:none!important;overscroll-behavior-inline:contain}
+.feed-toolbar .chips::-webkit-scrollbar{display:none!important}
+.feed-toolbar .chips button{flex:0 0 auto!important;min-height:30px!important;height:30px!important;padding:4px 9px!important;border-radius:999px!important;font-size:12px!important;line-height:1!important;white-space:nowrap!important}
+.feed-toolbar .chips button svg{width:13px!important;height:13px!important;flex:0 0 13px!important}
+html[data-mobile-ui="social"] .feed-toolbar .chips{max-height:32px!important;margin:0!important;padding:0 0 2px!important;gap:5px!important}
+html[data-mobile-ui="social"] .feed-toolbar .chips button{min-height:30px!important;height:30px!important;padding:4px 8px!important;font-size:12px!important}
+
+/* Mobile top title must remain complete instead of clipping long module names. */
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .top{min-height:56px!important;padding:7px 10px!important;gap:6px!important}
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .top-title{flex:1 1 auto!important;min-width:0!important;max-width:calc(100% - 44px)!important;gap:7px!important;overflow:visible!important}
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .top-title>div:last-child{flex:1 1 auto!important;min-width:0!important;max-width:100%!important}
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .top h1{font-size:clamp(14px,4.1vw,18px)!important;line-height:1.08!important;letter-spacing:-.01em!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;display:-webkit-box!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:2!important;max-height:2.2em!important;overflow-wrap:anywhere!important}
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .top-actions{flex:0 0 auto!important;min-width:40px!important;gap:4px!important}
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .mobile-more-button{width:40px!important;height:40px!important;min-height:40px!important;flex:0 0 40px!important}
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .mobile-more-button svg{width:20px!important;height:20px!important}
