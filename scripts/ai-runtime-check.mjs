@@ -14,6 +14,11 @@ const health=read('api/ai/health.js');
 const runtime=read('src/services/aiRuntimeService.ts');
 const mini=read('src/components/ai/UnifiedAiMini.tsx');
 const research=read('src/components/research/ResearchCenter.tsx');
+const researchMini=read('src/components/research/ResearchAiMini.tsx');
+const exam=read('src/components/exam/ExamCenter.tsx');
+const aiPlatform=read('src/modules/ai/index.ts');
+const providerRegistry=read('src/modules/ai/providers/registry.ts');
+const aiOps=read('src/components/admin/AiOperationsPanel.tsx');
 const gemini=read('src/services/geminiByok.ts');
 const envExample=read('.env.example');
 
@@ -57,7 +62,7 @@ try{
 
 requireText(gateway,"memberAccess(req,'member')",'AI gateway requires approved member auth');
 requireText(gateway,'new AbortController()','AI gateway has provider timeout cancellation');
-requireText(gateway,'AI_TIMEOUT_MS=9500','AI gateway timeout is bounded');
+requireText(gateway,'AI_TIMEOUT_MS=20000','AI gateway timeout is bounded for reasoning responses');
 requireText(gateway,"type:'json_schema'",'OpenAI response uses Structured Outputs JSON schema');
 requireText(gateway,'store:false','OpenAI response storage is disabled by default');
 requireText(gateway,'sourceIds','AI output cites source IDs instead of arbitrary URLs');
@@ -66,15 +71,19 @@ requireText(gateway,"safety:'needs_source_check'",'degraded path explicitly requ
 requireText(gateway,"console.info(JSON.stringify({event:'ai_gateway'",'AI gateway emits prompt-free operational telemetry');
 requireText(gateway,'model=cloudAiModel()','AI gateway uses shared server-side model selection');
 requireText(gateway,"res.setHeader('X-AI-Model',model)",'AI gateway exposes non-secret model observability');
-requireText(gateway,'aiToolsForRole(access.role)','AI gateway exposes tools according to authenticated role');
-requireText(gateway,"tool_choice:'auto'",'AI gateway allows model-selected read-only function calls');
-requireText(gateway,'parallel_tool_calls:false','AI gateway serializes function calls for strict RBAC control');
+requireText(gateway,"const tools=mode==='fast'?aiToolsForRole(access.role):[]",'AI gateway scopes function tools to fast/general copilot mode');
+requireText(gateway,"body.tool_choice='auto'",'AI gateway allows model-selected read-only function calls when tools exist');
+requireText(gateway,'body.parallel_tool_calls=false','AI gateway serializes function calls for strict RBAC control');
 requireText(gateway,"type:'function_call_output'",'AI gateway returns function outputs through Responses API contract');
 requireText(gateway,'MAX_TOOL_ROUNDS=2','AI gateway bounds tool-call rounds');
 requireText(gateway,'MAX_TOOL_CALLS_PER_ROUND=3','AI gateway bounds tool-call fanout');
 requireText(gateway,'executeAiTool(req,access.role,call)','AI gateway re-checks role when executing each tool');
 requireText(gateway,"res.setHeader('X-AI-Tools-Used'",'AI gateway exposes non-sensitive tool-count observability');
+requireText(gateway,"res.setHeader('X-AI-Degraded'",'AI gateway exposes degraded state without leaking provider detail');
+requireText(gateway,"res.setHeader('X-AI-Failure-Class'",'AI gateway exposes sanitized provider failure class');
+requireText(gateway,'providerFailureClass','AI gateway classifies timeout/auth/access/quota/provider failures');
 requireText(gateway,'toolsUsed','AI gateway returns bounded tool provenance to the client');
+if(gateway.includes('query}\n\n')||gateway.includes('Câu hỏi: “${query}”'))fail('degraded fallback must not echo full user prompt');else ok('degraded fallback does not echo the full user prompt');
 
 requireText(health,"req.method!=='GET'",'AI readiness endpoint is read-only');
 requireText(health,'cloudAiConfigured()','AI readiness uses the same cloud readiness contract as runtime');
@@ -88,7 +97,7 @@ if(/process\.env\.[A-Z0-9_]+\s*[,}]/.test(health))fail('AI readiness must not se
 
 requireText(runtime,"fetch('/api/ai/assistant'",'client routes cloud AI through the server gateway');
 requireText(runtime,'Authorization:`Bearer ${session.access_token}`','client authenticates AI gateway requests');
-requireText(runtime,'TIMEOUT_MS=11000','client AI request has bounded timeout');
+requireText(runtime,'TIMEOUT_MS=24000','client AI request has a bounded timeout longer than the server budget');
 requireText(runtime,"provider:'openai'|'local'",'client exposes provider/degraded contract');
 requireText(runtime,'toolsUsed:string[]','client exposes server tool provenance');
 requireText(runtime,'Dữ liệu hệ thống:','client visibly labels system tool provenance');
@@ -98,9 +107,19 @@ const localIndex=mini.indexOf('searchKnowledge(text');
 const driveIndex=mini.indexOf('searchDriveRag(text');
 const firstCloudCallIndex=mini.indexOf('askServerAi(');
 if(localIndex>=0&&driveIndex>=0&&firstCloudCallIndex>localIndex&&firstCloudCallIndex>driveIndex)ok('A.I Mini retrieves local/Drive knowledge before cloud escalation');else fail('A.I Mini must retrieve local/Drive knowledge before calling cloud AI');
+requireText(mini,"from '../../modules/ai'",'Unified A.I Mini routes through the AI Platform facade');
 requireText(mini,'getGeminiStatus().configured','Gemini remains an optional fallback only');
+requireText(researchMini,"from '../../modules/ai'",'Research A.I Mini routes through the AI Platform facade');
+requireText(exam,"from '../../modules/ai'",'Exam A.I Tutor routes through the AI Platform facade');
+requireText(exam,'answer.degraded?localTutor','Exam A.I Tutor keeps a contextual local tutor when cloud degrades');
 requireText(research,"askServerAi(query,'research',sources)",'Research Center sends bounded RAG sources to AI gateway');
 requireText(research,'aiAnswer.citations','Research Center renders server-validated citations');
+
+requireText(aiPlatform,"export * from './core/gateway'",'AI Platform exposes one gateway facade');
+requireText(aiPlatform,"export * from './providers/registry'",'AI Platform exposes provider registry');
+for(const candidate of ['semantic-scholar','europe-pmc','crossref','opencitations','unpaywall'])requireText(providerRegistry,`id:'${candidate}'`,`AI provider registry includes candidate ${candidate}`);
+requireText(aiOps,'fetchAiHealth','Admin A.I Operations reads non-secret readiness');
+requireText(aiOps,'candidateZeroCostProviders','Admin A.I Operations exposes zero-cost candidate adapters');
 
 if(gemini.includes('localStorage.setItem(KEY_STORAGE'))fail('Gemini API key must never be persisted in localStorage');else ok('Gemini API key is not persisted in localStorage');
 requireText(gemini,'session().setItem(KEY_STORAGE','Gemini BYOK secret is session-scoped');
