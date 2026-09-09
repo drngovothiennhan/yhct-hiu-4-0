@@ -13,7 +13,6 @@ import './mobile-social.css';
 import './mobile-social-compat.css';
 import './mini-ai.css';
 import './viewport-news-final.css';
-import './viewport-native-hotfix.css';
 import './news-rotator.css';
 import './desktop-community.css';
 import './final4-v2.css';
@@ -27,6 +26,7 @@ import './research-ai-upgrade.css';
 import './exam-v2.css';
 import './theme-runtime.css';
 import './feed-academic-ai.css';
+import './viewport-native-hotfix.css';
 
 bootstrapThemeState();
 
