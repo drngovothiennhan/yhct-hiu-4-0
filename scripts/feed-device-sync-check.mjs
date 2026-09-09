@@ -76,12 +76,12 @@ async function runDevice(name,width,height,port,expected){
 
     let state=null;
     for(let i=0;i<60;i++){
-      const evaluated=await send('Runtime.evaluate',{expression:`(()=>{const text=document.body?.innerText||'';const aside=document.querySelector('aside');const bottom=document.querySelector('.mobile-bottom-nav');return{pathname:location.pathname,innerWidth:innerWidth,mode:document.documentElement.dataset.viewportMode||'',appReady:document.documentElement.dataset.appReady||'',heading:document.querySelector('.top-title h1')?.textContent||'',hasExpected:text.includes(${JSON.stringify(expected.title)}),hasLegacyDemo:text.includes('Trần An Nhiên')||text.includes('Đau thắt lưng do hàn thấp'),hasSyncError:text.includes('Không thể đồng bộ bảng tin'),asideVisible:!!aside&&getComputedStyle(aside).display!=='none',bottomNavVisible:!!bottom&&getComputedStyle(bottom).display!=='none'}})()`,returnByValue:true});
+      const evaluated=await send('Runtime.evaluate',{expression:`(()=>{const text=document.body?.innerText||'';const aside=document.querySelector('aside');const bottom=document.querySelector('.mobile-bottom-nav');const cards=[...document.querySelectorAll('[data-post-id]')];const renderedIds=cards.map(card=>card.getAttribute('data-post-id')).filter(Boolean);return{pathname:location.pathname,innerWidth:innerWidth,mode:document.documentElement.dataset.viewportMode||'',appReady:document.documentElement.dataset.appReady||'',heading:document.querySelector('.top-title h1')?.textContent||'',hasExpected:renderedIds.includes(${JSON.stringify(expected.id)}),renderedIds:renderedIds.slice(0,6),hasLegacyDemo:text.includes('Trần An Nhiên')||text.includes('Đau thắt lưng do hàn thấp'),hasSyncError:text.includes('Không thể đồng bộ bảng tin'),asideVisible:!!aside&&getComputedStyle(aside).display!=='none',bottomNavVisible:!!bottom&&getComputedStyle(bottom).display!=='none'}})()`,returnByValue:true});
       state=evaluated.result.value;
       if(state?.hasExpected||state?.hasSyncError||state?.hasLegacyDemo)break;
       await sleep(250);
     }
-    if(!state?.hasExpected)throw new Error(`${name}: authoritative top post was not rendered: ${expected.title}; state=${JSON.stringify(state)}`);
+    if(!state?.hasExpected)throw new Error(`${name}: authoritative top post id was not rendered: ${expected.id}; title=${expected.title}; state=${JSON.stringify(state)}`);
     if(state.hasLegacyDemo)throw new Error(`${name}: synthetic legacy demo content is still visible.`);
     if(state.hasSyncError)throw new Error(`${name}: feed sync error is visible.`);
     if(state.appReady!=='1'||!state.heading.includes('Bảng tin học thuật'))throw new Error(`${name}: app shell was not ready: ${JSON.stringify(state)}`);
