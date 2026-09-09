@@ -20,7 +20,7 @@ function mapAcademicRows(data:unknown):AcademicPost[]{
 }
 
 async function fetchFeedSameOrigin(limit:number):Promise<unknown>{
-  const response=await fetch(`/api/public/feed?limit=${encodeURIComponent(String(limit))}`,{cache:'no-store',headers:{accept:'application/json'}});
+  const response=await fetch(`/api/health?resource=academic-feed&limit=${encodeURIComponent(String(limit))}`,{cache:'no-store',headers:{accept:'application/json'}});
   if(!response.ok)throw new Error(`Feed gateway failed ${response.status}`);
   const payload=await response.json();
   return Array.isArray(payload)?payload:(payload&&Array.isArray(payload.posts)?payload.posts:[]);
