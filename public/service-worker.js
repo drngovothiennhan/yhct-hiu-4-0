@@ -1,10 +1,10 @@
-const CACHE='yhct-hiu-4-final4-v5-atomic-theme-pwa';
+const CACHE='yhct-hiu-4-final4-v6-authoritative-sync';
 const SCOPE_URL=new URL(self.registration.scope);
 const ROOT=SCOPE_URL.pathname.endsWith('/')?SCOPE_URL.pathname:`${SCOPE_URL.pathname}/`;
 const path=name=>new URL(name,self.registration.scope).pathname;
 const SHELL=[path('./'),path('yhct-system-mark.svg')];
 const LEGACY_MANIFESTS=[path('manifest.webmanifest'),path('api/manifest')];
-const NAV_TIMEOUT_MS=4500;
+const NAV_TIMEOUT_MS=8000;
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
@@ -36,7 +36,8 @@ async function navigationResponse(request){
 
 async function staticResponse(request){
   const url=new URL(request.url);
-  if(url.pathname.endsWith('/manifest.webmanifest')||url.pathname.endsWith('manifest.webmanifest')){
+  const mustBeFresh=url.pathname.endsWith('/manifest.webmanifest')||url.pathname.endsWith('manifest.webmanifest')||url.pathname.endsWith('/version.json')||url.pathname.endsWith('version.json');
+  if(mustBeFresh){
     try{return await fetch(request,{cache:'no-store'})}catch{return Response.error()}
   }
   const cached=await caches.match(request);
