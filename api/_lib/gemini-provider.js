@@ -1,5 +1,5 @@
 const DEFAULT_GEMINI_MODEL='gemini-3.5-flash-lite';
-const DEFAULT_GEMINI_RESEARCH_MODEL='gemini-3.5-flash';
+const DEFAULT_GEMINI_RESEARCH_MODEL='gemini-3.8-flash';
 const MAX_ERROR_TEXT=180;
 
 const clean=(value,max=2000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
@@ -37,25 +37,31 @@ async function requestGemini(body,signal,mode='default'){
   return{text,model};
 }
 
+function generationConfig(mode,maxOutputTokens,jsonSchema=null){
+  const model=geminiAiModel(mode),research38=mode==='research'&&model.startsWith('gemini-3.8-');
+  const config={maxOutputTokens:Math.max(256,Math.min(Number(maxOutputTokens)||1800,5000))};
+  if(research38){config.thinkingConfig={thinkingLevel:'medium'}}
+  else config.temperature=mode==='research'?.18:.2;
+  if(jsonSchema){config.responseMimeType='application/json';config.responseJsonSchema=jsonSchema}
+  return config;
+}
+
 export async function createGeminiJson({systemInstruction,prompt,schema,maxOutputTokens=1800,signal,mode='default'}){
   const body={
     system_instruction:{parts:[{text:clean(systemInstruction,8000)}]},
     contents:[{role:'user',parts:[{text:clean(prompt,24000)}]}],
-    generationConfig:{
-      temperature:mode==='research'?.18:.2,
-      maxOutputTokens:Math.max(256,Math.min(Number(maxOutputTokens)||1800,5000)),
-      responseMimeType:'application/json',
-      responseJsonSchema:schema
-    }
+    generationConfig:generationConfig(mode,maxOutputTokens,schema)
   };
   return requestGemini(body,signal,mode);
 }
 
 export async function createGeminiText({systemInstruction,prompt,maxOutputTokens=1100,signal,mode='default'}){
+  const config=generationConfig(mode,maxOutputTokens);
+  if(!geminiAiModel(mode).startsWith('gemini-3.8-'))config.temperature=mode==='research'?.25:.35;
   const body={
     system_instruction:{parts:[{text:clean(systemInstruction,8000)}]},
     contents:[{role:'user',parts:[{text:clean(prompt,20000)}]}],
-    generationConfig:{temperature:mode==='research'?.25:.35,maxOutputTokens:Math.max(128,Math.min(Number(maxOutputTokens)||1100,4000))}
+    generationConfig:config
   };
   return requestGemini(body,signal,mode);
 }
