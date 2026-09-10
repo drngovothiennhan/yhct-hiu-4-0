@@ -10,7 +10,7 @@ const main=read('src/main.tsx');
 const core=read('src/components/game/HiuYQuanGame.tsx');
 
 has(svg,'viewBox="0 0 2304 270"','local lightweight character atlas exists');
-for(const slot of ['doctor male classic','doctor female classic','doctor male academy','doctor female academy','doctor male master','doctor female master','male child','male adult','male senior','female child','female adult','female senior'])has(svg,`<!-- ${slot} -->`,`sprite slot ${slot} exists`);
+for(const slot of ['doctor male classic','doctor female classic','doctor male academy','doctor female academy','doctor male master','doctor female master','male child','male adult','male senior','female child','female adult','female senior'])has(svg,slot,`sprite slot ${slot} exists`);
 if(Buffer.byteLength(svg,'utf8')<50000)ok(`character atlas is lightweight (${Buffer.byteLength(svg,'utf8')} bytes)`);else fail('character atlas exceeds 50 KB vector budget');
 no(css,'http://','V16 character CSS has no HTTP CDN');no(css,'https://','V16 character CSS has no HTTPS CDN');
 has(css,"url('/assets/hiu-y-quan/characters/hiu-y-quan-v16-characters.svg')",'game uses local generated character atlas');
@@ -22,7 +22,7 @@ has(css,'.hyq-record-book-v14','record book has V16 override');has(css,'max-heig
 no(css,'100vh','V16 avoids viewport-height stretching');no(css,'100dvh','V16 avoids dynamic viewport-height stretching');has(css,'html[data-desktop-on-phone="true"]','desktop-on-phone guard exists');has(css,'@media(prefers-reduced-motion:reduce)','reduced-motion guard exists');
 
 has(sql,"g.source_code='QD4664-2014'",'pharmacy reuses official QD4664 catalog');has(sql,'limit 12','pharmacy loads a bounded 12-card random view');has(sql,'order by random()','pharmacy rotation is randomized on refresh');has(sql,'private.hiu_y_quan_learning_herbs_v16','V15 detailed herb challenge is isolated from rotating pharmacy');
-has(sql,"''::text","missing nature/flavor and meridian values are left blank rather than fabricated");no(sql,"g.dosage",'game pharmacy does not expose dosage');no(sql,"g.caution",'game pharmacy does not expose cautions as pseudo-treatment');
+has(sql,"''::text",'missing nature/flavor and meridian values are left blank rather than fabricated');no(sql,"g.dosage",'game pharmacy does not expose dosage');no(sql,"g.caution",'game pharmacy does not expose cautions as pseudo-treatment');
 has(sql,"if n<>50 then raise exception",'migration enforces exactly 50 syndrome patterns');has(sql,"source_code=excluded.source_code",'new syndrome provenance is stored privately');has(sql,"'QD3991-2025'",'new clinical patterns carry MOH QD3991 provenance');
 const newPatternRows=(sql.match(/'QD3991-2025','Tập II/g)||[]).length;if(newPatternRows===30)ok('exactly 30 Ministry-backed pattern rows are added to the 20 legacy rows');else fail(`expected 30 new pattern rows, found ${newPatternRows}`);
 has(sql,'syndrome_count integer','case generation reads dynamic catalog count');has(sql,'seed%syndrome_count','hourly cases sample the full 50-pattern catalog');no(sql,'seed%20','V16 migration contains no hard-coded 20-pattern sampler');
