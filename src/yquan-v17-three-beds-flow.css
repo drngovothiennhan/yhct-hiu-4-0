@@ -65,3 +65,21 @@ html[data-desktop-on-phone="true"] .hyq-page--v17 .hyq-world-speech span{-webkit
 html[data-desktop-on-phone="true"] .hyq-page--v17 .hyq-recheck-alert-v17{position:relative;top:auto}
 
 @media(prefers-reduced-motion:reduce){.hyq-bed-v17,.hyq-bed-v17.is-ready{transition:none!important;animation:none!important}}
+
+/* Stable final layer: readable controls and calm surfaces, no additional stylesheet. */
+.hyq-page--v17 .hyq-world-shell{box-shadow:0 8px 24px #253e2910;background:linear-gradient(145deg,#faf6ed,#e8f1e9)}
+.hyq-page--v17 .hyq-room--consult{background:linear-gradient(180deg,#f7e8ca 0 66%,#bd906c 66%)}
+.hyq-page--v17 .hyq-room--lab{background:linear-gradient(180deg,#e0ebd5 0 66%,#ad896c 66%)}
+.hyq-page--v17 .hyq-scene-toolbar button,.hyq-page--v17 .hyq-tutor-action{min-height:44px;font-size:12px}
+.hyq-page--v17 .hyq-four-exams p,.hyq-page--v17 .hyq-options button{font-size:14px!important;line-height:1.55!important}
+.hyq-page--v17 .hyq-rules-grid p{font-size:12px;line-height:1.55}
+.hyq-page--v17 .hyq-rules-grid b{font-size:13px}
+.hyq-page--v17 .hyq-tutor-action{display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid #b9d7c3;border-radius:12px;background:#eff8f1;color:#24513d;padding:10px 14px;cursor:pointer}
+.hyq-page--v17 .hyq-tutor-action svg{width:18px;height:18px}
+.hyq-page--v17 button:focus-visible{outline:3px solid #448967;outline-offset:3px}
+@media(max-width:680px){
+ .hyq-page--v17 .hyq-scene-toolbar{flex-wrap:wrap}
+ .hyq-page--v17 .hyq-scene-toolbar nav{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+ .hyq-page--v17 .hyq-scene-toolbar button{font-size:11px;white-space:normal;justify-content:center}
+ .hyq-page--v17 .hyq-rules-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}

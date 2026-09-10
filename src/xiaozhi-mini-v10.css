@@ -58,3 +58,8 @@
   .xz-mini .xz-title small{max-width:175px!important}
   .xz-mini .xz-chips button{font-size:10.5px!important;padding-inline:7px!important}
 }
+
+.xz-panel .xz-cancel{display:flex;align-items:center;justify-content:center;gap:6px;margin:4px 12px;min-height:40px;border:1px solid #c9d8ce;border-radius:10px;background:#f5faf6;color:#375444;cursor:pointer}
+.xz-panel .xz-cancel svg{width:16px;height:16px}
+.xz-panel .xz-msg p{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}
+.xz-panel button:focus-visible{outline:3px solid #4c9879;outline-offset:2px}

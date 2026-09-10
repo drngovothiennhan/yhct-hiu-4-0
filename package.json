@@ -21,12 +21,13 @@
     "audit:v15": "node scripts/v15-yquan-engagement-contract-check.mjs",
     "audit:v16": "node scripts/v16-yquan-character-content-contract-check.mjs",
     "audit:v17": "node scripts/v17-yquan-three-beds-flow-contract-check.mjs",
-    "prebuild": "npm run audit:source && npm run audit:roles && npm run audit:modules && npm run audit:sim6h && npm run audit:account && npm run audit:ai && npm run audit:rag && npm run audit:theme && npm run audit:feed && npm run audit:v11 && npm run audit:v12 && npm run audit:v13 && npm run audit:v14 && npm run audit:v15 && npm run audit:v16 && npm run audit:v17",
+    "prebuild": "npm run audit:source && npm run audit:roles && npm run audit:modules && npm run audit:sim6h && npm run audit:account && npm run audit:ai && npm run audit:rag && npm run audit:theme && npm run audit:feed && npm run audit:v11 && npm run audit:v12 && npm run audit:v13 && npm run audit:v14 && npm run audit:v15 && npm run audit:v16 && npm run audit:v17 && npm run audit:v18",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "android:sync": "npm run build && npx cap sync android",
     "android:open": "npx cap open android",
-    "android:assets": "npx capacitor-assets generate --android"
+    "android:assets": "npx capacitor-assets generate --android",
+    "audit:v18": "node scripts/v18-request-behavior-check.mjs"
   },
   "dependencies": {
     "@capacitor/android": "7.4.3",

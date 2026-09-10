@@ -79,7 +79,10 @@ for(const forbidden of ['searchOpenAlex','searchDriveRag','searchKnowledge','cen
 
 requireText(runtime,"fetch('/api/ai/assistant'",'academic client routes cloud AI through shared server gateway');
 requireText(runtime,'Authorization:`Bearer ${session.access_token}`','academic client authenticates gateway requests');
-requireText(runtime,'TIMEOUT_MS=24000','academic client request timeout exceeds server budget safely');
+const clientBudget=Number(runtime.match(/TIMEOUT_MS=(\d+)/)?.[1]);
+const openAiBudget=Number(gateway.match(/AI_TIMEOUT_MS=(\d+)/)?.[1]);
+const geminiBudget=Number(gateway.match(/GEMINI_TIMEOUT_MS=(\d+)/)?.[1]);
+if(clientBudget>openAiBudget+geminiBudget&&clientBudget<=45000)ok('client allows one bounded Gemini/OpenAI failover');else fail('client deadline must cover both providers and remain bounded');
 requireText(runtime,'renderAiAnswer','academic client has consistent safety/citation renderer');
 requireText(researchMini,"from '../../modules/ai'",'Research A.I Mini routes through AI Platform facade');
 requireText(researchMini,'searchDriveRag','Research A.I Mini retains Drive RAG');
