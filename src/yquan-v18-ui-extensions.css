@@ -1,0 +1,448 @@
+/* HIU Y Quan V18 — canonical UI extensions.
+   Loaded once, immediately after yquan-v18-visual-coherence.css.
+   Purpose: keep only targeted exceptions that are NOT owned by the V18 core.
+   No gameplay, RPC, persistence or Supabase behavior lives here. */
+
+/* --------------------------------------------------------------------------
+   SCENE DETAILS
+   Small props and labels that support the V18 scene without redefining the
+   core world/room/actor geometry.
+   -------------------------------------------------------------------------- */
+.hyq-page--v17 .hyq-world-desk .pillow{
+  width:38px!important;
+  height:14px!important;
+  top:-16px!important;
+}
+.hyq-page--v17 .hyq-world-desk .teapot{
+  width:18px!important;
+  height:15px!important;
+  top:-17px!important;
+}
+.hyq-page--v17 .hyq-mortar{
+  transform:scale(.82)!important;
+  transform-origin:bottom left!important;
+}
+.hyq-page--v17 .hyq-scale{
+  transform:scale(.82)!important;
+  transform-origin:bottom center!important;
+}
+.hyq-page--v17 .hyq-herb-tray{
+  transform:scale(.84)!important;
+  transform-origin:bottom right!important;
+}
+.hyq-page--v17 .hyq-room-title{
+  width:min(80%,152px)!important;
+}
+.hyq-page--v17 .hyq-room-title small{
+  max-height:2.4em!important;
+}
+.hyq-page--v17 .hyq-lab-shelf button{
+  font-size:6.8px!important;
+  line-height:1.1!important;
+}
+.hyq-page--v17 .hyq-bed-meta-v17 b{
+  font-size:8px!important;
+  line-height:1.15!important;
+}
+.hyq-page--v17 .hyq-bed-meta-v17 small{
+  font-size:6.6px!important;
+  line-height:1.2!important;
+}
+
+/* --------------------------------------------------------------------------
+   MEDICINE CABINET — one authoritative 3 × 4 layout.
+   This neutralizes the global 48px button minimum that previously made the
+   drawer text, cells and knobs drift out of alignment.
+   -------------------------------------------------------------------------- */
+.hyq-page--v17 .hyq-world-cabinet.hyq-world-cabinet--interactive{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-template-rows:repeat(4,minmax(0,1fr))!important;
+  grid-auto-rows:0!important;
+  gap:3px!important;
+  overflow:hidden!important;
+}
+.hyq-page--v17 .hyq-world-cabinet--interactive>.hyq-cabinet-drawer{
+  box-sizing:border-box!important;
+  position:relative!important;
+  width:auto!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:3px 2px 8px!important;
+  display:grid!important;
+  place-items:center!important;
+  align-content:center!important;
+  line-height:1!important;
+  overflow:hidden!important;
+  border-radius:4px!important;
+}
+.hyq-page--v17 .hyq-world-cabinet--interactive>.hyq-cabinet-drawer small{
+  position:relative!important;
+  inset:auto!important;
+  display:-webkit-box!important;
+  -webkit-box-orient:vertical!important;
+  -webkit-line-clamp:2!important;
+  width:100%!important;
+  max-width:100%!important;
+  max-height:2.2em!important;
+  margin:0!important;
+  overflow:hidden!important;
+  text-align:center!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+  word-break:normal!important;
+  font-size:6.2px!important;
+  line-height:1.08!important;
+  font-weight:800!important;
+}
+.hyq-page--v17 .hyq-world-cabinet--interactive>.hyq-cabinet-drawer i{
+  position:absolute!important;
+  top:1px!important;
+  right:2px!important;
+  left:auto!important;
+  bottom:auto!important;
+  font-size:4.5px!important;
+  line-height:1!important;
+  opacity:.52!important;
+  pointer-events:none!important;
+}
+.hyq-page--v17 .hyq-world-cabinet--interactive>.hyq-cabinet-drawer:after{
+  width:5px!important;
+  height:3px!important;
+  bottom:2px!important;
+}
+
+/* --------------------------------------------------------------------------
+   CHARACTER CUSTOMIZATION / PROFILE PREVIEWS
+   -------------------------------------------------------------------------- */
+.hyq-page--v17 .hyq-appearance-body{
+  grid-template-columns:150px minmax(0,1fr)!important;
+  gap:12px!important;
+}
+.hyq-page--v17 .hyq-appearance-preview{
+  height:168px!important;
+}
+.hyq-page--v17 .hyq-appearance-preview>.hyq-doctor{
+  transform:scale(.52)!important;
+  transform-origin:bottom center!important;
+  bottom:5px!important;
+}
+.hyq-page--v17 .hyq-appearance-preview>span b{font-size:10px!important}
+.hyq-page--v17 .hyq-appearance-preview>span small{font-size:8px!important}
+
+/* Onboarding doctor uses the same soft 2D semi-chibi language as clinic actor. */
+.hyq-onboarding .hyq-doctor--chibi{
+  filter:drop-shadow(0 5px 3px #3a302622)!important;
+}
+.hyq-onboarding .hyq-doctor--chibi .hyq-face{
+  left:48px!important;
+  top:31px!important;
+  width:74px!important;
+  height:76px!important;
+  border:2px solid #60463a!important;
+  background:linear-gradient(180deg,#f5ceb0,#efbea0)!important;
+  box-shadow:inset 0 -4px #d49d7b22!important;
+}
+.hyq-onboarding .hyq-doctor--chibi .hyq-face i{
+  top:35px!important;
+  width:8px!important;
+  height:9px!important;
+  background:#352b27!important;
+  box-shadow:inset 1.5px 1.5px #ffffffa6!important;
+}
+.hyq-onboarding .hyq-doctor--chibi .hyq-face i:first-child{left:18px!important}
+.hyq-onboarding .hyq-doctor--chibi .hyq-face i:nth-child(2){right:18px!important}
+.hyq-onboarding .hyq-doctor--chibi .hyq-face b{
+  left:30px!important;
+  bottom:12px!important;
+  width:14px!important;
+  height:6px!important;
+  border-bottom-width:2px!important;
+}
+.hyq-onboarding .hyq-doctor--chibi .hyq-hair{
+  left:44px!important;
+  top:16px!important;
+  width:82px!important;
+  height:51px!important;
+  border-width:2px!important;
+  background:linear-gradient(145deg,#3a312d,#272321)!important;
+}
+.hyq-onboarding .hyq-doctor--chibi .hyq-neck{
+  left:73px!important;
+  top:102px!important;
+  width:25px!important;
+  height:22px!important;
+}
+.hyq-onboarding .hyq-doctor--chibi .hyq-robe{
+  left:37px!important;
+  top:116px!important;
+  width:98px!important;
+  height:112px!important;
+  border-width:3px!important;
+  border-radius:19px 19px 9px 9px!important;
+}
+.hyq-onboarding .hyq-doctor--chibi .hyq-sleeve{
+  top:127px!important;
+  height:84px!important;
+  border-width:3px!important;
+}
+.hyq-onboarding .hyq-chibi-shoe{
+  top:223px!important;
+  height:15px!important;
+  border-width:2px!important;
+}
+.hyq-onboarding .hyq-chibi-ear{
+  top:58px!important;
+  width:12px!important;
+  height:20px!important;
+  border-width:2px!important;
+}
+.hyq-onboarding .hyq-outfit-emblem{
+  width:20px!important;
+  height:20px!important;
+  font-size:9px!important;
+  border-width:1.5px!important;
+}
+.hyq-onboarding .hyq-avatar-preview{
+  min-height:176px!important;
+  max-height:190px!important;
+  overflow:hidden!important;
+  background:linear-gradient(180deg,#f2e5ca 0 66%,#b57b50 66% 100%)!important;
+  border:1px solid #d7c7a7!important;
+  border-radius:15px!important;
+}
+.hyq-onboarding .hyq-avatar-preview>.hyq-doctor{
+  transform:scale(.52)!important;
+  transform-origin:center top!important;
+  top:2px!important;
+}
+.hyq-onboarding .hyq-avatar-preview>div:last-child b{
+  font-size:13px!important;
+  line-height:1.25!important;
+}
+.hyq-onboarding .hyq-avatar-preview>div:last-child small{
+  font-size:10px!important;
+  line-height:1.3!important;
+}
+
+/* Achievement preview remains a compact character card. */
+.hyq-page--v17 .hyq-progress-hero{
+  grid-template-columns:128px minmax(0,1fr)!important;
+  min-height:158px!important;
+  padding:12px!important;
+  gap:12px!important;
+  overflow:hidden!important;
+}
+.hyq-page--v17 .hyq-progress-hero>.hyq-doctor{
+  position:relative!important;
+  inset:auto!important;
+  width:128px!important;
+  height:172px!important;
+  transform:scale(.48)!important;
+  transform-origin:center center!important;
+  margin:-18px 0!important;
+  filter:drop-shadow(0 4px 3px #3b302522)!important;
+}
+.hyq-page--v17 .hyq-progress-hero strong{font-size:34px!important}
+.hyq-page--v17 .hyq-progress-hero>div:last-child>span{font-size:11px!important}
+.hyq-page--v17 .hyq-progress-hero small{
+  font-size:10px!important;
+  line-height:1.3!important;
+}
+
+/* Record thumbnails share the same actor scale rather than becoming stickers. */
+.hyq-page--v17 .hyq-record-patient{
+  gap:11px!important;
+  padding:10px!important;
+  min-height:104px!important;
+}
+.hyq-page--v17 .hyq-record-patient .hyq-patient{
+  width:62px!important;
+  height:92px!important;
+  flex:0 0 62px!important;
+  transform:scale(.50)!important;
+  transform-origin:center!important;
+  margin:-13px -5px!important;
+}
+.hyq-page--v17 .hyq-record-patient>div:last-child>b{font-size:14px!important}
+.hyq-page--v17 .hyq-record-patient>div:last-child>span{font-size:11px!important}
+.hyq-page--v17 .hyq-record-patient>div:last-child>small{font-size:9px!important}
+
+/* --------------------------------------------------------------------------
+   SCENE CONTROLS + THREE ZONES
+   -------------------------------------------------------------------------- */
+.hyq-page--v17 .hyq-scene-toolbar{
+  min-height:46px!important;
+  height:auto!important;
+  padding:6px 8px!important;
+  gap:8px!important;
+}
+.hyq-page--v17 .hyq-scene-toolbar b{
+  font-size:13px!important;
+  line-height:1.25!important;
+}
+.hyq-page--v17 .hyq-scene-toolbar small{
+  font-size:10px!important;
+  line-height:1.3!important;
+}
+.hyq-page--v17 .hyq-scene-toolbar nav{gap:5px!important}
+.hyq-page--v17 .hyq-scene-toolbar nav button{
+  min-height:36px!important;
+  height:36px!important;
+  padding:5px 8px!important;
+  border-radius:9px!important;
+}
+.hyq-page--v17 .hyq-scene-toolbar nav button svg{
+  width:15px!important;
+  height:15px!important;
+}
+.hyq-page--v17 .hyq-scene-toolbar nav button span{
+  font-size:10px!important;
+  line-height:1.15!important;
+}
+.hyq-page--v17 .hyq-room--consult .hyq-world-window{
+  transform:scale(.80)!important;
+  transform-origin:top left!important;
+}
+.hyq-page--v17 .hyq-room--ward .hyq-ward-screen{
+  transform:scale(.88)!important;
+  transform-origin:top center!important;
+}
+.hyq-page--v17 .hyq-room--ward .hyq-ward-lamp{
+  transform:scale(.82)!important;
+  transform-origin:bottom right!important;
+}
+.hyq-page--v17 .hyq-room--lab .hyq-herb-kettle{
+  transform:scale(.78)!important;
+  transform-origin:bottom right!important;
+}
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE EXCEPTIONS
+   -------------------------------------------------------------------------- */
+@media(max-width:760px){
+  .hyq-page--v17 .hyq-world-cabinet{
+    left:4%!important;
+    width:104px!important;
+    height:154px!important;
+    padding:20px 5px 5px!important;
+  }
+  .hyq-page--v17 .hyq-world-cabinet--interactive>.hyq-cabinet-drawer{
+    padding:3px 1px 7px!important;
+    border-radius:3px!important;
+  }
+  .hyq-page--v17 .hyq-world-cabinet--interactive>.hyq-cabinet-drawer small{
+    font-size:6px!important;
+    line-height:1.05!important;
+  }
+  .hyq-page--v17 .hyq-world-cabinet--interactive>.hyq-cabinet-drawer i{
+    font-size:4px!important;
+  }
+
+  .hyq-page--v17 .hyq-lab-shelf button{font-size:5.8px!important}
+  .hyq-page--v17 .hyq-appearance-body{
+    grid-template-columns:104px minmax(0,1fr)!important;
+    gap:8px!important;
+  }
+  .hyq-page--v17 .hyq-appearance-preview{height:145px!important}
+  .hyq-page--v17 .hyq-appearance-preview>.hyq-doctor{
+    transform:scale(.45)!important;
+    transform-origin:bottom left!important;
+    left:8px!important;
+  }
+
+  .hyq-onboarding .hyq-avatar-preview{
+    min-height:158px!important;
+    max-height:170px!important;
+  }
+  .hyq-onboarding .hyq-avatar-preview>.hyq-doctor{
+    transform:scale(.44)!important;
+    transform-origin:center top!important;
+  }
+  .hyq-onboarding .hyq-avatar-preview>div:last-child b{font-size:12px!important}
+  .hyq-onboarding .hyq-avatar-preview>div:last-child small{font-size:9px!important}
+
+  .hyq-page--v17 .hyq-progress-hero{
+    grid-template-columns:92px minmax(0,1fr)!important;
+    min-height:132px!important;
+    padding:9px!important;
+    gap:7px!important;
+  }
+  .hyq-page--v17 .hyq-progress-hero>.hyq-doctor{
+    width:92px!important;
+    height:134px!important;
+    transform:scale(.37)!important;
+    margin:-14px -14px!important;
+  }
+  .hyq-page--v17 .hyq-progress-hero strong{font-size:30px!important}
+
+  .hyq-page--v17 .hyq-record-patient{
+    min-height:88px!important;
+    padding:8px!important;
+    gap:7px!important;
+  }
+  .hyq-page--v17 .hyq-record-patient .hyq-patient{
+    width:50px!important;
+    height:74px!important;
+    flex-basis:50px!important;
+    transform:scale(.40)!important;
+    margin:-12px -6px!important;
+  }
+
+  .hyq-page--v17 .hyq-scene-toolbar{
+    padding:5px!important;
+    min-height:44px!important;
+  }
+  .hyq-page--v17 .hyq-scene-toolbar>div b{font-size:11px!important}
+  .hyq-page--v17 .hyq-scene-toolbar>div small{font-size:8px!important}
+  .hyq-page--v17 .hyq-scene-toolbar nav button{
+    height:34px!important;
+    min-height:34px!important;
+    padding:4px 6px!important;
+  }
+  .hyq-page--v17 .hyq-scene-toolbar nav button span{font-size:8.5px!important}
+}
+
+/* 360–420px Android: two Tứ-chẩn columns are the canonical phone layout. */
+@media(max-width:420px){
+  .hyq-page--v17 .hyq-four-exams{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:6px!important;
+  }
+  .hyq-page--v17 .hyq-four-exams>article{
+    min-height:108px!important;
+    padding:9px!important;
+  }
+  .hyq-page--v17 .hyq-four-exams b{font-size:10.5px!important}
+  .hyq-page--v17 .hyq-four-exams p{
+    font-size:12.5px!important;
+    line-height:1.42!important;
+  }
+  .hyq-page--v17 .hyq-progress-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
+
+@media(max-width:350px){
+  .hyq-page--v17 .hyq-four-exams{grid-template-columns:1fr!important}
+  .hyq-page--v17 .hyq-four-exams>article{min-height:76px!important}
+}
+
+html[data-desktop-on-phone="true"] .hyq-page--v17 .hyq-world-cabinet{
+  width:104px!important;
+  height:154px!important;
+  padding:20px 5px 5px!important;
+}
+
+@media(prefers-reduced-motion:reduce){
+  .hyq-page--v17 .hyq-cabinet-drawer,
+  .hyq-onboarding .hyq-doctor--chibi,
+  .hyq-page--v17 .hyq-progress-hero>.hyq-doctor{
+    animation:none!important;
+    transition:none!important;
+  }
+}
