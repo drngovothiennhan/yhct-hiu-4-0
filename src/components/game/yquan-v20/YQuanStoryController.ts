@@ -47,7 +47,7 @@ export class YQuanStoryController{
   private bus:GameEventBus;
   private queue:StoryStep[]=[];
   private activeStep:StoryStep|null=null;
-  private currentCase:VisualCase|null=null;
+  currentCase:VisualCase|null=null;
   private previousCase:VisualCase|null=null;
   private stage='RESTING';
   private cameraHint:SceneId='clinic';
