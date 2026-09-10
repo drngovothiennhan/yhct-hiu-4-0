@@ -1,9 +1,10 @@
 -- HIU Y Quán v2: deterministic random appointment offers + replay-safe member decision.
--- Appointment status is educational game state only; it is not a real clinical booking.
+-- Appointment state is part of the educational simulation only; it is not a real clinical booking.
 
 alter table public.hiu_y_quan_cases
   add column if not exists appointment_offered boolean not null default false,
   add column if not exists appointment_status text not null default 'none',
+  add column if not exists appointment_for_at timestamptz,
   add column if not exists appointment_decided_at timestamptz;
 
 alter table public.hiu_y_quan_cases drop constraint if exists hiu_y_quan_cases_appointment_status_check;
@@ -15,14 +16,23 @@ returns boolean language sql immutable set search_path='' as $$
   select ((hashtext(p_member::text||'|'||p_slot::text||'|'||p_ordinal::text||'|appointment')::bigint & 2147483647) % 100) < 45
 $$;
 
+create or replace function private.hiu_y_quan_appointment_time_v2(p_member uuid,p_slot timestamptz,p_ordinal smallint)
+returns timestamptz language sql immutable set search_path='' as $$
+  select (
+    date_trunc('day',p_slot at time zone 'Asia/Ho_Chi_Minh')
+    + (((hashtext(p_member::text||'|'||p_slot::text||'|'||p_ordinal::text||'|appointment-day')::bigint & 2147483647) % 5)+1) * interval '1 day'
+    + (8 + (((hashtext(p_member::text||'|'||p_slot::text||'|'||p_ordinal::text||'|appointment-hour')::bigint & 2147483647) % 9))::integer) * interval '1 hour'
+  ) at time zone 'Asia/Ho_Chi_Minh'
+$$;
+
 create or replace function public.hiu_y_quan_hourly_cases_v2()
 returns table(
   case_key text,patient_age smallint,patient_gender text,vong text,van_am text,van_hoi text,thiet text,
   options jsonb,completed boolean,correct boolean,credits_awarded smallint,
-  appointment_offered boolean,appointment_status text,appointment_decided_at timestamptz
+  appointment_offered boolean,appointment_status text,appointment_for_at timestamptz,appointment_decided_at timestamptz
 )
 language plpgsql security definer set search_path='' as $$
-declare mid uuid:=private.current_member_id(); slot timestamptz:=date_trunc('hour',now()); cnt integer; i integer; seed bigint; picked_code text; key text; offer boolean;
+declare mid uuid:=private.current_member_id(); slot timestamptz:=date_trunc('hour',now()); cnt integer; i integer; seed bigint; picked_code text; key text; offer boolean; appt_at timestamptz;
 begin
   if mid is null or not private.is_approved() then raise exception 'Approved member required'; end if;
   if not exists(select 1 from public.hiu_y_quan_profiles p where p.member_id=mid) then raise exception 'Hãy kích hoạt nhân vật HIU - Y - Quán trước.'; end if;
@@ -30,14 +40,16 @@ begin
   for i in 1..cnt loop
     key:=to_char(slot at time zone 'Asia/Ho_Chi_Minh','YYYYMMDDHH24')||'-'||substr(replace(mid::text,'-',''),1,8)||'-'||i;
     offer:=private.hiu_y_quan_appointment_offer_v2(mid,slot,i::smallint);
+    appt_at:=case when offer then private.hiu_y_quan_appointment_time_v2(mid,slot,i::smallint) else null end;
     if not exists(select 1 from public.hiu_y_quan_cases c where c.member_id=mid and c.case_key=key) then
       seed:=(hashtext(mid::text||slot::text||':'||i)::bigint & 2147483647);
       select s.code into picked_code from private.hiu_y_quan_syndrome_catalog s order by s.code offset (seed % 20)::integer limit 1;
-      insert into public.hiu_y_quan_cases(member_id,case_key,hour_slot,ordinal,syndrome_code,patient_age,patient_gender,appointment_offered,appointment_status)
-      values(mid,key,slot,i,picked_code,(6+((seed/20)%77))::smallint,case when ((seed/1540)%2)=0 then 'female' else 'male' end,offer,case when offer then 'pending' else 'none' end);
+      insert into public.hiu_y_quan_cases(member_id,case_key,hour_slot,ordinal,syndrome_code,patient_age,patient_gender,appointment_offered,appointment_status,appointment_for_at)
+      values(mid,key,slot,i,picked_code,(6+((seed/20)%77))::smallint,case when ((seed/1540)%2)=0 then 'female' else 'male' end,offer,case when offer then 'pending' else 'none' end,appt_at);
     else
       update public.hiu_y_quan_cases c
       set appointment_offered=offer,
+          appointment_for_at=case when offer then coalesce(c.appointment_for_at,appt_at) else null end,
           appointment_status=case when offer and c.appointment_status='none' then 'pending' when not offer and c.appointment_status='pending' then 'none' else c.appointment_status end
       where c.member_id=mid and c.case_key=key;
     end if;
@@ -51,7 +63,7 @@ begin
       order by rank_no limit 4
     ) z) as options,
     (a.id is not null),coalesce(a.correct,false),coalesce(a.credits_awarded,0),
-    c.appointment_offered,c.appointment_status,c.appointment_decided_at
+    c.appointment_offered,c.appointment_status,c.appointment_for_at,c.appointment_decided_at
   from public.hiu_y_quan_cases c
   join private.hiu_y_quan_syndrome_catalog s on s.code=c.syndrome_code
   left join public.hiu_y_quan_attempts a on a.member_id=mid and a.case_id=c.id
@@ -61,17 +73,17 @@ end $$;
 
 create or replace function public.hiu_y_quan_appointment_decide_v2(p_case_key text,p_accept boolean)
 returns jsonb language plpgsql security definer set search_path='' as $$
-declare mid uuid:=private.current_member_id(); c public.hiu_y_quan_cases%rowtype; next_status text;
+declare mid uuid:=private.current_member_id(); c public.hiu_y_quan_cases%rowtype; next_status text; decided timestamptz:=now();
 begin
   if mid is null or not private.is_approved() then raise exception 'Approved member required'; end if;
   select * into c from public.hiu_y_quan_cases where member_id=mid and case_key=btrim(coalesce(p_case_key,'')) for update;
   if c.id is null then raise exception 'Ca bệnh không tồn tại.'; end if;
   if not c.appointment_offered then return jsonb_build_object('ok',false,'reason','not_offered','status',c.appointment_status); end if;
-  if c.appointment_status in ('accepted','declined') then return jsonb_build_object('ok',true,'already_decided',true,'status',c.appointment_status,'decided_at',c.appointment_decided_at); end if;
+  if c.appointment_status in ('accepted','declined') then return jsonb_build_object('ok',true,'already_decided',true,'status',c.appointment_status,'appointment_for_at',c.appointment_for_at,'decided_at',c.appointment_decided_at); end if;
   next_status:=case when coalesce(p_accept,false) then 'accepted' else 'declined' end;
-  update public.hiu_y_quan_cases set appointment_status=next_status,appointment_decided_at=now() where id=c.id;
-  perform private.audit_event('hiu_y_quan.appointment_decide','hiu_y_quan_case',c.id::text,'info',jsonb_build_object('status',next_status));
-  return jsonb_build_object('ok',true,'already_decided',false,'status',next_status,'decided_at',now());
+  update public.hiu_y_quan_cases set appointment_status=next_status,appointment_decided_at=decided where id=c.id;
+  perform private.audit_event('hiu_y_quan.appointment_decide','hiu_y_quan_case',c.id::text,'info',jsonb_build_object('status',next_status,'appointment_for_at',c.appointment_for_at));
+  return jsonb_build_object('ok',true,'already_decided',false,'status',next_status,'appointment_for_at',c.appointment_for_at,'decided_at',decided);
 end $$;
 
 revoke all on function public.hiu_y_quan_hourly_cases_v2() from public,anon;

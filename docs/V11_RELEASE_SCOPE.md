@@ -1,0 +1,1 @@
+Release scope: desktop-on-phone game height repair; deterministic simulated appointment decisions; Drive DOCX ingestion and reviewed daily practice. No changes to clinical use, real appointment systems, existing Exam v2 scoring, or Gia Vien credit awards.

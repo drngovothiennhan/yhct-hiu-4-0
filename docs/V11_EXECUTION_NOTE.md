@@ -1,0 +1,1 @@
+V11 keeps Exam v2 and Gia Vien credit rules unchanged. HIU Y Quan appointment decisions are isolated game state. Drive ingestion is bounded, admin-only and source-traceable; student daily practice reads only approved Supabase questions.
