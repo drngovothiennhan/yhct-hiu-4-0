@@ -1,11 +1,10 @@
 import {useEffect,useMemo,useState} from 'react';
-import {BookOpenCheck,CheckCircle2,CloudCog,Database,ExternalLink,FileCheck2,RefreshCw,ShieldCheck,XCircle} from 'lucide-react';
+import {BookOpenCheck,CheckCircle2,CloudCog,Database,FileCheck2,RefreshCw,ShieldCheck,XCircle} from 'lucide-react';
 import {readCachedMember} from '../../services/authService';
 import {roleAtLeast} from '../../types';
 import {answerDailyPractice,getDailyPracticeConfig,getPracticeReviewQueue,getTodayDailyPractice,reviewPracticeQuestion,syncDriveQuizBank,type DailyPracticeAnswer,type DailyPracticeConfig,type DailyPracticeSession,type DriveSyncRow,type PracticeReviewQuestion} from '../../services/dailyPracticeService';
 import '../../daily-drive-practice.css';
 
-const DRIVE_FOLDER_URL='https://drive.google.com/drive/folders/1_VvupTkvHvWKLLehVQt_JNA15qfKnIvO';
 const SOURCE_FOLDER='NGÂN HÀNG TRẮC NGHIỆM / 00_DOCX_MỚI_CHỜ_XỬ_LÝ';
 
 export default function DailyDrivePractice(){
@@ -26,9 +25,9 @@ export default function DailyDrivePractice(){
   const reviewOne=async(q:PracticeReviewQuestion,status:'expert_approved'|'rejected')=>{if(!canModerate||busy)return;setBusy(true);setMsg('');try{await reviewPracticeQuestion(q.id,status);setReview(rows=>rows.filter(x=>x.id!==q.id));setMsg(status==='expert_approved'?'Đã duyệt: câu hỏi có thể vào bộ luyện hằng ngày.':'Đã loại câu hỏi khỏi ngân hàng sử dụng.');await refreshConfig()}catch(e){setMsg((e as Error).message)}finally{setBusy(false)}};
 
   return <section className="daily-drive panel" aria-label="Luyện tập hằng ngày từ Google Drive">
-    <header className="daily-drive__head"><div><span className="daily-drive__kicker"><BookOpenCheck/> DAILY PRACTICE · DRIVE</span><h2>Luyện 10 câu mỗi ngày</h2><p>DOCX được chuẩn hóa thành ngân hàng câu hỏi có nguồn; bộ hôm nay ưu tiên câu chưa gặp hoặc từng làm sai.</p></div><div className="daily-drive__head-actions"><a href={DRIVE_FOLDER_URL} target="_blank" rel="noreferrer"><ExternalLink/>Mở kho Drive</a>{canSync&&<button disabled={busy} onClick={()=>void syncDrive()}><CloudCog/>{busy?'Đang đồng bộ…':'Đồng bộ DOCX'}</button>}</div></header>
+    <header className="daily-drive__head"><div><span className="daily-drive__kicker"><BookOpenCheck/> DAILY PRACTICE · DRIVE</span><h2>Luyện 10 câu mỗi ngày</h2><p>DOCX được chuẩn hóa thành ngân hàng câu hỏi có nguồn; bộ hôm nay ưu tiên câu chưa gặp hoặc từng làm sai.</p></div><div className="daily-drive__head-actions">{canSync&&<button disabled={busy} onClick={()=>void syncDrive()}><CloudCog/>{busy?'Đang đồng bộ…':'Đồng bộ DOCX'}</button>}</div></header>
     <div className="daily-drive__stats"><span><Database/><small>Sẵn sàng</small><b>{config?.eligibleCount??'…'} câu</b></span><span><ShieldCheck/><small>Chờ duyệt</small><b>{config?.needsReviewCount??'…'} câu</b></span><span><FileCheck2/><small>Nguồn đọc</small><b>DOCX</b></span></div>
-    <div className="daily-drive__source"><b>{SOURCE_FOLDER}</b><span>Parser đọc câu/đáp án có sẵn trước; tài liệu bài học mới dùng A.I để sinh câu và luôn phải duyệt trước khi sinh viên nhận.</span></div>
+    <div className="daily-drive__source"><b>{SOURCE_FOLDER}</b><span>Kho Drive được truy cập qua dịch vụ máy chủ; đường dẫn thư mục không được công khai trong mã ứng dụng. Parser đọc câu/đáp án có sẵn trước; tài liệu bài học mới dùng A.I để sinh câu và luôn phải duyệt trước khi sinh viên nhận.</span></div>
     {msg&&<div className="daily-drive__message" role="status">{msg}</div>}
     {syncSummary&&<div className="daily-drive__sync-summary"><RefreshCw/>{syncSummary}</div>}
 
