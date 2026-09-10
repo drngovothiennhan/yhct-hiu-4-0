@@ -17,9 +17,10 @@ jobs:
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_TEAM_ID: team_zMTBj85c4Dh5QoDNIjWqQRTg
+      VERCEL_PROJECT_ID: prj_7DWP3LX30CFALUD1KoNeOR8NlpsQ
       VERCEL_PROJECT_NAME: yhct-hiu-final4-stage
       PROD_ALIAS: yhct-hiu-final4-stage.vercel.app
-      KEEP_IDS: dpl_B8PmeuGRnf7NCcisSWFuorMjSdsx,dpl_Hv1WzTecbvHQvC7NRvJJpGMXqYYC,dpl_FKq7ZE6Avk1zNY9wMnBzJaix9wQV
+      KEEP_ACTIVITY_IDS: dpl_Hv1WzTecbvHQvC7NRvJJpGMXqYYC,dpl_FKq7ZE6Avk1zNY9wMnBzJaix9wQV
     steps:
       - name: Require Vercel credential
         shell: bash
@@ -31,9 +32,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          alias_json="$(mktemp)"
+          alias_code="$(curl --silent --show-error --output "$alias_json" --write-out '%{http_code}' --header "Authorization: Bearer ${VERCEL_TOKEN}" "https://api.vercel.com/v4/aliases/${PROD_ALIAS}?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_TEAM_ID}")"
+          if [[ "$alias_code" != "200" ]]; then
+            echo "Unable to resolve live production alias; aborting cleanup. HTTP ${alias_code}"
+            cat "$alias_json"
+            exit 79
+          fi
+          live_id="$(node -e "const fs=require('fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));if(!b.deploymentId)process.exit(2);process.stdout.write(b.deploymentId)" "$alias_json")"
+          rm -f "$alias_json"
+          echo "Protected live production deployment: ${live_id}"
+
           candidates=(
-            dpl_CToXEQsbA4WG2VgYG25UP24pM6cY
-            dpl_2e9bzLRe1hpPJdaYoQGcV5aGKaSS
             dpl_FDKWeDwPwhaJvviZyJKbV2tTEY3J
             dpl_DTQA4rTiP8u95VrbnTdd2P2mwyUe
             dpl_CxRaT4bFdJesE65fsoDv75gXbFTh
@@ -51,7 +61,7 @@ jobs:
           : > /tmp/cleanup-summary.txt
 
           for id in "${candidates[@]}"; do
-            if [[ ",${KEEP_IDS}," == *",${id},"* ]]; then
+            if [[ "$id" == "$live_id" || ",${KEEP_ACTIVITY_IDS}," == *",${id},"* ]]; then
               echo "SKIP protected ${id}" | tee -a /tmp/cleanup-summary.txt
               skipped=$((skipped+1))
               continue
@@ -59,7 +69,6 @@ jobs:
 
             info="$(mktemp)"
             code="$(curl --silent --show-error --output "$info" --write-out '%{http_code}' --header "Authorization: Bearer ${VERCEL_TOKEN}" "https://api.vercel.com/v13/deployments/${id}?teamId=${VERCEL_TEAM_ID}")"
-
             if [[ "$code" == "404" ]]; then
               echo "SKIP missing ${id}" | tee -a /tmp/cleanup-summary.txt
               rm -f "$info"
@@ -67,16 +76,14 @@ jobs:
               continue
             fi
             if [[ "$code" != "200" ]]; then
-              detail="$(node -e "const fs=require('fs');try{const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(String(b?.error?.message||b?.error?.code||'lookup failed').slice(0,240))}catch{process.stdout.write('lookup failed')}" "$info")"
-              echo "FAIL lookup ${id}: HTTP ${code} ${detail}" | tee -a /tmp/cleanup-summary.txt
+              echo "FAIL lookup ${id}: HTTP ${code}" | tee -a /tmp/cleanup-summary.txt
               rm -f "$info"
               failed=$((failed+1))
               continue
             fi
 
-            verdict="$(node -e "const fs=require('fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const expected=process.argv[2],prod=process.argv[3];const aliases=Array.isArray(b.alias)?b.alias:[];process.stdout.write(b.name!==expected?'wrong-project':aliases.includes(prod)?'production-alias':(b.target&&b.target!=='production')?'non-production-target':'ok')" "$info" "$VERCEL_PROJECT_NAME" "$PROD_ALIAS")"
+            verdict="$(node -e "const fs=require('fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const expectedName=process.argv[2],expectedProject=process.argv[3];const projectId=b?.project?.id||b?.projectId||'';process.stdout.write(b.name!==expectedName?'wrong-project-name':(projectId&&projectId!==expectedProject)?'wrong-project-id':'ok')" "$info" "$VERCEL_PROJECT_NAME" "$VERCEL_PROJECT_ID")"
             rm -f "$info"
-
             if [[ "$verdict" != "ok" ]]; then
               echo "SKIP ${id}: ${verdict}" | tee -a /tmp/cleanup-summary.txt
               skipped=$((skipped+1))
