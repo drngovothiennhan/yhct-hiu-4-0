@@ -1,0 +1,224 @@
+/* HIU Y QUAN V20 — mobile typography and patient visual consistency.
+   Loaded immediately before yquan-v20-unified.css; selectors intentionally outrank
+   generic mobile button/card rules while the canonical V20 stylesheet remains last. */
+
+.hyq-v20-host{
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+}
+
+/* Engagement navigation: never inherit full-card sizing from the application shell. */
+.hyq-v20-host .hyq-v15-tabs{
+  min-height:0!important;
+  height:auto!important;
+  align-items:stretch!important;
+}
+.hyq-v20-host .hyq-v15-tabs>button{
+  box-sizing:border-box!important;
+  width:auto!important;
+  height:auto!important;
+  min-height:52px!important;
+  max-height:66px!important;
+  aspect-ratio:auto!important;
+  margin:0!important;
+  padding:8px 10px!important;
+  align-content:center!important;
+  align-items:start!important;
+  justify-content:center!important;
+  gap:3px!important;
+  line-height:1.2!important;
+  overflow:hidden!important;
+}
+.hyq-v20-host .hyq-v15-tabs>button b{
+  display:block!important;
+  margin:0!important;
+  font-size:12px!important;
+  line-height:1.22!important;
+  font-weight:800!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+  text-wrap:balance;
+}
+.hyq-v20-host .hyq-v15-tabs>button small{
+  display:block!important;
+  margin:0!important;
+  font-size:9px!important;
+  line-height:1.25!important;
+  white-space:normal!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  overflow-wrap:anywhere!important;
+}
+
+/* Main clinic reading scale: readable on a phone without making each card oversized. */
+.hyq-v20-host .hyq-v20-patient-title{
+  min-width:0;
+  gap:9px;
+}
+.hyq-v20-host .hyq-v20-patient-title>div{min-width:0}
+.hyq-v20-host .hyq-v20-patient-title b{
+  font-size:clamp(15px,4.1vw,18px)!important;
+  line-height:1.25!important;
+  overflow-wrap:anywhere;
+}
+.hyq-v20-host .hyq-v20-patient-title small{
+  font-size:clamp(10px,2.8vw,12px)!important;
+  line-height:1.35!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+}
+.hyq-v20-host .hyq-v20-four-exams article{
+  min-height:0!important;
+  height:auto!important;
+  padding:10px 11px!important;
+}
+.hyq-v20-host .hyq-v20-four-exams b{
+  font-size:clamp(10px,2.7vw,11px)!important;
+  line-height:1.2!important;
+}
+.hyq-v20-host .hyq-v20-four-exams p{
+  margin-top:5px!important;
+  font-size:clamp(12px,3.45vw,14px)!important;
+  line-height:1.48!important;
+  overflow-wrap:anywhere!important;
+}
+.hyq-v20-host .hyq-v20-diagnosis>header b,
+.hyq-v20-host .hyq-v20-disposition b,
+.hyq-v20-host .hyq-v20-recheck b,
+.hyq-v20-host .hyq-v20-appointment b{
+  font-size:clamp(12px,3.4vw,14px)!important;
+  line-height:1.28!important;
+}
+.hyq-v20-host .hyq-v20-diagnosis small,
+.hyq-v20-host .hyq-v20-disposition small,
+.hyq-v20-host .hyq-v20-recheck small,
+.hyq-v20-host .hyq-v20-appointment small{
+  font-size:clamp(9px,2.6vw,11px)!important;
+  line-height:1.35!important;
+}
+.hyq-v20-host .hyq-v20-options button,
+.hyq-v20-host .hyq-v20-primary,
+.hyq-v20-host .hyq-v20-disposition button,
+.hyq-v20-host .hyq-v20-appointment button,
+.hyq-v20-host .hyq-v20-recheck button{
+  height:auto!important;
+  min-height:40px!important;
+  max-height:none!important;
+  padding:8px 10px!important;
+  font-size:12px!important;
+  line-height:1.3!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+}
+
+/* Secondary ward occupants follow the same current V20 rounded character language
+   instead of the old floating head placeholder. Active patients continue to use
+   the canonical PatientSprite with its age/gender/variant state. */
+.hyq-v20-host .hyq-v20-bed .bed-occupant{
+  left:58px!important;
+  top:56px!important;
+  width:104px!important;
+  height:88px!important;
+  z-index:4;
+  transform:rotate(-5deg);
+  transform-origin:50% 50%;
+  pointer-events:none;
+}
+.hyq-v20-host .hyq-v20-bed .bed-occupant::before{
+  content:"";
+  position:absolute;
+  left:36px;
+  top:39px;
+  width:58px;
+  height:42px;
+  border:4px solid #4d3028;
+  border-radius:28px 24px 18px 20px;
+  background:#6f8f83;
+  box-shadow:inset 0 0 0 3px rgba(255,255,255,.12);
+}
+.hyq-v20-host .hyq-v20-bed .occupant-head{
+  left:4px!important;
+  top:9px!important;
+  width:48px!important;
+  height:45px!important;
+  border:4px solid #4d3028!important;
+  background:#ffd8bd!important;
+  box-shadow:0 3px 5px rgba(55,38,30,.12);
+}
+.hyq-v20-host .hyq-v20-bed .occupant-hair{
+  left:5px!important;
+  top:7px!important;
+  width:48px!important;
+  height:24px!important;
+  border:0!important;
+  border-radius:28px 28px 10px 10px!important;
+  background:#6a3c2b!important;
+}
+.hyq-v20-host .hyq-v20-bed .occupant-head::before,
+.hyq-v20-host .hyq-v20-bed .occupant-head::after{
+  content:"";
+  position:absolute;
+  top:17px;
+  width:5px;
+  height:7px;
+  border-radius:50%;
+  background:#46251e;
+}
+.hyq-v20-host .hyq-v20-bed .occupant-head::before{left:10px}
+.hyq-v20-host .hyq-v20-bed .occupant-head::after{right:10px}
+
+@media(max-width:760px){
+  .hyq-v20-host .hyq-v15{
+    gap:10px!important;
+    padding:10px!important;
+  }
+  .hyq-v20-host .hyq-v15-tabs{
+    display:grid!important;
+    grid-template-columns:none!important;
+    grid-template-rows:1fr!important;
+    grid-auto-flow:column!important;
+    grid-auto-columns:minmax(118px,132px)!important;
+    gap:8px!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    overscroll-behavior-x:contain;
+    scroll-snap-type:x proximity;
+    padding:2px 2px 6px!important;
+    scrollbar-width:none;
+  }
+  .hyq-v20-host .hyq-v15-tabs::-webkit-scrollbar{display:none}
+  .hyq-v20-host .hyq-v15-tabs>button{
+    min-width:118px!important;
+    max-width:132px!important;
+    min-height:54px!important;
+    max-height:64px!important;
+    flex:none!important;
+    scroll-snap-align:start;
+  }
+  .hyq-v20-host .hyq-v15-panel{
+    min-height:0!important;
+    height:auto!important;
+    padding:10px!important;
+  }
+  .hyq-v20-host .hyq-v20-case-panel{padding:12px!important}
+  .hyq-v20-host .hyq-v20-four-exams{gap:7px!important;margin:10px 0!important}
+  .hyq-v20-host .hyq-v20-four-exams article{border-radius:11px!important}
+}
+
+@media(max-width:420px){
+  .hyq-v20-host .hyq-v15-tabs{
+    grid-auto-columns:minmax(112px,126px)!important;
+  }
+  .hyq-v20-host .hyq-v15-tabs>button{
+    min-width:112px!important;
+    max-width:126px!important;
+    padding:7px 8px!important;
+  }
+  .hyq-v20-host .hyq-v15-tabs>button b{font-size:11px!important}
+  .hyq-v20-host .hyq-v15-tabs>button small{font-size:8.5px!important}
+  .hyq-v20-host .hyq-v20-four-exams p{font-size:13px!important}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .hyq-v20-host .hyq-v15-tabs{scroll-behavior:auto!important}
+}

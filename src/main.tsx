@@ -36,6 +36,7 @@ import './garden-community-v13.css';
 import './yquan-v15-engagement.css';
 import './yquan-v20-game-engine.css';
 import './yquan-v20-1-character-acting.css';
+import './yquan-v20-mobile-typography.css';
 import './yquan-v20-unified.css';
 
 bootstrapThemeState();
