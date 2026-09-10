@@ -1,4 +1,4 @@
-const DEFAULT_GEMINI_MODEL='gemini-2.5-flash-lite';
+const DEFAULT_GEMINI_MODEL='gemini-3.5-flash-lite';
 const MAX_ERROR_TEXT=180;
 
 const clean=(value,max=2000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
