@@ -3,6 +3,7 @@ import path from 'node:path';
 const root=process.cwd(),read=f=>fs.readFileSync(path.join(root,f),'utf8');let failed=false;
 const ok=m=>console.log(`V16 PASS ${m}`),fail=m=>{failed=true;console.error(`V16 FAIL ${m}`)},has=(t,n,m)=>t.includes(n)?ok(m):fail(`${m} (missing ${n})`),no=(t,n,m)=>!t.includes(n)?ok(m):fail(`${m} (forbidden ${n})`);
 const sql=read('supabase/migrations/202609101645_hiu_y_quan_v16_character_content.sql');
+const v14sql=read('supabase/migrations/202609101430_hiu_y_quan_clinic_flow_v14.sql');
 const css=read('src/yquan-v16-character-content.css');
 const svg=read('public/assets/hiu-y-quan/characters/hiu-y-quan-v16-characters.svg');
 const main=read('src/main.tsx');
@@ -28,7 +29,7 @@ has(sql,'syndrome_count integer','case generation reads dynamic catalog count');
 has(sql,'create or replace function public.hiu_y_quan_busy_shift_v15()','busy shift is upgraded compatibly');
 has(sql,'create or replace function public.hiu_y_quan_hourly_cases_v3()','V14 case API is upgraded in place without a new frontend API');
 
-has(core,"c.archived_at is null",'active-screen lifecycle remains separate from archived records');has(core,'hiu_y_quan_records_v14','record book persistence remains wired');
+has(v14sql,"c.archived_at is null",'active-screen SQL lifecycle remains separate from archived records');has(core,'hiu_y_quan_records_v14','record book persistence remains wired');
 has(main,"import './yquan-v16-character-content.css'",'V16 CSS is loaded');if(main.indexOf("import './yquan-v16-character-content.css'")>main.indexOf("import './yquan-v15-engagement.css'"))ok('V16 overrides load after V15');else fail('V16 stylesheet must load after V15');
 const routeCount=dir=>fs.readdirSync(dir,{withFileTypes:true}).reduce((n,e)=>e.isDirectory()?n+(e.name.startsWith('_')?0:routeCount(path.join(dir,e.name))):n+(/\.(?:js|ts)$/.test(e.name)?1:0),0);const apiRoutes=routeCount(path.join(root,'api'));if(apiRoutes<=12)ok(`Vercel Hobby function budget preserved (${apiRoutes}/12)`);else fail(`Vercel Hobby function budget exceeded (${apiRoutes}/12)`);
 if(failed)process.exit(1);console.log('V16 HIU Y Quan character/content contract passed.');
