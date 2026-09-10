@@ -45,6 +45,8 @@ jobs:
       - run: node scripts/garden-fertilizer-contract-check.mjs
       - name: HIU Y Quan V20 unified contract
         run: node scripts/v20-yquan-unified-contract-check.mjs
+      - name: HIU Y Quan V20 mobile typography and patient visual contract
+        run: node scripts/v20-yquan-mobile-typography-check.mjs
       - name: HIU Y Quan V20 actor runtime playthrough
         run: node scripts/v20-yquan-runtime-playthrough.mjs
       - run: npm audit --omit=dev --audit-level=high
