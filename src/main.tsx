@@ -37,6 +37,7 @@ import './yquan-v11-hotfix.css';
 import './yquan-v12-three-scene.css';
 import './yquan-v13-chibi.css';
 import './garden-community-v13.css';
+import './yquan-v14-clinic-flow.css';
 
 bootstrapThemeState();
 
