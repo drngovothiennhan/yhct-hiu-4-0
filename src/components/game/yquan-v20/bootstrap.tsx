@@ -6,18 +6,27 @@ const roots=new Map<Element,{root:Root;mount:HTMLElement}>();
 let observer:MutationObserver|null=null;
 let started=false;
 
+const unmountShell=(shell:Element)=>{
+  const entry=roots.get(shell);if(!entry)return;
+  try{entry.root.unmount()}catch{/* host may already have removed the mount during React reconciliation */}
+  roots.delete(shell);shell.removeAttribute('data-v20-mounted');
+};
+
 const mountShell=(shell:Element)=>{
-  if(roots.has(shell)||shell.getAttribute('data-v20-mounted')==='1')return;
+  const existing=roots.get(shell);
+  if(existing&&existing.mount.isConnected&&existing.mount.parentElement===shell)return;
+  if(existing)unmountShell(shell);
+  if(shell.getAttribute('data-v20-mounted')==='1')shell.removeAttribute('data-v20-mounted');
   const mount=document.createElement('div');mount.className='hyq-v20-mount';mount.setAttribute('data-engine','HIU_Y_QUAN_V20');shell.appendChild(mount);
   const root=createRoot(mount);root.render(<V20World/>);shell.setAttribute('data-v20-mounted','1');roots.set(shell,{root,mount});
 };
 
 const scan=()=>{
-  document.querySelectorAll('.hyq-world-shell').forEach(mountShell);
   for(const [shell,entry] of roots){
-    if(document.documentElement.contains(shell))continue;
-    entry.root.unmount();roots.delete(shell);
+    if(document.documentElement.contains(shell)&&entry.mount.isConnected&&entry.mount.parentElement===shell)continue;
+    unmountShell(shell);
   }
+  document.querySelectorAll('.hyq-world-shell').forEach(mountShell);
 };
 
 const relevantAction=(target:EventTarget|null)=>{
@@ -39,7 +48,7 @@ export function bootstrapYQuanV20(){
 }
 
 export function disposeYQuanV20(){
-  observer?.disconnect();observer=null;document.removeEventListener('click',onClick,true);for(const {root} of roots.values())root.unmount();roots.clear();started=false;
+  observer?.disconnect();observer=null;document.removeEventListener('click',onClick,true);for(const shell of [...roots.keys()])unmountShell(shell);started=false;
 }
 
 bootstrapYQuanV20();
