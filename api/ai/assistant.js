@@ -1,11 +1,13 @@
 import {cloudAiEnabled,cloudAiModel,memberAccess} from '../_lib/member-access.js';
 import {aiToolsForRole,executeAiTool} from '../_lib/ai-tools.js';
+import {createGeminiJson,geminiAiConfigured,geminiAiModel} from '../_lib/gemini-provider.js';
 import {handleXiaoZhiMini} from '../_lib/xiaozhi-mini-handler.js';
 
 const MAX_QUERY=4000;
 const MAX_SOURCES=6;
 const MAX_SOURCE_TEXT=4200;
 const AI_TIMEOUT_MS=20000;
+const GEMINI_FALLBACK_TIMEOUT_MS=9000;
 const MAX_TOOL_ROUNDS=2;
 const MAX_TOOL_CALLS_PER_ROUND=3;
 const MODES=new Set(['fast','research','exam']);
@@ -72,13 +74,19 @@ const RESPONSE_SCHEMA={
 function providerFailureClass(error){
   const message=String(error?.message||'');
   if(error?.name==='AbortError'||message.includes('timeout'))return'timeout';
-  if(message.includes('OpenAI 401'))return'auth';
-  if(message.includes('OpenAI 403')||message.includes('model_not_found'))return'access';
-  if(message.includes('OpenAI 429'))return message.includes('insufficient_quota')?'quota':'rate_limit';
-  if(/OpenAI 5\d\d/.test(message))return'provider_5xx';
+  if(message.includes('OpenAI 401')||message.includes('Gemini 401'))return'auth';
+  if(message.includes('OpenAI 403')||message.includes('Gemini 403')||message.includes('model_not_found'))return'access';
+  if(message.includes('OpenAI 429')||message.includes('Gemini 429'))return message.includes('insufficient_quota')?'quota':'rate_limit';
+  if(/(?:OpenAI|Gemini) 5\d\d/.test(message))return'provider_5xx';
   if(message.includes('incomplete'))return'incomplete';
   if(message.includes('invalid_response')||message.includes('JSON'))return'invalid_response';
   return'provider_error';
+}
+
+function geminiEligible(mode,sources){
+  if(mode==='fast'||!geminiAiConfigured())return false;
+  const containsPrivateDriveContext=sources.some(source=>source.id.startsWith('drive:'));
+  return !containsPrivateDriveContext||process.env.GEMINI_ALLOW_PRIVATE_CONTEXT==='true';
 }
 
 async function createOpenAiResponse({key,model,input,tools,mode,signal}){
@@ -105,6 +113,17 @@ async function createOpenAiResponse({key,model,input,tools,mode,signal}){
   return payload;
 }
 
+async function runGemini({developer,user,sources,started,res}){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),GEMINI_FALLBACK_TIMEOUT_MS);
+  try{
+    const output=await createGeminiJson({systemInstruction:developer,prompt:user,schema:RESPONSE_SCHEMA,maxOutputTokens:2200,signal:controller.signal});
+    const structured=parseStructured(output.text,sources),latencyMs=Date.now()-started,model=output.model||geminiAiModel();
+    res.setHeader('Server-Timing',`ai;dur=${latencyMs}`);res.setHeader('X-AI-Provider','gemini');res.setHeader('X-AI-Model',model);res.setHeader('X-AI-Tools-Used','0');res.setHeader('X-AI-Degraded','0');
+    console.info(JSON.stringify({event:'ai_gateway',ok:true,provider:'gemini',model,mode:'research-or-exam',sourceCount:sources.length,toolCount:0,latencyMs}));
+    return{...structured,provider:'gemini',degraded:false,latencyMs,toolsUsed:[]};
+  }finally{clearTimeout(timer)}
+}
+
 export default async function handler(req,res){
   if(req.body?.mode==='xiaozhi-mini')return handleXiaoZhiMini(req,res);
   const started=Date.now();
@@ -118,9 +137,8 @@ export default async function handler(req,res){
 
   const query=clean(req.body?.query,MAX_QUERY),mode=MODES.has(req.body?.mode)?req.body.mode:'fast',sources=normalizeSources(req.body?.sources);
   if(query.length<2)return res.status(400).json({error:'Query is required'});
-  const baseFallback=fallback(sources);
-  const key=process.env.OPENAI_API_KEY,model=cloudAiModel();
-  if(!cloudAiEnabled()||!key||!model){res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class','configuration');return res.status(200).json(baseFallback)}
+  const baseFallback=fallback(sources),key=process.env.OPENAI_API_KEY,model=cloudAiModel(),openAiReady=Boolean(cloudAiEnabled()&&key&&model),canGemini=geminiEligible(mode,sources);
+  if(!openAiReady&&!canGemini){res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class','configuration');return res.status(200).json(baseFallback)}
 
   const sourceBlock=sources.length?sources.map(s=>`[${s.id}] ${s.title}\n${s.text}`).join('\n\n'):'(không có nguồn đính kèm)';
   const developer=[
@@ -133,8 +151,13 @@ export default async function handler(req,res){
     'Ưu tiên ngắn gọn, logic, tiếng Việt; nêu rõ giới hạn khi bằng chứng không chắc chắn.'
   ].join(' ');
   const user=`MODE=${mode}\nCÂU HỎI=${query}\nNGUỒN ĐƯỢC PHÉP TRÍCH DẪN:\n${sourceBlock}\nHãy trả về JSON đúng schema sau khi đã dùng tool nếu thực sự cần.`;
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),AI_TIMEOUT_MS);
-  const tools=mode==='fast'?aiToolsForRole(access.role):[],toolsUsed=[];
+
+  if(!openAiReady&&canGemini){
+    try{return res.status(200).json(await runGemini({developer,user,sources,started,res}))}
+    catch(error){const latencyMs=Date.now()-started,failureClass=providerFailureClass(error);res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class',failureClass);console.warn(JSON.stringify({event:'ai_gateway',ok:false,provider:'gemini',model:geminiAiModel(),mode,role:access.role,sourceCount:sources.length,latencyMs,failureClass}));return res.status(200).json({...baseFallback,latencyMs})}
+  }
+
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),AI_TIMEOUT_MS),tools=mode==='fast'?aiToolsForRole(access.role):[],toolsUsed=[];
   let input=[{role:'developer',content:developer},{role:'user',content:user}],payload=null;
   try{
     for(let round=0;round<=MAX_TOOL_ROUNDS;round++){
@@ -155,9 +178,14 @@ export default async function handler(req,res){
     console.info(JSON.stringify({event:'ai_gateway',ok:true,provider:'openai',model,mode,role:access.role,sourceCount:sources.length,toolCount:uniqueTools.length,tools:uniqueTools,latencyMs}));
     return res.status(200).json({...structured,provider:'openai',degraded:false,latencyMs,toolsUsed:uniqueTools});
   }catch(error){
-    const latencyMs=Date.now()-started,failureClass=providerFailureClass(error);
-    res.setHeader('Server-Timing',`ai;dur=${latencyMs}`);res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class',failureClass);
-    console.warn(JSON.stringify({event:'ai_gateway',ok:false,provider:'openai',model,mode,role:access.role,sourceCount:sources.length,toolCount:toolsUsed.length,latencyMs,failureClass}));
+    clearTimeout(timer);
+    const openAiFailure=providerFailureClass(error);
+    if(canGemini&&openAiFailure!=='timeout'){
+      try{return res.status(200).json(await runGemini({developer,user,sources,started,res}))}
+      catch(geminiError){const latencyMs=Date.now()-started,failureClass=`openai_${openAiFailure}+gemini_${providerFailureClass(geminiError)}`;res.setHeader('Server-Timing',`ai;dur=${latencyMs}`);res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class',failureClass);console.warn(JSON.stringify({event:'ai_gateway',ok:false,provider:'multi',model,mode,role:access.role,sourceCount:sources.length,toolCount:toolsUsed.length,latencyMs,failureClass}));return res.status(200).json({...baseFallback,latencyMs,toolsUsed:[...new Set(toolsUsed)]})}
+    }
+    const latencyMs=Date.now()-started;res.setHeader('Server-Timing',`ai;dur=${latencyMs}`);res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class',openAiFailure);
+    console.warn(JSON.stringify({event:'ai_gateway',ok:false,provider:'openai',model,mode,role:access.role,sourceCount:sources.length,toolCount:toolsUsed.length,latencyMs,failureClass:openAiFailure}));
     return res.status(200).json({...baseFallback,latencyMs,toolsUsed:[...new Set(toolsUsed)]});
   }finally{clearTimeout(timer)}
 }
