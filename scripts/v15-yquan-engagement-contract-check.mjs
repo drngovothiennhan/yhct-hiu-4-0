@@ -22,7 +22,8 @@ has(sql,"'diagnose','label','Chẩn đúng 2 ca'",'daily diagnosis mission exist
 has(sql,"'discharge','label','Hoàn tất 1 ca Dưỡng Trị'",'daily discharge mission exists');
 has(sql,"'herb','label','Thử thách Tủ thuốc đạt 3 câu đúng'",'daily herb mission exists');
 has(sql,"xp=least(xp+25",'daily completion awards 25 XP');
-has(sql,"on conflict do nothing; get diagnostics inserted=row_count",'daily/busy reward paths are idempotent');
+has(sql,'on conflict do nothing','idempotent inserts use conflict-safe writes');
+has(sql,'get diagnostics inserted=row_count','idempotent paths branch on actual insert result');
 has(sql,"check (ordinal between 1 and 3)",'case ordinal expands compatibly to optional third patient');
 has(sql,"ordinal=3",'busy shift targets only the third hourly slot');
 has(sql,"on conflict do nothing",'busy shift cannot duplicate a third case');
