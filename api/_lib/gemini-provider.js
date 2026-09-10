@@ -1,10 +1,16 @@
 const DEFAULT_GEMINI_MODEL='gemini-3.5-flash-lite';
+const DEFAULT_GEMINI_RESEARCH_MODEL='gemini-3.5-flash';
 const MAX_ERROR_TEXT=180;
 
 const clean=(value,max=2000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 export const geminiAiEnabled=()=>process.env.ENABLE_GEMINI_AI==='true';
-export const geminiAiModel=()=>String(process.env.GEMINI_MODEL||DEFAULT_GEMINI_MODEL).trim();
-export const geminiAiConfigured=()=>Boolean(geminiAiEnabled()&&process.env.GEMINI_API_KEY&&geminiAiModel());
+export const geminiAiModel=(mode='default')=>{
+  const configured=mode==='research'
+    ?process.env.GEMINI_RESEARCH_MODEL||process.env.GEMINI_MODEL||DEFAULT_GEMINI_RESEARCH_MODEL
+    :process.env.GEMINI_MODEL||DEFAULT_GEMINI_MODEL;
+  return String(configured).trim();
+};
+export const geminiAiConfigured=(mode='default')=>Boolean(geminiAiEnabled()&&process.env.GEMINI_API_KEY&&geminiAiModel(mode));
 
 function extractText(payload){
   const parts=[];
@@ -14,9 +20,9 @@ function extractText(payload){
   return parts.join('').trim();
 }
 
-async function requestGemini(body,signal){
-  if(!geminiAiConfigured())throw new Error('Gemini configuration missing');
-  const model=geminiAiModel(),key=process.env.GEMINI_API_KEY;
+async function requestGemini(body,signal,mode='default'){
+  if(!geminiAiConfigured(mode))throw new Error('Gemini configuration missing');
+  const model=geminiAiModel(mode),key=process.env.GEMINI_API_KEY;
   const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{
     method:'POST',signal,
     headers:{'Content-Type':'application/json','x-goog-api-key':key},
@@ -31,25 +37,25 @@ async function requestGemini(body,signal){
   return{text,model};
 }
 
-export async function createGeminiJson({systemInstruction,prompt,schema,maxOutputTokens=1800,signal}){
+export async function createGeminiJson({systemInstruction,prompt,schema,maxOutputTokens=1800,signal,mode='default'}){
   const body={
     system_instruction:{parts:[{text:clean(systemInstruction,8000)}]},
     contents:[{role:'user',parts:[{text:clean(prompt,24000)}]}],
     generationConfig:{
-      temperature:.2,
-      maxOutputTokens:Math.max(256,Math.min(Number(maxOutputTokens)||1800,4000)),
+      temperature:mode==='research'?.18:.2,
+      maxOutputTokens:Math.max(256,Math.min(Number(maxOutputTokens)||1800,5000)),
       responseMimeType:'application/json',
       responseJsonSchema:schema
     }
   };
-  return requestGemini(body,signal);
+  return requestGemini(body,signal,mode);
 }
 
-export async function createGeminiText({systemInstruction,prompt,maxOutputTokens=1100,signal}){
+export async function createGeminiText({systemInstruction,prompt,maxOutputTokens=1100,signal,mode='default'}){
   const body={
     system_instruction:{parts:[{text:clean(systemInstruction,8000)}]},
-    contents:[{role:'user',parts:[{text:clean(prompt,16000)}]}],
-    generationConfig:{temperature:.35,maxOutputTokens:Math.max(128,Math.min(Number(maxOutputTokens)||1100,3000))}
+    contents:[{role:'user',parts:[{text:clean(prompt,20000)}]}],
+    generationConfig:{temperature:mode==='research'?.25:.35,maxOutputTokens:Math.max(128,Math.min(Number(maxOutputTokens)||1100,4000))}
   };
-  return requestGemini(body,signal);
+  return requestGemini(body,signal,mode);
 }
