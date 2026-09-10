@@ -15,6 +15,6 @@ export async function getPracticeReviewQueue(limit=5):Promise<PracticeReviewQues
 export async function reviewPracticeQuestion(questionId:string,status:'expert_approved'|'rejected'){const {data,error}=await supabase.rpc('practice_question_review_v1',{p_question_id:questionId,p_status:status});if(error)throw error;return data}
 export async function syncDriveQuizBank(maxFiles=3,allowAi=true):Promise<DriveSyncResult>{
   const {data:{session}}=await supabase.auth.getSession();if(!session?.access_token)throw new Error('Vui lòng đăng nhập lại để đồng bộ Drive.');
-  const response=await fetch('/api/ai/quiz-drive-sync',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${session.access_token}`},body:JSON.stringify({maxFiles:Math.max(1,Math.min(5,Math.trunc(maxFiles)||3)),allowAi})});
+  const response=await fetch('/api/ai/drive-rag',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${session.access_token}`},body:JSON.stringify({action:'quiz-sync',maxFiles:Math.max(1,Math.min(5,Math.trunc(maxFiles)||3)),allowAi})});
   const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(String(payload.error||`Drive sync ${response.status}`));return payload as DriveSyncResult;
 }
