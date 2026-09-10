@@ -39,6 +39,7 @@ import './yquan-v13-chibi.css';
 import './garden-community-v13.css';
 import './yquan-v14-clinic-flow.css';
 import './yquan-v15-engagement.css';
+import './yquan-v16-character-content.css';
 
 bootstrapThemeState();
 
