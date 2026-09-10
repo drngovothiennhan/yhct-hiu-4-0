@@ -3,6 +3,7 @@ import {Leaf,Stethoscope} from 'lucide-react';
 import type {Member} from '../../types';
 import HerbGardenGameV7 from './HerbGardenGameV7';
 import HiuYQuanGame from './HiuYQuanGame';
+import HiuYQuanEngagementV15 from './HiuYQuanEngagementV15';
 import '../../garden-sky-v8.css';
 
 // Stable module contract retained for the global acceptance gate. The production
@@ -21,6 +22,7 @@ export const GARDEN_GAME_CONTRACT={
 
 export default function HerbGardenGame({member}:{member:Member}){
   const [mode,setMode]=useState<'garden'|'clinic'>('garden');
+  const [clinicRefreshKey,setClinicRefreshKey]=useState(0);
 
   return <div className="garden-game-hub" data-mode={mode}>
     <div className="garden-game-switcher" role="tablist" aria-label="Game YHCT">
@@ -41,6 +43,6 @@ export default function HerbGardenGame({member}:{member:Member}){
         <span className="garden-pan-tip">Cảnh quan cố định · kéo riêng khối 9 ô để xem vườn</span>
         <HerbGardenGameV7 member={member}/>
       </div>
-    </div>:<HiuYQuanGame member={member}/>} 
+    </div>:<div className="hyq-v15-host"><HiuYQuanGame key={clinicRefreshKey} member={member}/><HiuYQuanEngagementV15 member={member} onClinicRefresh={()=>setClinicRefreshKey(value=>value+1)}/></div>}
   </div>;
 }
