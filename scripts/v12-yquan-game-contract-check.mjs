@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import path from 'node:path';
+const root=process.cwd(),read=f=>fs.readFileSync(path.join(root,f),'utf8');let failed=false;
+const ok=m=>console.log(`V12 PASS ${m}`),fail=m=>{failed=true;console.error(`V12 FAIL ${m}`)},has=(t,n,m)=>t.includes(n)?ok(m):fail(`${m} (missing ${n})`),no=(t,n,m)=>!t.includes(n)?ok(m):fail(`${m} (forbidden ${n})`);
+const game=read('src/components/game/HiuYQuanGame.tsx'),css=read('src/yquan-v12-three-scene.css'),main=read('src/main.tsx');
+has(game,"type ClinicScene='consult'|'ward'|'lab'",'scene state machine declares all three clinic contexts');
+has(game,'hyq-room--consult','consultation room is rendered');has(game,'hyq-room--ward','independent treatment-bed room is rendered');has(game,'hyq-room--lab','herbal preparation room is rendered');
+has(game,'hyq-bed-patient','treatment scene supports a lying patient');has(game,'hyq-mortar','herbal preparation scene has mortar activity');has(game,'hyq-herb-kettle','herbal preparation scene has kettle activity');
+has(game,'waitingCount>0','waiting patients pull doctor back to consultation');has(game,"Date.now()+6500",'post-case treatment beat is time bounded');has(game,'setIdleScene','idle doctor patrols clinic scenes');has(game,'sceneOrder','idle patrol uses deterministic scene order');
+has(game,'hiu_y_quan_hourly_cases_v2','V11 appointment-aware case RPC remains intact');has(game,'hiu_y_quan_submit_v1','authoritative diagnosis RPC remains intact');has(game,'hiu_y_quan_appointment_decide_v2','appointment decision RPC remains intact');
+has(css,'grid-template-rows:max-content','game root is content-sized');has(css,'height:max-content!important','game avoids parent stretch');has(css,'.hyq-world{','bounded clinic world exists');has(css,'height:420px!important','desktop world has bounded height');has(css,'html[data-desktop-on-phone="true"]','desktop-on-phone has explicit anti-stretch guard');has(css,'@media(prefers-reduced-motion:reduce)','motion accessibility fallback exists');no(css,'100vh','game CSS does not use viewport-height stretching');no(css,'100dvh','game CSS does not use dynamic viewport-height stretching');
+has(main,"import './yquan-v12-three-scene.css'",'V12 override loads after legacy game styles');
+const routeCount=(dir)=>fs.readdirSync(dir,{withFileTypes:true}).reduce((n,e)=>e.isDirectory()?n+(e.name.startsWith('_')?0:routeCount(path.join(dir,e.name))):n+(/\.(?:js|ts)$/.test(e.name)?1:0),0),apiRoutes=routeCount(path.join(root,'api'));if(apiRoutes<=12)ok(`Vercel Hobby function budget preserved (${apiRoutes}/12)`);else fail(`Vercel Hobby function budget exceeded (${apiRoutes}/12)`);
+if(failed)process.exit(1);console.log('V12 HIU Y Quan game contract passed.');
