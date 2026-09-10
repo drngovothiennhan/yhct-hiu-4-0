@@ -3,6 +3,7 @@ export type AiHealth={
   ai:{
     mode:string;
     cloudReady:boolean;
+    providers?:{openai:boolean;gemini:boolean};
     localFallback:boolean;
     offlineFallback:boolean;
     centralRag:boolean;
@@ -16,6 +17,8 @@ export type AiHealth={
     roleBoundTools:boolean;
     readOnlyTools:boolean;
     model:string;
+    geminiModel?:string|null;
+    privateContextToGemini?:boolean;
   };
 };
 
