@@ -10,7 +10,7 @@ import '../../xiaozhi-mini.css';
 
 // Release-contract compatibility label only; academic questions now answer in-place via askAcademicUnified: Học thuật → Trung tâm nghiên cứu
 
-type Message={id:string;role:'user'|'assistant';text:string;sources?:XiaoZhiSource[]};
+type Message={id:string;role:'user'|'assistant';text:string;sources?:XiaoZhiSource[];suggestedQueries?:string[];academic?:boolean};
 type Point={x:number;y:number};
 type OrbDrag={id:number;startX:number;startY:number;origin:Point;moved:boolean}|null;
 type AiOpenDetail={query?:string;context?:string};
@@ -25,6 +25,10 @@ const readOrbit=()=>{try{return localStorage.getItem(ORBIT_KEY)!=='0'}catch{retu
 const readPos=():Point=>{try{const p=JSON.parse(localStorage.getItem(POS_KEY)||'null');if(Number.isFinite(p?.x)&&Number.isFinite(p?.y))return{x:p.x,y:p.y}}catch{}return{x:0,y:0}};
 const persistPos=(point:Point)=>{try{localStorage.setItem(POS_KEY,JSON.stringify(point))}catch{}};
 const mobileMode=()=>window.matchMedia('(max-width: 760px)').matches;
+const buildConversationContext=(items:Message[],moduleContext:string)=>[
+  moduleContext?`MODULE_CONTEXT=${clean(moduleContext).slice(0,240)}`:'',
+  ...items.slice(-6).map(item=>`${item.role==='user'?'NGƯỜI HỌC':'A.I'}: ${clean(item.text).slice(0,720)}`)
+].filter(Boolean).join('\n').slice(0,5000);
 const clampPosition=(point:Point):Point=>{
   const compact=mobileMode(),size=compact?49:58,baseLeft=compact?10:18,baseBottom=compact?76:18;
   const safeLeft=8,safeRight=8,safeTop=compact?72:10,safeBottom=compact?80:10;
@@ -47,13 +51,19 @@ function formatDrl(result:Awaited<ReturnType<typeof checkDrlConversation>>){if(!
 const forSpeech=(text:string)=>text.replace(/https?:\/\/\S+/g,'').replace(/[*#_`>]/g,'').replace(/\s+/g,' ').trim();
 
 export default function UnifiedAiMini({member,onLogin}:{member:Member|null;onLogin:()=>void}){
-  const [open,setOpen]=useState(false),[query,setQuery]=useState(''),[busy,setBusy]=useState(false),[voiceOn,setVoiceOn]=useState(readVoice),[orbitOn,setOrbitOn]=useState(readOrbit),[listening,setListening]=useState(false),[message,setMessage]=useState(''),[messages,setMessages]=useState<Message[]>([]),[position,setPosition]=useState<Point>(readPos);
+  const [open,setOpen]=useState(false),[query,setQuery]=useState(''),[busy,setBusy]=useState(false),[voiceOn,setVoiceOn]=useState(readVoice),[orbitOn,setOrbitOn]=useState(readOrbit),[listening,setListening]=useState(false),[message,setMessage]=useState(''),[messages,setMessages]=useState<Message[]>([]),[position,setPosition]=useState<Point>(readPos),[moduleContext,setModuleContext]=useState('');
   const drag=useRef<OrbDrag>(null),recognition=useRef<any>(null),velocity=useRef<Point>({x:25,y:-18}),lastFrame=useRef<number|null>(null),nextTurn=useRef(0),suppressClick=useRef(false);
   const greeting=useMemo(()=>`Xin chào ${member?.herbalAlias||member?.fullName||'bạn'}. Tôi là HIU YHCT A.I, trợ lý xuyên suốt ứng dụng.`,[member?.herbalAlias,member?.fullName]);
+  const lastAssistant=useMemo(()=>[...messages].reverse().find(item=>item.role==='assistant')||null,[messages]);
+  const followups=useMemo(()=>{
+    if(!lastAssistant)return[];
+    if(lastAssistant.suggestedQueries?.length)return lastAssistant.suggestedQueries.slice(0,3);
+    return lastAssistant.academic?['Giải thích nội dung vừa rồi theo cách dễ nhớ hơn','Tạo 5 câu trắc nghiệm tự kiểm tra từ nội dung vừa rồi','Tóm tắt nội dung vừa rồi thành flashcard hỏi – đáp']:['Giải thích rõ hơn câu trả lời vừa rồi','Tóm tắt câu trả lời vừa rồi thành 3 ý chính'];
+  },[lastAssistant]);
 
   useEffect(()=>{const onResize=()=>setPosition(current=>clampPosition(current));window.addEventListener('resize',onResize);onResize();return()=>window.removeEventListener('resize',onResize)},[]);
   useEffect(()=>()=>{try{window.speechSynthesis?.cancel();recognition.current?.stop?.()}catch{}},[]);
-  useEffect(()=>{const onOpen=(event:Event)=>{const detail=(event as CustomEvent<AiOpenDetail>).detail;if(!member){onLogin();return}setOpen(true);if(detail?.query)setQuery(clean(detail.query).slice(0,1600))};window.addEventListener('yhct:ai:open',onOpen as EventListener);return()=>window.removeEventListener('yhct:ai:open',onOpen as EventListener)},[member,onLogin]);
+  useEffect(()=>{const onOpen=(event:Event)=>{const detail=(event as CustomEvent<AiOpenDetail>).detail;if(!member){onLogin();return}setOpen(true);setModuleContext(clean(detail?.context||`${location.pathname}${location.search}`).slice(0,240));if(detail?.query)setQuery(clean(detail.query).slice(0,1600))};window.addEventListener('yhct:ai:open',onOpen as EventListener);return()=>window.removeEventListener('yhct:ai:open',onOpen as EventListener)},[member,onLogin]);
   useEffect(()=>{
     if(!orbitOn||open||window.matchMedia('(prefers-reduced-motion: reduce)').matches){lastFrame.current=null;return}
     let alive=true,frame=0;
@@ -80,16 +90,18 @@ export default function UnifiedAiMini({member,onLogin}:{member:Member|null;onLog
   const persistVoice=(next:boolean)=>{setVoiceOn(next);try{localStorage.setItem(VOICE_KEY,next?'1':'0')}catch{}if(!next)window.speechSynthesis?.cancel()};
   const persistOrbit=(next:boolean)=>{setOrbitOn(next);try{localStorage.setItem(ORBIT_KEY,next?'1':'0')}catch{}if(!next)persistPos(position)};
   const resetPosition=()=>{const origin={x:0,y:0};setPosition(origin);persistPos(origin)};
+  const resetConversation=()=>{setMessages([]);setMessage('Đã bắt đầu cuộc trò chuyện mới.');setModuleContext(`${location.pathname}${location.search}`)};
   const speak=(text:string)=>{if(!voiceOn||!('speechSynthesis'in window))return;const value=forSpeech(text);if(!value)return;window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(value);utterance.lang='vi-VN';utterance.rate=.98;utterance.pitch=1.04;const voices=window.speechSynthesis.getVoices(),preferred=voices.find(v=>v.lang.toLowerCase().startsWith('vi')&&/female|hoai|linh|an|my|mai|google/i.test(v.name))||voices.find(v=>v.lang.toLowerCase().startsWith('vi'));if(preferred)utterance.voice=preferred;window.speechSynthesis.speak(utterance)};
-  const addAssistant=(text:string,sources:XiaoZhiSource[]=[])=>{const next:Message={id:crypto.randomUUID(),role:'assistant',text,sources};setMessages(xs=>[...xs,next].slice(-8));speak(text)};
+  const addAssistant=(text:string,sources:XiaoZhiSource[]=[],suggestedQueries:string[]=[],academic=false)=>{const next:Message={id:crypto.randomUUID(),role:'assistant',text,sources,suggestedQueries:suggestedQueries.slice(0,3),academic};setMessages(xs=>[...xs,next].slice(-10));speak(text)};
 
-  const runQuery=async(raw:string)=>{const text=clean(raw);if(!text||busy)return;if(!member){onLogin();return}setBusy(true);setMessage('');recordAiUse(member.id);const userMessage:Message={id:crypto.randomUUID(),role:'user',text};setMessages(xs=>[...xs,userMessage].slice(-8));setQuery('');try{
+  const runQuery=async(raw:string)=>{const text=clean(raw);if(!text||busy)return;if(!member){onLogin();return}setBusy(true);setMessage('');recordAiUse(member.id);const continuity=buildConversationContext(messages,moduleContext||`${location.pathname}${location.search}`);const userMessage:Message={id:crypto.randomUUID(),role:'user',text};setMessages(xs=>[...xs,userMessage].slice(-10));setQuery('');try{
     if(appIntent(text)){addAssistant(appHelp(text));return}
-    if(academicIntent(text)){const reply=await askAcademicUnified(text);addAssistant(reply.answer,reply.sources);setMessage(`Học thuật có nguồn · ${reply.provenance||reply.provider}${reply.degraded?' · fallback':''}${reply.latencyMs?` · ${Math.round(reply.latencyMs)} ms`:''}`);return}
+    if(academicIntent(text)){const reply=await askAcademicUnified(text,[],continuity);addAssistant(reply.answer,reply.sources,reply.suggestedQueries,true);setMessage(`Học thuật có nguồn · ${reply.provenance||reply.provider}${reply.degraded?' · fallback':''}${reply.latencyMs?` · ${Math.round(reply.latencyMs)} ms`:''}`);return}
     if(drlIntent(text)){const drl=await checkDrlConversation(text,member);const answer=formatDrl(drl)||'Tôi chưa tìm thấy dữ liệu điểm phù hợp trong tài khoản.';addAssistant(answer);return}
     if(scheduleIntent(text)){const items=await fetchSchedules(),now=Date.now(),upcoming=items.filter(x=>Date.parse(x.startsAt)>=now-3600000).sort((a,b)=>Date.parse(a.startsAt)-Date.parse(b.startsAt)).slice(0,5);const answer=upcoming.length?`Lịch CLB sắp tới: ${upcoming.map((x,i)=>`${i+1}. ${x.title}, ${new Date(x.startsAt).toLocaleString('vi-VN')}${x.location?`, tại ${x.location}`:''}`).join(' · ')}`:'Hiện tôi chưa thấy lịch CLB sắp tới được công bố.';addAssistant(answer);return}
-    const reply=await askXiaoZhiMini(text,`Người dùng: ${member.fullName}. Chỉ sử dụng thông tin này để xưng hô. Không suy diễn dữ liệu cá nhân khác.`);addAssistant(reply.answer,reply.sources);setMessage(`${reply.provider}${reply.degraded?' · fallback':''}${reply.latencyMs?` · ${Math.round(reply.latencyMs)} ms`:''}`)
+    const reply=await askXiaoZhiMini(text,continuity);addAssistant(reply.answer,reply.sources);setMessage(`${reply.provider}${reply.degraded?' · fallback':''}${reply.latencyMs?` · ${Math.round(reply.latencyMs)} ms`:''}`)
   }catch(e){const error=(e as Error).message||'HIU YHCT A.I chưa thể xử lý yêu cầu.';setMessage(error);addAssistant(error)}finally{setBusy(false)}};
+  const runFollowup=(value:string)=>{const prompt=lastAssistant?.academic?`Trong ngữ cảnh Y học cổ truyền vừa trao đổi, ${value}`:value;void runQuery(prompt)};
 
   const startListening=()=>{if(listening){recognition.current?.stop?.();return}const SpeechRecognition=(window as any).SpeechRecognition||(window as any).webkitSpeechRecognition;if(!SpeechRecognition){setMessage('Trình duyệt này chưa hỗ trợ nhập giọng nói. Bạn vẫn có thể gõ câu hỏi.');return}const rec=new SpeechRecognition();recognition.current=rec;rec.lang='vi-VN';rec.interimResults=false;rec.continuous=false;rec.onstart=()=>setListening(true);rec.onend=()=>setListening(false);rec.onerror=()=>{setListening(false);setMessage('Không nhận được giọng nói. Hãy thử lại hoặc gõ câu hỏi.')};rec.onresult=(event:any)=>{const text=clean(event.results?.[0]?.[0]?.transcript||'');if(text){setQuery(text);void runQuery(text)}};rec.start()};
   const openResearch=()=>{window.history.pushState(null,'','/research');window.dispatchEvent(new PopStateEvent('popstate'));setOpen(false)};
@@ -100,13 +112,13 @@ export default function UnifiedAiMini({member,onLogin}:{member:Member|null;onLog
 
   return <div className={`xz-mini ${open?'is-open':''} ${orbitOn?'is-roaming':''}`}>
     {open&&<section className="xz-panel" role="dialog" aria-label="HIU YHCT A.I">
-      <header className="xz-header"><div className="xz-title"><span className="xz-avatar"><Bot/></span><div><b>HIU YHCT A.I · XiaoZhi</b><small>Voice · Học thuật có nguồn · Tools · Web</small></div></div><div className="xz-header-actions"><button onClick={()=>setOpen(false)} aria-label="Đóng"><X/></button></div></header>
+      <header className="xz-header"><div className="xz-title"><span className="xz-avatar"><Bot/></span><div><b>HIU YHCT A.I · XiaoZhi</b><small>Voice · Hội thoại liên tục · Học thuật có nguồn · Tools · Web</small></div></div><div className="xz-header-actions"><button onClick={()=>setOpen(false)} aria-label="Đóng"><X/></button></div></header>
       <div className="xz-greeting"><Sparkles/><span>{greeting}</span></div>
-      <div className="xz-chips"><button onClick={()=>void runQuery('Giải thích Bát cương trong Y học cổ truyền bằng cách dễ nhớ cho sinh viên')}><Sparkles/>Ôn YHCT</button><button onClick={()=>void runQuery('Điểm rèn luyện của tôi hiện tại')}><Navigation/>Điểm của tôi</button><button onClick={()=>void runQuery('Lịch CLB sắp tới')}><CalendarDays/>Lịch CLB</button><button onClick={()=>void runQuery('Tin tức nổi bật mới nhất hôm nay là gì?')}><ExternalLink/>Tin mới</button></div>
-      <div className="xz-conversation" aria-live="polite">{messages.length===0?<div className="xz-empty"><Bot/><p>Hỏi ngay về YHCT, y văn, luyện thi, lịch CLB, điểm hoạt động hoặc cách dùng ứng dụng. Câu hỏi học thuật sẽ tự dùng luồng có nguồn; câu hỏi cần dữ liệu mới sẽ dùng công cụ tra cứu phù hợp.</p></div>:messages.map(item=><article key={item.id} className={`xz-msg ${item.role}`}><p>{item.text}</p>{item.sources?.length?<div className="xz-sources">{item.sources.map(source=><a key={source.url} href={source.url} target="_blank" rel="noreferrer"><ExternalLink/>{source.title}</a>)}</div>:null}</article>)}{busy&&<div className="xz-thinking"><i/><i/><i/><span>Đang truy xuất và kiểm tra nguồn…</span></div>}</div>
+      {followups.length?<div className="xz-chips">{followups.map(value=><button key={value} disabled={busy} onClick={()=>runFollowup(value)}><Sparkles/>{value}</button>)}</div>:<div className="xz-chips"><button onClick={()=>void runQuery('Giải thích Bát cương trong Y học cổ truyền bằng cách dễ nhớ cho sinh viên')}><Sparkles/>Ôn YHCT</button><button onClick={()=>void runQuery('Điểm rèn luyện của tôi hiện tại')}><Navigation/>Điểm của tôi</button><button onClick={()=>void runQuery('Lịch CLB sắp tới')}><CalendarDays/>Lịch CLB</button><button onClick={()=>void runQuery('Tin tức nổi bật mới nhất hôm nay là gì?')}><ExternalLink/>Tin mới</button></div>}
+      <div className="xz-conversation" aria-live="polite">{messages.length===0?<div className="xz-empty"><Bot/><p>Hỏi ngay về YHCT, y văn, luyện thi, lịch CLB, điểm hoạt động hoặc cách dùng ứng dụng. A.I giữ ngữ cảnh các lượt gần nhất trong phiên để bạn có thể hỏi nối tiếp tự nhiên.</p></div>:messages.map(item=><article key={item.id} className={`xz-msg ${item.role}`}><p>{item.text}</p>{item.sources?.length?<div className="xz-sources">{item.sources.map(source=><a key={source.url} href={source.url} target="_blank" rel="noreferrer"><ExternalLink/>{source.title}</a>)}</div>:null}</article>)}{busy&&<div className="xz-thinking"><i/><i/><i/><span>Đang truy xuất và kiểm tra nguồn…</span></div>}</div>
       {message&&<div className="xz-status">{message}</div>}
-      <form className="xz-compose" onSubmit={e=>{e.preventDefault();void runQuery(query)}}><button type="button" className={listening?'active':''} onClick={startListening} aria-label={listening?'Dừng nghe':'Hỏi bằng giọng nói'}>{listening?<MicOff/>:<Mic/>}</button><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={listening?'Đang nghe…':'Hỏi HIU YHCT A.I…'} maxLength={1600}/><button type="submit" disabled={busy||!clean(query)} aria-label="Gửi"><Send/></button></form>
-      <footer className="xz-footer"><button className={voiceOn?'active':''} onClick={()=>persistVoice(!voiceOn)}>{voiceOn?<Volume2/>:<VolumeX/>}{voiceOn?'Giọng nữ: bật':'Giọng nói: tắt'}</button><button className={orbitOn?'active':''} onClick={()=>persistOrbit(!orbitOn)}><Sparkles/>{orbitOn?'Tự di chuyển: bật':'Tự di chuyển: tắt'}</button><button onClick={resetPosition}><RotateCcw/>Về góc trái</button><button onClick={openResearch}>Mở Trung tâm nghiên cứu</button></footer>
+      <form className="xz-compose" onSubmit={e=>{e.preventDefault();void runQuery(query)}}><button type="button" className={listening?'active':''} onClick={startListening} aria-label={listening?'Dừng nghe':'Hỏi bằng giọng nói'}>{listening?<MicOff/>:<Mic/>}</button><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={listening?'Đang nghe…':'Hỏi tiếp, A.I vẫn nhớ ngữ cảnh…'} maxLength={1600}/><button type="submit" disabled={busy||!clean(query)} aria-label="Gửi"><Send/></button></form>
+      <footer className="xz-footer"><button className={voiceOn?'active':''} onClick={()=>persistVoice(!voiceOn)}>{voiceOn?<Volume2/>:<VolumeX/>}{voiceOn?'Giọng nữ: bật':'Giọng nói: tắt'}</button><button className={orbitOn?'active':''} onClick={()=>persistOrbit(!orbitOn)}><Sparkles/>{orbitOn?'Tự di chuyển: bật':'Tự di chuyển: tắt'}</button><button onClick={resetConversation}><RotateCcw/>Hội thoại mới</button><button onClick={resetPosition}>Về góc trái</button><button onClick={openResearch}>Mở Trung tâm nghiên cứu</button></footer>
     </section>}
     <button className="xz-orb" style={{transform:`translate3d(${position.x}px,${position.y}px,0)`}} onPointerDown={orbPointerDown} onPointerMove={orbPointerMove} onPointerUp={orbPointerEnd} onPointerCancel={orbPointerEnd} onClick={orbClick} aria-label={open?'Đóng HIU YHCT A.I':'Mở hoặc kéo HIU YHCT A.I'} title="Chạm để mở · giữ và kéo để di chuyển"><span><Bot/></span><i className={listening?'listening':''}/><b>A.I</b></button>
   </div>;
