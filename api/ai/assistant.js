@@ -7,7 +7,7 @@ const MAX_QUERY=4000;
 const MAX_SOURCES=6;
 const MAX_SOURCE_TEXT=4200;
 const AI_TIMEOUT_MS=20000;
-const GEMINI_FALLBACK_TIMEOUT_MS=9000;
+const GEMINI_TIMEOUT_MS=16000;
 const MAX_TOOL_ROUNDS=2;
 const MAX_TOOL_CALLS_PER_ROUND=3;
 const MODES=new Set(['fast','research','exam']);
@@ -84,9 +84,14 @@ function providerFailureClass(error){
 }
 
 function geminiEligible(mode,sources){
-  if(mode==='fast'||!geminiAiConfigured())return false;
+  if(mode==='fast'||!geminiAiConfigured(mode))return false;
   const containsPrivateDriveContext=sources.some(source=>source.id.startsWith('drive:'));
   return !containsPrivateDriveContext||process.env.GEMINI_ALLOW_PRIVATE_CONTEXT==='true';
+}
+
+function preferGeminiAcademic(mode,canGemini){
+  if(!canGemini||mode==='fast')return false;
+  return process.env.AI_ACADEMIC_PROVIDER!=='openai';
 }
 
 async function createOpenAiResponse({key,model,input,tools,mode,signal}){
@@ -113,13 +118,13 @@ async function createOpenAiResponse({key,model,input,tools,mode,signal}){
   return payload;
 }
 
-async function runGemini({developer,user,sources,started,res}){
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),GEMINI_FALLBACK_TIMEOUT_MS);
+async function runGemini({developer,user,sources,started,res,mode}){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),GEMINI_TIMEOUT_MS);
   try{
-    const output=await createGeminiJson({systemInstruction:developer,prompt:user,schema:RESPONSE_SCHEMA,maxOutputTokens:2200,signal:controller.signal});
-    const structured=parseStructured(output.text,sources),latencyMs=Date.now()-started,model=output.model||geminiAiModel();
+    const output=await createGeminiJson({systemInstruction:developer,prompt:user,schema:RESPONSE_SCHEMA,maxOutputTokens:mode==='research'?3200:2200,signal:controller.signal,mode});
+    const structured=parseStructured(output.text,sources),latencyMs=Date.now()-started,model=output.model||geminiAiModel(mode);
     res.setHeader('Server-Timing',`ai;dur=${latencyMs}`);res.setHeader('X-AI-Provider','gemini');res.setHeader('X-AI-Model',model);res.setHeader('X-AI-Tools-Used','0');res.setHeader('X-AI-Degraded','0');
-    console.info(JSON.stringify({event:'ai_gateway',ok:true,provider:'gemini',model,mode:'research-or-exam',sourceCount:sources.length,toolCount:0,latencyMs}));
+    console.info(JSON.stringify({event:'ai_gateway',ok:true,provider:'gemini',model,mode,sourceCount:sources.length,toolCount:0,latencyMs}));
     return{...structured,provider:'gemini',degraded:false,latencyMs,toolsUsed:[]};
   }finally{clearTimeout(timer)}
 }
@@ -137,7 +142,7 @@ export default async function handler(req,res){
 
   const query=clean(req.body?.query,MAX_QUERY),mode=MODES.has(req.body?.mode)?req.body.mode:'fast',sources=normalizeSources(req.body?.sources);
   if(query.length<2)return res.status(400).json({error:'Query is required'});
-  const baseFallback=fallback(sources),key=process.env.OPENAI_API_KEY,model=cloudAiModel(),openAiReady=Boolean(cloudAiEnabled()&&key&&model),canGemini=geminiEligible(mode,sources);
+  const baseFallback=fallback(sources),key=process.env.OPENAI_API_KEY,model=cloudAiModel(),openAiReady=Boolean(cloudAiEnabled()&&key&&model),canGemini=geminiEligible(mode,sources),geminiFirst=preferGeminiAcademic(mode,canGemini);
   if(!openAiReady&&!canGemini){res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class','configuration');return res.status(200).json(baseFallback)}
 
   const sourceBlock=sources.length?sources.map(s=>`[${s.id}] ${s.title}\n${s.text}`).join('\n\n'):'(không có nguồn đính kèm)';
@@ -145,16 +150,27 @@ export default async function handler(req,res){
     'Bạn là trợ lý học thuật Y học Cổ truyền cho sinh viên và nghiên cứu viên.',
     'Chỉ hỗ trợ học tập/nghiên cứu; không chẩn đoán, kê đơn hoặc thay thế bác sĩ.',
     'Không bịa nguồn. sourceIds chỉ được chọn từ ID nguồn được cung cấp; nếu không đủ nguồn, để sourceIds rỗng và safety=needs_source_check.',
+    'Ưu tiên tổng hợp dựa trên RAG và nguồn học thuật đã được hệ thống cung cấp, phân biệt kiến thức giáo trình với bằng chứng nghiên cứu khi cần.',
     'Khi cần dữ liệu cá nhân hoặc dữ liệu hệ thống, chỉ dùng các function tool được cấp. Không suy đoán dữ liệu tài khoản.',
     'Các tool hiện tại chỉ đọc dữ liệu. Không yêu cầu hoặc mô phỏng thao tác ghi, xóa, đăng ký, duyệt hoặc thay đổi trạng thái.',
     'Nếu người dùng yêu cầu chẩn đoán/kê đơn cá nhân hóa, safety=refuse_clinical_advice và chuyển sang hướng dẫn học thuật an toàn.',
     'Ưu tiên ngắn gọn, logic, tiếng Việt; nêu rõ giới hạn khi bằng chứng không chắc chắn.'
   ].join(' ');
-  const user=`MODE=${mode}\nCÂU HỎI=${query}\nNGUỒN ĐƯỢC PHÉP TRÍCH DẪN:\n${sourceBlock}\nHãy trả về JSON đúng schema sau khi đã dùng tool nếu thực sự cần.`;
+  const user=`MODE=${mode}\nCÂU HỎI=${query}\nNGUỒN RAG ĐƯỢC PHÉP SỬ DỤNG VÀ TRÍCH DẪN:\n${sourceBlock}\nHãy tổng hợp dựa trên nguồn, không bịa dữ kiện và trả về JSON đúng schema.`;
+
+  let geminiPrimaryFailure='';
+  if(geminiFirst){
+    try{return res.status(200).json(await runGemini({developer,user,sources,started,res,mode}))}
+    catch(error){
+      geminiPrimaryFailure=providerFailureClass(error);
+      console.warn(JSON.stringify({event:'ai_gateway',ok:false,provider:'gemini',model:geminiAiModel(mode),mode,role:access.role,sourceCount:sources.length,latencyMs:Date.now()-started,failureClass:geminiPrimaryFailure,failover:openAiReady?'openai':'local'}));
+      if(!openAiReady){const latencyMs=Date.now()-started;res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class',`gemini_${geminiPrimaryFailure}`);return res.status(200).json({...baseFallback,latencyMs})}
+    }
+  }
 
   if(!openAiReady&&canGemini){
-    try{return res.status(200).json(await runGemini({developer,user,sources,started,res}))}
-    catch(error){const latencyMs=Date.now()-started,failureClass=providerFailureClass(error);res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class',failureClass);console.warn(JSON.stringify({event:'ai_gateway',ok:false,provider:'gemini',model:geminiAiModel(),mode,role:access.role,sourceCount:sources.length,latencyMs,failureClass}));return res.status(200).json({...baseFallback,latencyMs})}
+    try{return res.status(200).json(await runGemini({developer,user,sources,started,res,mode}))}
+    catch(error){const latencyMs=Date.now()-started,failureClass=providerFailureClass(error);res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class',failureClass);console.warn(JSON.stringify({event:'ai_gateway',ok:false,provider:'gemini',model:geminiAiModel(mode),mode,role:access.role,sourceCount:sources.length,latencyMs,failureClass}));return res.status(200).json({...baseFallback,latencyMs})}
   }
 
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),AI_TIMEOUT_MS),tools=mode==='fast'?aiToolsForRole(access.role):[],toolsUsed=[];
@@ -175,17 +191,19 @@ export default async function handler(req,res){
     }
     const structured=parseStructured(extractOutputText(payload),sources),latencyMs=Date.now()-started,uniqueTools=[...new Set(toolsUsed)];
     res.setHeader('Server-Timing',`ai;dur=${latencyMs}`);res.setHeader('X-AI-Provider','openai');res.setHeader('X-AI-Model',model);res.setHeader('X-AI-Tools-Used',String(uniqueTools.length));res.setHeader('X-AI-Degraded','0');
-    console.info(JSON.stringify({event:'ai_gateway',ok:true,provider:'openai',model,mode,role:access.role,sourceCount:sources.length,toolCount:uniqueTools.length,tools:uniqueTools,latencyMs}));
+    if(geminiPrimaryFailure)res.setHeader('X-AI-Failover','gemini-to-openai');
+    console.info(JSON.stringify({event:'ai_gateway',ok:true,provider:'openai',model,mode,role:access.role,sourceCount:sources.length,toolCount:uniqueTools.length,tools:uniqueTools,latencyMs,failoverFrom:geminiPrimaryFailure?'gemini':null}));
     return res.status(200).json({...structured,provider:'openai',degraded:false,latencyMs,toolsUsed:uniqueTools});
   }catch(error){
     clearTimeout(timer);
     const openAiFailure=providerFailureClass(error);
-    if(canGemini&&openAiFailure!=='timeout'){
-      try{return res.status(200).json(await runGemini({developer,user,sources,started,res}))}
+    if(canGemini&&!geminiFirst&&openAiFailure!=='timeout'){
+      try{return res.status(200).json(await runGemini({developer,user,sources,started,res,mode}))}
       catch(geminiError){const latencyMs=Date.now()-started,failureClass=`openai_${openAiFailure}+gemini_${providerFailureClass(geminiError)}`;res.setHeader('Server-Timing',`ai;dur=${latencyMs}`);res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class',failureClass);console.warn(JSON.stringify({event:'ai_gateway',ok:false,provider:'multi',model,mode,role:access.role,sourceCount:sources.length,toolCount:toolsUsed.length,latencyMs,failureClass}));return res.status(200).json({...baseFallback,latencyMs,toolsUsed:[...new Set(toolsUsed)]})}
     }
-    const latencyMs=Date.now()-started;res.setHeader('Server-Timing',`ai;dur=${latencyMs}`);res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class',openAiFailure);
-    console.warn(JSON.stringify({event:'ai_gateway',ok:false,provider:'openai',model,mode,role:access.role,sourceCount:sources.length,toolCount:toolsUsed.length,latencyMs,failureClass:openAiFailure}));
+    const latencyMs=Date.now()-started,failureClass=geminiPrimaryFailure?`gemini_${geminiPrimaryFailure}+openai_${openAiFailure}`:openAiFailure;
+    res.setHeader('Server-Timing',`ai;dur=${latencyMs}`);res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class',failureClass);
+    console.warn(JSON.stringify({event:'ai_gateway',ok:false,provider:geminiPrimaryFailure?'multi':'openai',model,mode,role:access.role,sourceCount:sources.length,toolCount:toolsUsed.length,latencyMs,failureClass}));
     return res.status(200).json({...baseFallback,latencyMs,toolsUsed:[...new Set(toolsUsed)]});
   }finally{clearTimeout(timer)}
 }
