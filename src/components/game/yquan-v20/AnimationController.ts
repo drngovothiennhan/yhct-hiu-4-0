@@ -16,8 +16,8 @@ export const ANIMATION_CLIPS:Record<ActorAnimation,AnimationClip>={
   write_record:clip('write_record',10,16),think:clip('think',8,12),open_drawer:clip('open_drawer',8,10),take_herb:clip('take_herb',8,12),
   weigh_herb:clip('weigh_herb',10,18),grind_herb:clip('grind_herb',10,20),mix_herb:clip('mix_herb',10,16),cook_medicine:clip('cook_medicine',8,24),
   package_medicine:clip('package_medicine',10,18),check_bed:clip('check_bed',8,14),talk_patient:clip('talk_patient',8,12),
-  walk:clip('walk',10,8,true),talk:clip('talk',8,10,true),pain:clip('pain',8,12,true),being_examined:clip('being_examined',8,12,true),
-  lying:clip('lying',6,8,true),sleeping:clip('sleeping',6,12,true),recovering:clip('recovering',8,14,true),happy:clip('happy',8,12),leave:clip('leave',10,8,true)
+  walk:clip('walk',10,8,true),talk:clip('talk',8,10,false),pain:clip('pain',8,12,true),being_examined:clip('being_examined',8,12,false),
+  lying:clip('lying',6,8,true),sleeping:clip('sleeping',6,12,true),recovering:clip('recovering',8,14,false),happy:clip('happy',8,12),leave:clip('leave',10,8,true)
 };
 
 export class AnimationController{
@@ -48,6 +48,6 @@ export class AnimationController{
     }
   }
 
-  isComplete(){return this.finished}
+  isComplete(){return this.finished||ANIMATION_CLIPS[this.current].loop}
   reset(){this.current='idle';this.frame=0;this.elapsed=0;this.finished=false}
 }
