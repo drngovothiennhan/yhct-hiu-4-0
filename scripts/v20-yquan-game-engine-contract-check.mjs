@@ -61,7 +61,7 @@ group('Movement / animation',15,[
 ]);
 
 group('Story orchestration',15,[
-  ['Exam sequence',has(story,'examSequence()')&&has(story,"state:'PULSE_CHECK'")],
+  ['Exam sequence',has(story,'examSequence(')&&has(story,"state:'PULSE_CHECK'")],
   ['Pharmacy sequence',has(story,'medicineSequence()')&&has(story,"state:'SELECTING_HERBS'")&&has(story,"state:'WEIGHING_HERBS'")&&has(story,"state:'GRINDING_HERBS'")&&has(story,"state:'COOKING_MEDICINE'")&&has(story,"state:'PACKING_MEDICINE'")],
   ['Ward transition sequence',has(story,'wardSequence(item:VisualCase)')&&has(story,'BED_WAYPOINTS[slot]')],
   ['Follow-up sequence',has(story,'followupSequence(item:VisualCase)')],
