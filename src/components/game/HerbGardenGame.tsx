@@ -24,7 +24,6 @@ export const GARDEN_GAME_CONTRACT={
 export default function HerbGardenGame({member}:{member:Member}){
   const [mode,setMode]=useState<'garden'|'clinic'>('garden');
   const [clinicRefreshKey,setClinicRefreshKey]=useState(0);
-  const refreshClinic=()=>setClinicRefreshKey(value=>value+1);
 
   return <div className="garden-game-hub" data-mode={mode}>
     <div className="garden-game-switcher" role="tablist" aria-label="Game YHCT">
@@ -45,6 +44,6 @@ export default function HerbGardenGame({member}:{member:Member}){
         <span className="garden-pan-tip">Cảnh quan cố định · kéo riêng khối 9 ô để xem vườn</span>
         <HerbGardenGameV7 member={member}/>
       </div>
-    </div>:<div className="hyq-v15-host"><HiuYQuanGame key={clinicRefreshKey} member={member}/><HiuYQuanBedManagerV17 member={member} onClinicRefresh={refreshClinic}/><HiuYQuanEngagementV15 member={member} onClinicRefresh={refreshClinic}/></div>}
+    </div>:<div className="hyq-v15-host"><HiuYQuanGame key={clinicRefreshKey} member={member}/><HiuYQuanBedManagerV17 member={member} onClinicRefresh={()=>setClinicRefreshKey(value=>value+1)}/><HiuYQuanEngagementV15 member={member} onClinicRefresh={()=>setClinicRefreshKey(value=>value+1)}/></div>}
   </div>;
 }
