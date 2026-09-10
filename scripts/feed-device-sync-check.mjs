@@ -84,7 +84,7 @@ async function runDevice(name,width,height,port,expected){
     if(!state?.hasExpected)throw new Error(`${name}: authoritative top post id was not rendered: ${expected.id}; title=${expected.title}; state=${JSON.stringify(state)}`);
     if(state.hasLegacyDemo)throw new Error(`${name}: synthetic legacy demo content is still visible.`);
     if(state.hasSyncError)throw new Error(`${name}: feed sync error is visible.`);
-    if(state.appReady!=='1'||!state.heading.includes('Bảng tin học thuật'))throw new Error(`${name}: app shell was not ready: ${JSON.stringify(state)}`);
+    if(state.appReady!=='1'||!['Bảng tin học thuật','My HIU YHCT'].includes(state.heading.trim()))throw new Error(`${name}: app shell was not ready: ${JSON.stringify(state)}`);
     if(name==='mobile'&&(state.mode!=='mobile'||state.innerWidth!==width||state.asideVisible||!state.bottomNavVisible))throw new Error(`mobile: responsive/data contract failed: ${JSON.stringify(state)}`);
     if(name==='desktop'&&(state.mode!=='desktop'||state.innerWidth<981||!state.asideVisible||state.bottomNavVisible))throw new Error(`desktop: responsive/data contract failed: ${JSON.stringify(state)}`);
     if(runtimeErrors.length)throw new Error(`${name}: runtime exceptions: ${runtimeErrors.join(' | ')}`);
