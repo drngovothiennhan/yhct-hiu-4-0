@@ -33,6 +33,7 @@ import './garden-professional-v7.css';
 import './hiu-y-quan-v2.css';
 import './xiaozhi-mini-v10.css';
 import './feed-avatar-v10.css';
+import './yquan-v11-hotfix.css';
 
 bootstrapThemeState();
 
