@@ -57,9 +57,7 @@ jobs:
             fi
 
             info="$(mktemp)"
-            code="$(curl --silent --show-error --output "$info" --write-out '%{http_code}' \
-              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
-              "https://api.vercel.com/v13/deployments/${id}?teamId=${VERCEL_TEAM_ID}")"
+            code="$(curl --silent --show-error --output "$info" --write-out '%{http_code}' --header "Authorization: Bearer ${VERCEL_TOKEN}" "https://api.vercel.com/v13/deployments/${id}?teamId=${VERCEL_TEAM_ID}")"
 
             if [[ "$code" == "404" ]]; then
               echo "SKIP missing ${id}" | tee -a /tmp/cleanup-summary.txt
@@ -68,28 +66,14 @@ jobs:
               continue
             fi
             if [[ "$code" != "200" ]]; then
-              detail="$(node - "$info" <<'NODE'
-const fs=require('node:fs');
-try{const b=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));process.stdout.write(String(b?.error?.message||b?.error?.code||'lookup failed').slice(0,240));}catch{process.stdout.write('lookup failed')}
-NODE
-              )"
+              detail="$(node -e "const fs=require('fs');try{const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(String(b?.error?.message||b?.error?.code||'lookup failed').slice(0,240))}catch{process.stdout.write('lookup failed')}" "$info")"
               echo "FAIL lookup ${id}: HTTP ${code} ${detail}" | tee -a /tmp/cleanup-summary.txt
               rm -f "$info"
               failed=$((failed+1))
               continue
             fi
 
-            verdict="$(node - "$info" "$VERCEL_PROJECT_NAME" "$PROD_ALIAS" <<'NODE'
-const fs=require('node:fs');
-const [file,expectedName,prodAlias]=process.argv.slice(2);
-const b=JSON.parse(fs.readFileSync(file,'utf8'));
-const aliases=Array.isArray(b.alias)?b.alias:[];
-if(b.name!==expectedName){process.stdout.write('wrong-project');process.exit(0)}
-if(aliases.includes(prodAlias)){process.stdout.write('production-alias');process.exit(0)}
-if(b.target && b.target!=='production'){process.stdout.write('non-production-target');process.exit(0)}
-process.stdout.write('ok');
-NODE
-            )"
+            verdict="$(node -e "const fs=require('fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const expected=process.argv[2],prod=process.argv[3];const aliases=Array.isArray(b.alias)?b.alias:[];process.stdout.write(b.name!==expected?'wrong-project':aliases.includes(prod)?'production-alias':(b.target&&b.target!=='production')?'non-production-target':'ok')" "$info" "$VERCEL_PROJECT_NAME" "$PROD_ALIAS")"
             rm -f "$info"
 
             if [[ "$verdict" != "ok" ]]; then
@@ -99,38 +83,19 @@ NODE
             fi
 
             out="$(mktemp)"
-            code="$(curl --silent --show-error --output "$out" --write-out '%{http_code}' \
-              --request DELETE \
-              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
-              "https://api.vercel.com/v13/deployments/${id}?teamId=${VERCEL_TEAM_ID}")"
+            code="$(curl --silent --show-error --output "$out" --write-out '%{http_code}' --request DELETE --header "Authorization: Bearer ${VERCEL_TOKEN}" "https://api.vercel.com/v13/deployments/${id}?teamId=${VERCEL_TEAM_ID}")"
             if [[ "$code" == "200" ]]; then
-              state="$(node - "$out" <<'NODE'
-const fs=require('node:fs');
-try{const b=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));process.stdout.write(String(b.state||'DELETED'));}catch{process.stdout.write('DELETED')}
-NODE
-              )"
+              state="$(node -e "const fs=require('fs');try{const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(String(b.state||'DELETED'))}catch{process.stdout.write('DELETED')}" "$out")"
               echo "DELETE ${id}: ${state}" | tee -a /tmp/cleanup-summary.txt
               deleted=$((deleted+1))
             else
-              detail="$(node - "$out" <<'NODE'
-const fs=require('node:fs');
-try{const b=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));process.stdout.write(String(b?.error?.message||b?.error?.code||'delete failed').slice(0,240));}catch{process.stdout.write('delete failed')}
-NODE
-              )"
+              detail="$(node -e "const fs=require('fs');try{const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(String(b?.error?.message||b?.error?.code||'delete failed').slice(0,240))}catch{process.stdout.write('delete failed')}" "$out")"
               echo "FAIL delete ${id}: HTTP ${code} ${detail}" | tee -a /tmp/cleanup-summary.txt
               failed=$((failed+1))
             fi
             rm -f "$out"
           done
 
-          {
-            echo "## Vercel cleanup result"
-            echo "- Deleted: ${deleted}"
-            echo "- Skipped: ${skipped}"
-            echo "- Failed: ${failed}"
-            echo '```text'
-            cat /tmp/cleanup-summary.txt
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
+          echo "Deleted=${deleted} Skipped=${skipped} Failed=${failed}" | tee -a /tmp/cleanup-summary.txt
+          cat /tmp/cleanup-summary.txt >> "$GITHUB_STEP_SUMMARY"
           if (( failed > 0 )); then exit 1; fi
