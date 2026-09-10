@@ -30,6 +30,8 @@ import './viewport-native-hotfix.css';
 import './desktop-phone-full.css';
 import './module-display-fixes.css';
 import './garden-professional-v7.css';
+import './hiu-y-quan-v2.css';
+import './xiaozhi-mini-v10.css';
 
 bootstrapThemeState();
 
