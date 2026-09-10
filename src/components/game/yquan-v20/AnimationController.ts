@@ -26,13 +26,14 @@ export class AnimationController{
   playbackSpeed=1;
   private elapsed=0;
   private finished=false;
+  private loopCycles=0;
   private onComplete?:(animation:ActorAnimation)=>void;
 
   constructor(onComplete?:(animation:ActorAnimation)=>void){this.onComplete=onComplete}
 
   play(name:ActorAnimation,restart=false){
     if(this.current===name&&!restart)return;
-    this.current=name;this.frame=0;this.elapsed=0;this.finished=false;
+    this.current=name;this.frame=0;this.elapsed=0;this.finished=false;this.loopCycles=0;
   }
 
   update(deltaMs:number){
@@ -43,11 +44,11 @@ export class AnimationController{
     while(this.elapsed>=frameMs){
       this.elapsed-=frameMs;this.frame+=1;
       if(this.frame<def.frames)continue;
-      if(def.loop){this.frame=0;continue}
+      if(def.loop){this.frame=0;this.loopCycles+=1;continue}
       this.frame=def.frames-1;this.finished=true;this.onComplete?.(this.current);break;
     }
   }
 
-  isComplete(){return this.finished||ANIMATION_CLIPS[this.current].loop}
-  reset(){this.current='idle';this.frame=0;this.elapsed=0;this.finished=false}
+  isComplete(){return this.finished||(ANIMATION_CLIPS[this.current].loop&&this.loopCycles>0)}
+  reset(){this.current='idle';this.frame=0;this.elapsed=0;this.finished=false;this.loopCycles=0}
 }
