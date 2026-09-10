@@ -1,0 +1,472 @@
+/* HIU Y QUAN V19 — reference-driven original art direction.
+   Loaded after all V18 layers. Visual-only: no RPC/data/gameplay changes.
+   Reference principles: warm TCM apothecary, drawer-wall hierarchy, soft semi-chibi actors,
+   desktop three-room panorama + mobile single-focus room. */
+
+.hyq-page--v17{
+  --hyq-v19-paper:#fff9eb;
+  --hyq-v19-wall:#efe2c6;
+  --hyq-v19-wall-jade:#dce7d4;
+  --hyq-v19-jade:#547f69;
+  --hyq-v19-jade-deep:#2f604e;
+  --hyq-v19-wood:#79513a;
+  --hyq-v19-wood-dark:#4d3428;
+  --hyq-v19-brass:#c89b4b;
+  --hyq-v19-oxblood:#8b4437;
+  --hyq-v19-ink:#2f3d35;
+  --hyq-v19-scene-h:360px;
+  --hyq-v19-doctor-scale:.40;
+  --hyq-v19-patient-scale:.40;
+}
+
+/* Scene frame: finite on wide monitors, art never stretches to fill ultrawide space. */
+.hyq-page--v17 .hyq-world-shell{
+  width:min(100%,1040px)!important;
+  max-width:1040px!important;
+  margin-inline:auto!important;
+  padding:8px!important;
+  gap:7px!important;
+  border:1px solid #d9cfbb!important;
+  border-radius:17px!important;
+  background:linear-gradient(180deg,#fffdf7,#f0eadb)!important;
+  box-shadow:0 10px 28px #392d2218!important;
+}
+.hyq-page--v17 .hyq-world{
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  width:100%!important;
+  max-width:1024px!important;
+  height:var(--hyq-v19-scene-h)!important;
+  min-height:var(--hyq-v19-scene-h)!important;
+  max-height:var(--hyq-v19-scene-h)!important;
+  overflow:hidden!important;
+  border:4px solid var(--hyq-v19-wood-dark)!important;
+  border-radius:14px!important;
+  background:#d7bd91!important;
+  box-shadow:inset 0 0 0 2px #d4b27b,0 7px 18px #3d2e211f!important;
+  isolation:isolate!important;
+}
+
+/* Rooms: light upper wall + warm timber lower plane; each room has distinct identity. */
+.hyq-page--v17 .hyq-room{
+  position:relative!important;
+  min-width:0!important;
+  height:100%!important;
+  overflow:hidden!important;
+  border-right:3px solid #71503a!important;
+  background:
+    linear-gradient(90deg,transparent 0 48%,#84604712 48% 49%,transparent 49% 100%),
+    linear-gradient(180deg,#f3e7ce 0 66%,#ad754e 66% 100%)!important;
+  transition:opacity .28s ease,transform .28s ease,filter .28s ease!important;
+}
+.hyq-page--v17 .hyq-room:last-of-type{border-right:0!important}
+.hyq-page--v17 .hyq-room--consult{
+  background:
+    radial-gradient(circle at 76% 21%,#fff9df 0 4%,transparent 4.5%),
+    linear-gradient(180deg,#eee4c8 0 66%,#b47a50 66% 100%)!important;
+}
+.hyq-page--v17 .hyq-room--ward{
+  background:
+    linear-gradient(90deg,transparent 0 49%,#8b6c5a10 49% 50%,transparent 50%),
+    linear-gradient(180deg,#e5e5d8 0 66%,#9e7359 66% 100%)!important;
+}
+.hyq-page--v17 .hyq-room--lab{
+  background:
+    radial-gradient(ellipse at 72% 18%,#d5c09255 0 7%,transparent 7.5%),
+    linear-gradient(180deg,#e5dfc1 0 66%,#9c6543 66% 100%)!important;
+}
+.hyq-page--v17 .hyq-room.is-focus{
+  box-shadow:inset 0 0 0 2px #7ea58b99!important;
+  filter:saturate(1.03)!important;
+}
+
+/* Compact scene toolbar stays UI, not part of the scaled artwork. */
+.hyq-page--v17 .hyq-scene-toolbar{
+  min-height:46px!important;
+  padding:5px 7px!important;
+  gap:8px!important;
+  border-radius:11px!important;
+  background:#fffdf8cc!important;
+}
+.hyq-page--v17 .hyq-scene-toolbar>div b{font-size:12px!important;line-height:1.25!important;color:var(--hyq-v19-ink)!important}
+.hyq-page--v17 .hyq-scene-toolbar>div small{font-size:9px!important;line-height:1.25!important}
+.hyq-page--v17 .hyq-scene-toolbar nav{gap:5px!important;flex-wrap:nowrap!important}
+.hyq-page--v17 .hyq-scene-toolbar nav button{
+  min-height:36px!important;
+  height:36px!important;
+  padding:5px 8px!important;
+  border-radius:9px!important;
+  font-size:10px!important;
+  white-space:nowrap!important;
+}
+.hyq-page--v17 .hyq-scene-toolbar nav button.active{background:var(--hyq-v19-jade-deep)!important;border-color:var(--hyq-v19-jade-deep)!important}
+
+/* Room labels resemble small wooden/paper signs, not oversized banners. */
+.hyq-page--v17 .hyq-room-title{
+  top:8px!important;
+  width:min(78%,148px)!important;
+  min-width:0!important;
+  min-height:33px!important;
+  max-height:42px!important;
+  padding:5px 7px!important;
+  border:1px solid #c9aa79!important;
+  border-radius:7px!important;
+  color:#513c2d!important;
+  background:linear-gradient(180deg,#fff8e7,#efe2c8)!important;
+  box-shadow:0 3px 0 #7b563228,0 4px 10px #4a35231a!important;
+}
+.hyq-page--v17 .hyq-room-title b{font-size:10px!important;line-height:1.1!important;letter-spacing:.09em!important}
+.hyq-page--v17 .hyq-room-title small{font-size:7px!important;line-height:1.18!important;color:#776650!important}
+
+/* Apothecary cabinet = the visual anchor in the consult room. */
+.hyq-page--v17 .hyq-world-cabinet{
+  left:4.5%!important;
+  bottom:13%!important;
+  width:104px!important;
+  height:154px!important;
+  padding:21px 6px 6px!important;
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-template-rows:repeat(4,minmax(0,1fr))!important;
+  gap:2px!important;
+  border:4px solid var(--hyq-v19-wood-dark)!important;
+  border-radius:6px!important;
+  background:linear-gradient(90deg,#69462f,#7f5639 47%,#68462f)!important;
+  box-shadow:5px 6px 0 #4e34252f,inset 0 0 0 1px #a97a52!important;
+}
+.hyq-page--v17 .hyq-world-cabinet>b{
+  top:5px!important;
+  font-size:7px!important;
+  letter-spacing:.13em!important;
+  color:#f2dba8!important;
+}
+.hyq-page--v17 .hyq-cabinet-drawer{
+  position:relative!important;
+  min-width:0!important;
+  min-height:0!important;
+  padding:1px!important;
+  overflow:hidden!important;
+  border:1px solid #503322!important;
+  border-radius:1px!important;
+  background:linear-gradient(180deg,#9b6a45,#795033)!important;
+  color:#f4e1b8!important;
+  box-shadow:inset 0 -2px #5f3d29!important;
+}
+.hyq-page--v17 .hyq-cabinet-drawer:after{
+  content:""!important;
+  position:absolute!important;
+  left:50%!important;
+  bottom:2px!important;
+  width:5px!important;
+  height:3px!important;
+  transform:translateX(-50%)!important;
+  border-radius:50%!important;
+  background:var(--hyq-v19-brass)!important;
+  box-shadow:0 0 0 1px #6f512f55!important;
+}
+.hyq-page--v17 .hyq-cabinet-drawer small{font-size:5.6px!important;line-height:1.03!important;color:#f4dfb3!important}
+.hyq-page--v17 .hyq-cabinet-drawer i{font-size:4.8px!important;opacity:.78!important}
+
+/* Consultation counter remains secondary to actors. */
+.hyq-page--v17 .hyq-world-desk{
+  left:39%!important;
+  right:6%!important;
+  bottom:12%!important;
+  height:61px!important;
+  border:4px solid var(--hyq-v19-wood-dark)!important;
+  border-radius:8px!important;
+  background:linear-gradient(180deg,#a06c48 0 24%,#70482f 24% 100%)!important;
+  box-shadow:0 7px 0 #50322555,inset 0 2px #bd8a60!important;
+}
+.hyq-page--v17 .hyq-world-desk>b{bottom:6px!important;font-size:7.2px!important;color:#f2d59c!important;letter-spacing:.10em!important}
+.hyq-page--v17 .hyq-world-desk .pillow{width:38px!important;height:14px!important;top:-16px!important;border-width:2px!important;background:#82413f!important}
+.hyq-page--v17 .hyq-world-desk .teapot{width:18px!important;height:15px!important;top:-17px!important;border-width:2px!important}
+
+/* Soft semi-chibi doctor system. */
+.hyq-page--v17 .hyq-world-actor{
+  bottom:20px!important;
+  width:170px!important;
+  height:255px!important;
+  transform:translateX(-50%) scale(var(--hyq-v19-doctor-scale))!important;
+  transform-origin:bottom center!important;
+  filter:drop-shadow(0 5px 3px #3a302629)!important;
+  transition:left .55s cubic-bezier(.2,.75,.2,1),opacity .25s ease,transform .28s ease!important;
+}
+.hyq-page--v17 .hyq-doctor--chibi .hyq-face{
+  left:46px!important;
+  top:29px!important;
+  width:78px!important;
+  height:78px!important;
+  border:2px solid #65473b!important;
+  border-radius:46% 46% 48% 48%!important;
+  background:linear-gradient(180deg,#f7d2b5,#efbea0)!important;
+  box-shadow:inset 0 -5px #cf92711c!important;
+}
+.hyq-page--v17 .hyq-doctor--chibi .hyq-face i{
+  top:34px!important;
+  width:11px!important;
+  height:13px!important;
+  border-radius:48%!important;
+  background:linear-gradient(180deg,#3d2b25,#251f1c)!important;
+  box-shadow:inset 3px 2px #ffffffb8!important;
+}
+.hyq-page--v17 .hyq-doctor--chibi .hyq-face i:first-child{left:17px!important}
+.hyq-page--v17 .hyq-doctor--chibi .hyq-face i:nth-child(2){right:17px!important}
+.hyq-page--v17 .hyq-doctor--chibi .hyq-face b{
+  left:31px!important;
+  bottom:12px!important;
+  width:16px!important;
+  height:7px!important;
+  border:0!important;
+  border-bottom:2px solid #a25d58!important;
+  border-radius:0 0 60% 60%!important;
+}
+.hyq-page--v17 .hyq-doctor--chibi .hyq-chibi-blush{top:54px!important;width:13px!important;height:6px!important;opacity:.32!important;filter:blur(.3px)!important}
+.hyq-page--v17 .hyq-doctor--chibi .hyq-hair{
+  left:42px!important;
+  top:13px!important;
+  width:87px!important;
+  height:54px!important;
+  border:2px solid #5b4137!important;
+  border-radius:56% 56% 33% 33%!important;
+  background:linear-gradient(145deg,#4b3830 0 40%,#2c2724 72%)!important;
+  box-shadow:inset 7px 5px #ffffff0d!important;
+}
+.hyq-page--v17 .hyq-doctor--male .hyq-hair{height:42px!important;border-radius:62% 58% 34% 30%!important}
+.hyq-page--v17 .hyq-doctor--female .hyq-hair:after{right:-9px!important;top:23px!important;width:23px!important;height:62px!important;border:2px solid #5b4137!important;border-left:0!important;background:#302824!important}
+.hyq-page--v17 .hyq-doctor--chibi .hyq-chibi-ear{top:57px!important;width:12px!important;height:20px!important;border:2px solid #65473b!important;background:#f1c2a4!important}
+.hyq-page--v17 .hyq-doctor--chibi .hyq-neck{left:73px!important;top:103px!important;width:25px!important;height:21px!important;background:#efbd9d!important}
+.hyq-page--v17 .hyq-doctor--chibi .hyq-robe{
+  left:36px!important;
+  top:116px!important;
+  width:100px!important;
+  height:112px!important;
+  border:3px solid #42614f!important;
+  border-radius:19px 19px 9px 9px!important;
+  background:linear-gradient(145deg,#f5f0df,#dce7db)!important;
+  box-shadow:inset 0 -8px #55725b12!important;
+}
+.hyq-page--v17 .hyq-doctor--chibi .hyq-sleeve{top:128px!important;height:82px!important;border:3px solid #42614f!important;background:#e9ecdd!important}
+.hyq-page--v17 .hyq-doctor--chibi .hyq-chibi-shoe{top:223px!important;height:15px!important;border:2px solid #4a3930!important;background:#45403b!important}
+.hyq-page--v17 .hyq-doctor--chibi .hyq-robe-cross{background:var(--hyq-v19-jade)!important}
+.hyq-page--v17 .hyq-doctor--chibi .hyq-belt{background:#7f6048!important;border-color:#513b2e!important}
+.hyq-page--v17 .hyq-outfit--academy .hyq-robe{background:linear-gradient(145deg,#fffef8,#edf5ef)!important;border-color:#3d7161!important}
+.hyq-page--v17 .hyq-outfit--academy .hyq-robe:before{
+  content:""!important;
+  position:absolute!important;
+  left:24px!important;
+  top:17px!important;
+  width:48px!important;
+  height:42px!important;
+  border:3px solid #44675c!important;
+  border-top-color:transparent!important;
+  border-radius:0 0 50% 50%!important;
+  opacity:.65!important;
+}
+.hyq-page--v17 .hyq-outfit--master .hyq-robe{background:linear-gradient(145deg,#354d50,#263d43)!important;border-color:#c9a45b!important;color:#f1d98f!important}
+.hyq-page--v17 .hyq-outfit--master .hyq-robe-cross{background:#c9a45b!important}
+.hyq-page--v17 .hyq-outfit--master .hyq-sleeve{background:#31494d!important;border-color:#c9a45b!important}
+
+/* Patients share the same face/eye language and remain visually subordinate. */
+.hyq-page--v17 .hyq-patient .head{
+  border:2px solid #65483c!important;
+  background:linear-gradient(180deg,#f5ceb0,#ecb895)!important;
+  box-shadow:inset 0 -3px #c88a691d!important;
+}
+.hyq-page--v17 .hyq-patient .head i{
+  top:29px!important;
+  width:7px!important;
+  height:8px!important;
+  border-radius:50%!important;
+  background:#332824!important;
+  box-shadow:inset 2px 1px #ffffffa8!important;
+}
+.hyq-page--v17 .hyq-patient .head em{
+  position:absolute!important;
+  left:21px!important;
+  bottom:9px!important;
+  width:10px!important;
+  height:4px!important;
+  border-bottom:1.5px solid #995953!important;
+  border-radius:50%!important;
+}
+.hyq-page--v17 .hyq-patient .body{border-width:3px!important;box-shadow:inset 0 -6px #274d3818!important}
+.hyq-page--v17 .hyq-patient--senior .head:before{background:linear-gradient(145deg,#b9b6ae,#777a76)!important}
+.hyq-page--v17 .hyq-patient--child .head{transform:scale(1.04)!important;transform-origin:center bottom!important}
+.hyq-page--v17 .hyq-consult-patient{right:5.5%!important;bottom:17%!important;width:78px!important;height:120px!important}
+.hyq-page--v17 .hyq-consult-patient>.hyq-patient{left:10px!important;transform:scale(var(--hyq-v19-patient-scale))!important;transform-origin:bottom center!important}
+.hyq-page--v17 .hyq-consult-patient>.hyq-patient:hover{transform:translateY(-1px) scale(var(--hyq-v19-patient-scale))!important}
+
+/* Speech bubble: compact, never hides the scene. */
+.hyq-page--v17 .hyq-world-speech{right:61px!important;top:-1px!important;width:min(145px,78%)!important;padding:6px 8px!important;border:1px solid #d8d1c1!important;border-radius:10px 10px 3px 10px!important;background:#fffdf8f2!important;box-shadow:0 4px 12px #3f30231c!important}
+.hyq-page--v17 .hyq-world-speech b{font-size:8.5px!important;line-height:1.2!important}
+.hyq-page--v17 .hyq-world-speech span{font-size:7.4px!important;line-height:1.28!important;color:#625d55!important}
+
+/* Ward: three independent beds remain the core interaction. */
+.hyq-page--v17 .hyq-ward-screen{left:5%!important;top:19%!important;width:62px!important;height:122px!important;opacity:.82!important}
+.hyq-page--v17 .hyq-bed-bank-v17{left:8%!important;right:7%!important;top:63px!important;height:177px!important;gap:6px!important}
+.hyq-page--v17 .hyq-bed-v17{border-radius:8px!important;background:#f1e7d2!important;border-color:#67503f!important;box-shadow:0 4px 0 #5c443452!important}
+.hyq-page--v17 .hyq-bed-frame-v17{height:39px!important;border-radius:6px!important;border-color:#65503f!important;background:linear-gradient(180deg,#eee3ce,#d6c7ae)!important}
+.hyq-page--v17 .hyq-bed-v17.is-ready{box-shadow:0 0 0 2px #c99a47,0 4px 0 #5c443452!important}
+.hyq-page--v17 .hyq-bed-v17 .hyq-bed-patient{width:58px!important;height:80px!important;transform:rotate(90deg) scale(.30)!important;transform-origin:center!important}
+.hyq-page--v17 .hyq-bed-meta-v17 b{font-size:7.7px!important}.hyq-page--v17 .hyq-bed-meta-v17 small{font-size:6.4px!important}
+.hyq-page--v17 .hyq-ward-lamp{transform:scale(.76)!important;transform-origin:bottom right!important;opacity:.85!important}
+
+/* Dispensing/lab: shelf is background; mortar/scale/tray are readable silhouettes. */
+.hyq-page--v17 .hyq-lab-shelf{
+  left:7%!important;
+  right:7%!important;
+  top:19%!important;
+  height:72px!important;
+  padding:6px!important;
+  border:4px solid var(--hyq-v19-wood-dark)!important;
+  border-radius:7px!important;
+  background:linear-gradient(180deg,#725039,#5c3d2c)!important;
+  box-shadow:4px 5px #4b32232e!important;
+}
+.hyq-page--v17 .hyq-lab-shelf button{font-size:6.2px!important;line-height:1.05!important;background:#987252!important;color:#f4dfb9!important;border-color:#563a29!important}
+.hyq-page--v17 .hyq-lab-table{
+  left:7%!important;
+  right:7%!important;
+  bottom:13%!important;
+  height:67px!important;
+  border:4px solid var(--hyq-v19-wood-dark)!important;
+  border-radius:8px!important;
+  background:linear-gradient(180deg,#a2744d 0 27%,#704a31 27%)!important;
+  box-shadow:0 6px 0 #4e322355!important;
+}
+.hyq-page--v17 .hyq-lab-table>b{font-size:7px!important;color:#f2d69c!important}
+.hyq-page--v17 .hyq-mortar{transform:scale(.80)!important;transform-origin:bottom left!important}
+.hyq-page--v17 .hyq-scale{transform:scale(.80)!important;transform-origin:bottom center!important}
+.hyq-page--v17 .hyq-herb-tray{transform:scale(.82)!important;transform-origin:bottom right!important}
+.hyq-page--v17 .hyq-herb-kettle{transform:scale(.76)!important;transform-origin:bottom right!important;filter:drop-shadow(0 3px 2px #3b302522)!important}
+
+/* Floor gives a mild isometric-like depth cue without rotating the whole UI. */
+.hyq-page--v17 .hyq-world-floor{
+  height:34%!important;
+  background:
+    repeating-linear-gradient(90deg,transparent 0 65px,#5e3e2b35 65px 68px),
+    linear-gradient(180deg,#bd875c,#9d6746)!important;
+  opacity:.42!important;
+}
+.hyq-page--v17 .hyq-world-floor:after{background:repeating-linear-gradient(0deg,transparent 0 39px,#5f3e2a44 39px 41px)!important}
+
+/* UI below the art: fixed readable scale, compact patient strip and Tứ chẩn cards. */
+.hyq-page--v17 .hyq-case-patient-strip{min-height:64px!important;max-height:76px!important;padding:8px 10px!important;gap:9px!important}
+.hyq-page--v17 .hyq-case-patient-strip>.hyq-patient{width:48px!important;height:62px!important;flex:0 0 48px!important;transform:scale(.33)!important;transform-origin:top left!important}
+.hyq-page--v17 .hyq-case-patient-strip b{font-size:14px!important;line-height:1.25!important}
+.hyq-page--v17 .hyq-case-patient-strip small{font-size:10px!important;line-height:1.25!important}
+.hyq-page--v17 .hyq-four-exams{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important}
+.hyq-page--v17 .hyq-four-exams>article{min-height:104px!important;padding:10px!important;border-radius:13px!important}
+.hyq-page--v17 .hyq-four-exams b{font-size:11px!important}.hyq-page--v17 .hyq-four-exams p{font-size:13px!important;line-height:1.46!important}
+
+/* Desktop actor positions align with the center of each functional room. */
+.hyq-page--v17 .hyq-world-actor--consult{left:18.5%!important}
+.hyq-page--v17 .hyq-world-actor--ward{left:50%!important}
+.hyq-page--v17 .hyq-world-actor--lab{left:82%!important}
+
+/* Mobile: transform the panorama into one full-width focused room, matching the supplied phone reference. */
+@media(max-width:760px){
+  .hyq-page--v17{
+    --hyq-v19-scene-h:312px;
+    --hyq-v19-doctor-scale:.52;
+    --hyq-v19-patient-scale:.54;
+  }
+  .hyq-page--v17 .hyq-world-shell{width:100%!important;max-width:none!important;padding:5px!important;border-radius:14px!important}
+  .hyq-page--v17 .hyq-world{
+    display:block!important;
+    width:100%!important;
+    max-width:none!important;
+    border-width:3px!important;
+    border-radius:12px!important;
+  }
+  .hyq-page--v17 .hyq-room{
+    position:absolute!important;
+    inset:0!important;
+    width:100%!important;
+    height:100%!important;
+    border:0!important;
+    opacity:0!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+    transform:translateX(2%) scale(.992)!important;
+    z-index:2!important;
+  }
+  .hyq-page--v17 .hyq-room.is-focus{
+    opacity:1!important;
+    visibility:visible!important;
+    pointer-events:auto!important;
+    transform:translateX(0) scale(1)!important;
+    z-index:3!important;
+  }
+  .hyq-page--v17 .hyq-room-title{width:auto!important;min-width:118px!important;max-width:168px!important;left:16px!important;transform:none!important;text-align:left!important;padding:6px 9px!important}
+  .hyq-page--v17 .hyq-room-title b{font-size:10.5px!important}.hyq-page--v17 .hyq-room-title small{font-size:7.4px!important}
+
+  /* Hide actor when the user is browsing a room the doctor is not currently in. */
+  .hyq-page--v17 .hyq-world-actor{opacity:0!important;z-index:12!important;bottom:17px!important}
+  .hyq-page--v17 .hyq-world[data-focus="consult"][data-actor="consult"] .hyq-world-actor,
+  .hyq-page--v17 .hyq-world[data-focus="ward"][data-actor="ward"] .hyq-world-actor,
+  .hyq-page--v17 .hyq-world[data-focus="lab"][data-actor="lab"] .hyq-world-actor{opacity:1!important}
+  .hyq-page--v17 .hyq-world-actor--consult{left:45%!important}
+  .hyq-page--v17 .hyq-world-actor--ward{left:23%!important}
+  .hyq-page--v17 .hyq-world-actor--lab{left:53%!important}
+
+  /* Full-room consult composition: large drawer wall + central counter + patient. */
+  .hyq-page--v17 .hyq-room--consult .hyq-world-window{left:auto!important;right:5%!important;top:12%!important;transform:scale(.92)!important;transform-origin:top right!important}
+  .hyq-page--v17 .hyq-world-cabinet{left:5%!important;bottom:15%!important;width:29%!important;max-width:132px!important;height:184px!important;padding:24px 7px 7px!important}
+  .hyq-page--v17 .hyq-world-desk{left:35%!important;right:10%!important;bottom:11%!important;height:67px!important}
+  .hyq-page--v17 .hyq-consult-patient{right:5%!important;bottom:17%!important;width:92px!important;height:142px!important}
+  .hyq-page--v17 .hyq-consult-patient>.hyq-patient{left:18px!important}
+  .hyq-page--v17 .hyq-world-speech{right:68px!important;top:6px!important;width:min(158px,64vw)!important;padding:7px 9px!important}
+  .hyq-page--v17 .hyq-world-speech b{font-size:9.5px!important}.hyq-page--v17 .hyq-world-speech span{font-size:8.3px!important}
+
+  /* Full-room ward composition gives all three beds clear touch targets. */
+  .hyq-page--v17 .hyq-ward-screen{left:4%!important;top:18%!important;width:72px!important;height:128px!important}
+  .hyq-page--v17 .hyq-bed-bank-v17{left:30%!important;right:6%!important;top:66px!important;height:183px!important;gap:7px!important}
+  .hyq-page--v17 .hyq-bed-frame-v17{height:43px!important}
+  .hyq-page--v17 .hyq-bed-meta-v17 b{font-size:8.5px!important}.hyq-page--v17 .hyq-bed-meta-v17 small{font-size:7px!important}
+  .hyq-page--v17 .hyq-ward-lamp{right:4%!important;top:19%!important;transform:scale(.82)!important}
+
+  /* Full-room dispensing scene: shelf backdrop and a readable workbench. */
+  .hyq-page--v17 .hyq-lab-shelf{left:5%!important;right:5%!important;top:18%!important;height:83px!important;grid-template-columns:repeat(6,minmax(0,1fr))!important}
+  .hyq-page--v17 .hyq-lab-shelf button{font-size:7px!important}
+  .hyq-page--v17 .hyq-lab-table{left:10%!important;right:10%!important;bottom:12%!important;height:76px!important}
+  .hyq-page--v17 .hyq-herb-kettle{right:5%!important;top:45%!important;transform:scale(.90)!important}
+
+  .hyq-page--v17 .hyq-scene-toolbar{display:grid!important;grid-template-columns:1fr!important;gap:5px!important;padding:5px!important}
+  .hyq-page--v17 .hyq-scene-toolbar>div{min-height:28px!important}
+  .hyq-page--v17 .hyq-scene-toolbar>div b{font-size:11px!important}.hyq-page--v17 .hyq-scene-toolbar>div small{font-size:8px!important}
+  .hyq-page--v17 .hyq-scene-toolbar nav{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;width:100%!important}
+  .hyq-page--v17 .hyq-scene-toolbar nav button{justify-content:center!important;width:100%!important;height:35px!important;min-height:35px!important;padding:5px!important;font-size:9px!important}
+
+  .hyq-page--v17 .hyq-four-exams{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important}
+  .hyq-page--v17 .hyq-four-exams>article{min-height:100px!important;padding:9px!important}
+  .hyq-page--v17 .hyq-four-exams b{font-size:10.5px!important}.hyq-page--v17 .hyq-four-exams p{font-size:12.3px!important;line-height:1.42!important}
+}
+
+@media(max-width:420px){
+  .hyq-page--v17{--hyq-v19-scene-h:300px;--hyq-v19-doctor-scale:.49;--hyq-v19-patient-scale:.50}
+  .hyq-page--v17 .hyq-world-cabinet{width:30%!important;height:173px!important}
+  .hyq-page--v17 .hyq-world-desk{left:36%!important;right:8%!important;height:62px!important}
+  .hyq-page--v17 .hyq-consult-patient{right:2%!important;transform:scale(.94)!important;transform-origin:bottom right!important}
+  .hyq-page--v17 .hyq-world-speech{right:61px!important;width:min(145px,61vw)!important}
+  .hyq-page--v17 .hyq-lab-shelf{grid-template-columns:repeat(3,minmax(0,1fr))!important;height:91px!important}
+}
+
+@media(max-width:350px){
+  .hyq-page--v17{--hyq-v19-scene-h:286px;--hyq-v19-doctor-scale:.45;--hyq-v19-patient-scale:.46}
+  .hyq-page--v17 .hyq-scene-toolbar nav button span{font-size:8px!important}
+  .hyq-page--v17 .hyq-four-exams{grid-template-columns:1fr!important}
+  .hyq-page--v17 .hyq-four-exams>article{min-height:76px!important}
+}
+
+/* App-level desktop-on-phone mode must use the same focus-room strategy. */
+html[data-desktop-on-phone="true"] .hyq-page--v17{--hyq-v19-scene-h:300px}
+
+@media(prefers-reduced-motion:reduce){
+  .hyq-page--v17 .hyq-room,
+  .hyq-page--v17 .hyq-world-actor,
+  .hyq-page--v17 .hyq-consult-patient>.hyq-patient,
+  .hyq-page--v17 .hyq-herb-kettle>i{animation:none!important;transition:none!important}
+}
