@@ -1,8 +1,8 @@
 {
   "id":"/",
-  "name":"YHCT HIU 4.0",
+  "name":"YHCT HIU 4.0 · My HIU YHCT",
   "short_name":"YHCT HIU",
-  "description":"Mạng xã hội Học thuật & Luyện thi Y học Cổ truyền",
+  "description":"Hệ sinh thái học thuật all-in-one Y học Cổ truyền cho sinh viên HIU",
   "start_url":"/",
   "scope":"/",
   "display":"standalone",
@@ -10,6 +10,7 @@
   "background_color":"#f6f1e7",
   "theme_color":"#174c3c",
   "lang":"vi",
+  "categories":["education","medical","social"],
   "icons":[
     {"src":"/pwa-icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
     {"src":"/pwa-icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},
