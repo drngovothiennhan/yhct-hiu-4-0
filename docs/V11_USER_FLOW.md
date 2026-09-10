@@ -1,0 +1,1 @@
+Admin places DOCX in a subject folder under 00_DOCX_MỚI_CHỜ_XỬ_LÝ and uses Đồng bộ DOCX. Explicit source MCQs with recorded answers become source_verified. Study-text conversions become needs_review and are surfaced to moderators for approve/reject. Students open Luyện thi and start the stable daily set; answers are scored server-side only after submission.
