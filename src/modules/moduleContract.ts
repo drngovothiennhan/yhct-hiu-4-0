@@ -14,7 +14,7 @@ export type ModuleDefinition={
 export const MODULE_ISOLATION_VERSION='final4-modular-v1';
 
 export const MODULES:Record<ModuleId,ModuleDefinition>={
-  feed:{id:'feed',title:'Bảng tin học thuật',path:'/',label:'Bảng tin học thuật',memberOnly:false,featureScope:'academic-feed'},
+  feed:{id:'feed',title:'My HIU YHCT',path:'/',label:'Trang chủ',memberOnly:false,featureScope:'student-home-academic-feed'},
   research:{id:'research',title:'Trung tâm nghiên cứu',path:'/research',label:'Trung tâm nghiên cứu',memberOnly:false,featureScope:'research-center'},
   profile:{id:'profile',title:'Tường cá nhân',path:'/profile',label:'Tường cá nhân',memberOnly:true,featureScope:'personal-wall-inbox'},
   garden:{id:'garden',title:'Gia Viên Dược Thảo',path:'/garden',label:'Gia Viên Dược Thảo',memberOnly:true,featureScope:'herb-garden'},
