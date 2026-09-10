@@ -9,7 +9,8 @@ type StoryStep=
   |{kind:'switch';actor:ActorName;scene:SceneId;waypoint?:string}
   |{kind:'action';actor:ActorName;state:DoctorState|PatientState;animation:ActorAnimation;started?:boolean}
   |{kind:'wait';ms:number;remaining?:number}
-  |{kind:'hide';actor:ActorName;hidden:boolean};
+  |{kind:'hide';actor:ActorName;hidden:boolean}
+  |{kind:'emit';event:'PATIENT_DISCHARGED'|'TREATMENT_COMPLETED';caseKey:string;bedSlot?:number|null};
 
 export interface StoryViewState{
   stage:string;
@@ -61,12 +62,27 @@ export class YQuanStoryController{
     this.bus=options.bus||gameEventBus;this.storageKey=options.storageKey;this.onChange=options.onChange;
     this.doctor=new CharacterActor({id:'doctor',scene:'clinic',waypoint:'C_IDLE',state:'RESTING',speed:235,
       onArrive:(scene,waypoint)=>this.bus.emit('ACTOR_ARRIVED',{actor:'doctor',scene,waypoint}),
-      onAnimationComplete:animation=>this.bus.emit('ANIMATION_COMPLETED',{actor:'doctor',animation})});
+      onAnimationComplete:animation=>this.onDoctorAnimationComplete(animation)});
     this.patient=new CharacterActor({id:'patient',scene:'clinic',waypoint:'C_ENTRANCE',state:'SPAWNING',speed:210,
       onArrive:(scene,waypoint)=>this.bus.emit('ACTOR_ARRIVED',{actor:'patient',scene,waypoint}),
-      onAnimationComplete:animation=>this.bus.emit('ANIMATION_COMPLETED',{actor:'patient',animation})});
+      onAnimationComplete:animation=>this.onPatientAnimationComplete(animation)});
     this.patient.visible=false;
     this.readPersisted();
+  }
+
+  private onDoctorAnimationComplete(animation:ActorAnimation){
+    this.bus.emit('ANIMATION_COMPLETED',{actor:'doctor',animation});
+    const caseKey=this.currentCase?.case_key;if(!caseKey)return;
+    if(this.doctor.state==='GREETING')this.bus.emit('EXAM_STARTED',{caseKey});
+    else if(this.doctor.state==='OBSERVING')this.bus.emit('INSPECTION_COMPLETED',{caseKey});
+    else if(this.doctor.state==='LISTENING')this.bus.emit('LISTENING_COMPLETED',{caseKey});
+    else if(this.doctor.state==='QUESTIONING')this.bus.emit('INQUIRY_COMPLETED',{caseKey});
+    else if(this.doctor.state==='PULSE_CHECK')this.bus.emit('PALPATION_COMPLETED',{caseKey});
+  }
+
+  private onPatientAnimationComplete(animation:ActorAnimation){
+    this.bus.emit('ANIMATION_COMPLETED',{actor:'patient',animation});
+    const caseKey=this.currentCase?.case_key;if(caseKey&&this.patient.state==='SITTING')this.bus.emit('PATIENT_READY_FOR_EXAM',{caseKey});
   }
 
   private readPersisted(){
@@ -109,20 +125,67 @@ export class YQuanStoryController{
   }
 
   private replace(stage:string,steps:StoryStep[],cameraHint?:SceneId){
+    this.doctor.cancelMove();this.patient.cancelMove();
     this.queue=steps;this.activeStep=null;this.stage=stage;if(cameraHint)this.cameraHint=cameraHint;this.changed();
   }
 
-  private examSequence(){
-    this.patient.visible=true;
+  private doctorToClinic(target='C_DESK_DOCTOR'):StoryStep[]{
+    if(this.doctor.scene==='pharmacy')return[
+      {kind:'move',actor:'doctor',waypoint:'P_EXIT'},
+      {kind:'switch',actor:'doctor',scene:'clinic',waypoint:'C_PHARMACY_EXIT'},
+      {kind:'move',actor:'doctor',waypoint:target}
+    ];
+    if(this.doctor.scene==='ward')return[
+      {kind:'move',actor:'doctor',waypoint:'W_EXIT'},
+      {kind:'switch',actor:'doctor',scene:'clinic',waypoint:'C_WARD_EXIT'},
+      {kind:'move',actor:'doctor',waypoint:target}
+    ];
+    return[{kind:'move',actor:'doctor',waypoint:target}];
+  }
+
+  private doctorToWard(target:string):StoryStep[]{
+    if(this.doctor.scene==='pharmacy')return[
+      {kind:'move',actor:'doctor',waypoint:'P_EXIT'},
+      {kind:'switch',actor:'doctor',scene:'clinic',waypoint:'C_PHARMACY_EXIT'},
+      {kind:'move',actor:'doctor',waypoint:'C_WARD_EXIT'},
+      {kind:'switch',actor:'doctor',scene:'ward',waypoint:'W_ENTRANCE'},
+      {kind:'move',actor:'doctor',waypoint:target}
+    ];
+    if(this.doctor.scene==='clinic')return[
+      {kind:'move',actor:'doctor',waypoint:'C_WARD_EXIT'},
+      {kind:'switch',actor:'doctor',scene:'ward',waypoint:'W_ENTRANCE'},
+      {kind:'move',actor:'doctor',waypoint:target}
+    ];
+    return[{kind:'move',actor:'doctor',waypoint:target}];
+  }
+
+  private patientDepartureSteps():StoryStep[]{
+    if(!this.patient.visible)return[];
+    if(this.patient.scene==='ward')return[
+      {kind:'move',actor:'patient',waypoint:'W_EXIT'},
+      {kind:'action',actor:'patient',state:'LEAVING',animation:'leave'},
+      {kind:'hide',actor:'patient',hidden:true}
+    ];
+    if(this.patient.scene==='clinic')return[
+      {kind:'move',actor:'patient',waypoint:'C_ENTRANCE'},
+      {kind:'action',actor:'patient',state:'LEAVING',animation:'leave'},
+      {kind:'hide',actor:'patient',hidden:true}
+    ];
+    return[{kind:'hide',actor:'patient',hidden:true}];
+  }
+
+  private examSequence(prelude:StoryStep[]=[]){
+    const doctorRoute=this.doctorToClinic('C_DESK_DOCTOR');
     this.replace('PATIENT_ENTER',[
+      ...prelude,
       {kind:'switch',actor:'patient',scene:'clinic',waypoint:'C_ENTRANCE'},
+      {kind:'hide',actor:'patient',hidden:false},
       {kind:'action',actor:'patient',state:'ENTERING_CLINIC',animation:'walk'},
       {kind:'move',actor:'patient',waypoint:'C_WAIT'},
       {kind:'action',actor:'patient',state:'WAITING',animation:'idle'},
       {kind:'move',actor:'patient',waypoint:'C_DESK_PATIENT'},
       {kind:'action',actor:'patient',state:'SITTING',animation:'sit'},
-      {kind:'switch',actor:'doctor',scene:'clinic',waypoint:this.doctor.scene==='clinic'?this.doctor.waypoint:'C_IDLE'},
-      {kind:'move',actor:'doctor',waypoint:'C_DESK_DOCTOR'},
+      ...doctorRoute,
       {kind:'action',actor:'doctor',state:'GREETING',animation:'greet'},
       {kind:'action',actor:'patient',state:'CONSULTING',animation:'talk'},
       {kind:'action',actor:'doctor',state:'OBSERVING',animation:'observe_patient'},
@@ -137,12 +200,13 @@ export class YQuanStoryController{
   }
 
   private medicineSequence(){
+    const toPharmacy=this.doctor.scene==='clinic'?[{kind:'move',actor:'doctor',waypoint:'C_PHARMACY_EXIT'} as StoryStep,{kind:'switch',actor:'doctor',scene:'pharmacy',waypoint:'P_ENTRANCE'} as StoryStep]:
+      this.doctor.scene==='ward'?[...this.doctorToClinic('C_PHARMACY_EXIT'),{kind:'switch',actor:'doctor',scene:'pharmacy',waypoint:'P_ENTRANCE'} as StoryStep]:[];
     this.replace('MEDICINE_PREPARATION',[
       {kind:'action',actor:'doctor',state:'DIAGNOSING',animation:'think'},
       {kind:'action',actor:'doctor',state:'PRESCRIBING',animation:'write_record'},
       {kind:'action',actor:'patient',state:'WAITING_MEDICINE',animation:'idle'},
-      {kind:'move',actor:'doctor',waypoint:'C_PHARMACY_EXIT'},
-      {kind:'switch',actor:'doctor',scene:'pharmacy',waypoint:'P_ENTRANCE'},
+      ...toPharmacy,
       {kind:'move',actor:'doctor',waypoint:'P_CABINET'},
       {kind:'action',actor:'doctor',state:'SELECTING_HERBS',animation:'open_drawer'},
       {kind:'action',actor:'doctor',state:'SELECTING_HERBS',animation:'take_herb'},
@@ -165,17 +229,19 @@ export class YQuanStoryController{
 
   private wardSequence(item:VisualCase){
     const slot=Math.max(1,Math.min(3,Number(item.bed_slot)||1)) as 1|2|3;this.bedAssignment=slot;
-    this.replace('TRANSFER_TO_WARD',[
+    const patientRoute:StoryStep[]=this.patient.scene==='ward'?[{kind:'move',actor:'patient',waypoint:BED_WAYPOINTS[slot]}]:[
       {kind:'switch',actor:'patient',scene:'clinic',waypoint:this.patient.scene==='clinic'?this.patient.waypoint:'C_DESK_PATIENT'},
       {kind:'action',actor:'patient',state:'WALKING_TO_WARD',animation:'walk'},
       {kind:'move',actor:'patient',waypoint:'C_WARD_EXIT'},
       {kind:'switch',actor:'patient',scene:'ward',waypoint:'W_ENTRANCE'},
-      {kind:'move',actor:'patient',waypoint:BED_WAYPOINTS[slot]},
+      {kind:'move',actor:'patient',waypoint:BED_WAYPOINTS[slot]}
+    ];
+    const doctorRoute=this.doctorToWard(BED_WAYPOINTS[slot]);
+    this.patient.visible=true;
+    this.replace('TRANSFER_TO_WARD',[
+      ...patientRoute,
       {kind:'action',actor:'patient',state:'IN_TREATMENT',animation:'lying'},
-      {kind:'switch',actor:'doctor',scene:'clinic',waypoint:this.doctor.scene==='clinic'?this.doctor.waypoint:'C_DESK_DOCTOR'},
-      {kind:'move',actor:'doctor',waypoint:'C_WARD_EXIT'},
-      {kind:'switch',actor:'doctor',scene:'ward',waypoint:'W_ENTRANCE'},
-      {kind:'move',actor:'doctor',waypoint:BED_WAYPOINTS[slot]},
+      ...doctorRoute,
       {kind:'action',actor:'doctor',state:'CHECKING_BED',animation:'check_bed'},
       {kind:'action',actor:'doctor',state:'CARING_PATIENT',animation:'talk_patient'},
       {kind:'move',actor:'doctor',waypoint:'W_DESK'},
@@ -187,9 +253,11 @@ export class YQuanStoryController{
 
   private followupSequence(item:VisualCase){
     const slot=Math.max(1,Math.min(3,Number(item.bed_slot)||1)) as 1|2|3;this.bedAssignment=slot;
+    if(this.patient.scene!=='ward')this.patient.setScene('ward',BED_WAYPOINTS[slot]);
+    this.patient.visible=true;
+    const doctorRoute=this.doctorToWard(BED_WAYPOINTS[slot]);
     this.replace('FOLLOW_UP',[
-      {kind:'switch',actor:'doctor',scene:'ward',waypoint:this.doctor.scene==='ward'?this.doctor.waypoint:'W_ENTRANCE'},
-      {kind:'move',actor:'doctor',waypoint:BED_WAYPOINTS[slot]},
+      ...doctorRoute,
       {kind:'action',actor:'doctor',state:'CHECKING_BED',animation:'check_bed'},
       {kind:'action',actor:'patient',state:'FOLLOW_UP',animation:'talk'},
       {kind:'action',actor:'doctor',state:'CARING_PATIENT',animation:'talk_patient'},
@@ -197,21 +265,19 @@ export class YQuanStoryController{
     ],'ward');
   }
 
-  private dischargeSequence(caseKey:string){
+  private dischargeSequence(caseKey:string,bedSlot:number|null=this.bedAssignment){
     const patientScene=this.patient.scene;
-    const steps:StoryStep[]=[];
-    if(patientScene==='ward')steps.push({kind:'move',actor:'patient',waypoint:'W_EXIT'});
-    else if(patientScene==='clinic')steps.push({kind:'move',actor:'patient',waypoint:'C_ENTRANCE'});
-    steps.push({kind:'action',actor:'patient',state:'LEAVING',animation:'leave'},{kind:'hide',actor:'patient',hidden:true},{kind:'action',actor:'doctor',state:'RETURNING',animation:'idle'});
+    const steps:StoryStep[]=this.patientDepartureSteps();
+    if(bedSlot)steps.push({kind:'emit',event:'TREATMENT_COMPLETED',caseKey,bedSlot});
+    steps.push({kind:'emit',event:'PATIENT_DISCHARGED',caseKey},{kind:'action',actor:'doctor',state:'RETURNING',animation:'idle'});
     this.replace('DISCHARGING',steps,patientScene);
-    this.bus.emit('PATIENT_DISCHARGED',{caseKey});
   }
 
   sync(cases:VisualCase[]){
     const next=casePriority(cases);
     const ward=cases.filter(item=>item.care_status==='observing'||item.care_status==='recheck_due');
     if(!next){
-      if(this.currentCase)this.dischargeSequence(this.currentCase.case_key);
+      if(this.currentCase)this.dischargeSequence(this.currentCase.case_key,Number(this.currentCase.bed_slot)||this.bedAssignment);
       this.previousCase=this.currentCase;this.currentCase=null;this.bedAssignment=null;return;
     }
 
@@ -223,16 +289,22 @@ export class YQuanStoryController{
     if(restored&&restored.caseKey!==next.case_key)this.pendingRestore=null;
 
     const previous=this.currentCase;
+    const changingCase=Boolean(previous&&previous.case_key!==next.case_key);
+    const departurePrelude=changingCase?this.patientDepartureSteps():[];
     this.previousCase=previous;this.currentCase=next;
     const isNew=!previous||previous.case_key!==next.case_key;
     if(isNew){
       this.bus.emit('PATIENT_ARRIVED',{caseKey:next.case_key});
-      if(next.care_status==='observing'||next.care_status==='recheck_due'){
+      if(next.care_status==='recheck_due'){
+        const slot=Math.max(1,Math.min(3,Number(next.bed_slot)||1));
+        this.patient.setScene('ward',BED_WAYPOINTS[slot]);this.patient.visible=true;this.patient.setState('IN_TREATMENT');this.patient.play('lying',true);
+        this.bus.emit('FOLLOWUP_REQUIRED',{caseKey:next.case_key,bedSlot:slot});this.followupSequence(next);
+      }else if(next.care_status==='observing'){
         this.patient.visible=true;this.wardSequence(next);
         if(next.bed_slot)this.bus.emit('BED_ASSIGNED',{caseKey:next.case_key,bedSlot:Number(next.bed_slot)});
       }else if(next.care_status==='awaiting_transfer'){
         this.patient.visible=true;this.patient.setScene('clinic','C_DESK_PATIENT');this.patient.setState('WAITING_MEDICINE');this.medicineSequence();
-      }else this.examSequence();
+      }else this.examSequence(departurePrelude);
       return;
     }
 
@@ -242,7 +314,11 @@ export class YQuanStoryController{
         this.bus.emit(next.correct?'DIAGNOSIS_CORRECT':'DIAGNOSIS_INCORRECT',{caseKey:next.case_key});
         this.bus.emit('PRESCRIPTION_CREATED',{caseKey:next.case_key});this.medicineSequence();return;
       }
-      if((next.care_status==='observing'||next.care_status==='recheck_due')&&previous?.care_status!==next.care_status){
+      if(next.care_status==='recheck_due'&&previous?.care_status!=='recheck_due'){
+        const slot=Math.max(1,Math.min(3,Number(next.bed_slot)||1));
+        this.bus.emit('FOLLOWUP_REQUIRED',{caseKey:next.case_key,bedSlot:slot});this.followupSequence(next);return;
+      }
+      if(next.care_status==='observing'&&previous?.care_status!=='observing'){
         const slot=Math.max(1,Math.min(3,Number(next.bed_slot)||1));
         this.bus.emit('INPATIENT_REQUIRED',{caseKey:next.case_key});this.bus.emit('BED_ASSIGNED',{caseKey:next.case_key,bedSlot:slot});this.bus.emit('TREATMENT_STARTED',{caseKey:next.case_key,bedSlot:slot});this.wardSequence(next);return;
       }
@@ -258,6 +334,11 @@ export class YQuanStoryController{
   private processStep(deltaMs:number){
     if(!this.activeStep)this.activeStep=this.queue.shift()||null;
     const step=this.activeStep;if(!step)return;
+    if(step.kind==='emit'){
+      if(step.event==='PATIENT_DISCHARGED')this.bus.emit('PATIENT_DISCHARGED',{caseKey:step.caseKey});
+      else this.bus.emit('TREATMENT_COMPLETED',{caseKey:step.caseKey,bedSlot:step.bedSlot??null});
+      this.activeStep=null;return;
+    }
     const actor=step.kind==='move'||step.kind==='switch'||step.kind==='action'||step.kind==='hide'?(step.actor==='doctor'?this.doctor:this.patient):null;
     if(step.kind==='switch'){
       actor!.setScene(step.scene,step.waypoint||SCENES[step.scene].spawn);this.cameraHint=step.scene;this.activeStep=null;this.changed();return;
@@ -291,7 +372,14 @@ export class YQuanStoryController{
     if(this.currentCase){
       if(this.currentCase.care_status==='waiting_diagnosis'&&this.stage!=='WAITING_DIAGNOSIS'){this.stage='WAITING_DIAGNOSIS';this.setDoctor('WAITING_PATIENT','idle');this.setPatient('WAITING_DIAGNOSIS','idle');this.changed()}
       else if(this.currentCase.care_status==='awaiting_transfer'&&this.stage!=='WAITING_DISPOSITION'){this.stage='WAITING_DISPOSITION';this.cameraHint='clinic';this.changed();this.bus.emit('MEDICINE_READY',{caseKey:this.currentCase.case_key})}
-      else if(this.currentCase.care_status==='observing'&&this.stage!=='IN_TREATMENT'){this.stage='IN_TREATMENT';this.cameraHint='ward';this.setPatient('IN_TREATMENT','sleeping');this.changed()}
+      else if(this.currentCase.care_status==='recheck_due'&&this.stage!=='FOLLOW_UP'){
+        const slot=Math.max(1,Math.min(3,Number(this.currentCase.bed_slot)||1));this.bus.emit('FOLLOWUP_REQUIRED',{caseKey:this.currentCase.case_key,bedSlot:slot});this.followupSequence(this.currentCase);return;
+      }
+      else if(this.currentCase.care_status==='observing'&&this.stage!=='IN_TREATMENT'){
+        const slot=Math.max(1,Math.min(3,Number(this.currentCase.bed_slot)||1));
+        if(this.patient.scene!=='ward'||this.patient.waypoint!==BED_WAYPOINTS[slot]){this.wardSequence(this.currentCase);return}
+        this.stage='IN_TREATMENT';this.cameraHint='ward';this.setPatient('IN_TREATMENT','sleeping');this.changed();
+      }
       return;
     }
     this.stage='RESTING';this.setDoctor('RESTING','idle');this.patient.visible=false;this.idleElapsed+=deltaMs;
