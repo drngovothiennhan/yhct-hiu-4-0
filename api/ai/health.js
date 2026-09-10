@@ -5,7 +5,9 @@ export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');
   res.setHeader('X-Content-Type-Options','nosniff');
   if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
-  const openAiReady=cloudAiConfigured(),geminiReady=geminiAiConfigured(),cloudReady=openAiReady||geminiReady,model=openAiReady?cloudAiModel():geminiReady?geminiAiModel():cloudAiModel();
+  const openAiReady=cloudAiConfigured(),geminiReady=geminiAiConfigured(),cloudReady=openAiReady||geminiReady;
+  const academicProviderPriority=process.env.AI_ACADEMIC_PROVIDER==='openai'?'openai-first':'gemini-first';
+  const model=geminiReady&&academicProviderPriority==='gemini-first'?geminiAiModel('research'):openAiReady?cloudAiModel():geminiReady?geminiAiModel():cloudAiModel();
   let centralRagReady=false,knowledgeStats=null;
   try{
     const stats=await publicRpc('ai_knowledge_stats_v3',{},3500);
@@ -20,6 +22,7 @@ export default async function handler(req,res){
     mode:cloudReady?'multi-cloud+local':'local-only',
     cloudReady,
     providers:{openai:openAiReady,gemini:geminiReady},
+    academicProviderPriority,
     localFallback:true,
     offlineFallback:true,
     centralRag:true,
@@ -33,7 +36,8 @@ export default async function handler(req,res){
     roleBoundTools:true,
     readOnlyTools:true,
     model,
-    geminiModel:geminiReady?geminiAiModel():null,
+    geminiModels:{fast:geminiAiModel(),research:geminiAiModel('research')},
+    sharedAcademicRagToGemini:geminiReady,
     privateContextToGemini:process.env.GEMINI_ALLOW_PRIVATE_CONTEXT==='true'
   }});
 }
