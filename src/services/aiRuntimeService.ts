@@ -3,7 +3,7 @@ import {supabase} from './authService';
 export type AiMode='fast'|'research'|'exam';
 export type AiSource={id:string;title:string;text:string;url?:string|null};
 export type AiCitation={id:string;label:string;url:string|null};
-export type AiRuntimeAnswer={answer:string;citations:AiCitation[];confidence:'high'|'medium'|'low';safety:'educational'|'needs_source_check'|'refuse_clinical_advice';suggestedQueries:string[];provider:'openai'|'local';degraded:boolean;latencyMs:number;toolsUsed:string[]};
+export type AiRuntimeAnswer={answer:string;citations:AiCitation[];confidence:'high'|'medium'|'low';safety:'educational'|'needs_source_check'|'refuse_clinical_advice';suggestedQueries:string[];provider:'openai'|'gemini'|'local';degraded:boolean;latencyMs:number;toolsUsed:string[]};
 export class AiRuntimeError extends Error{constructor(public kind:'auth'|'timeout'|'network'|'invalid',message:string){super(message);this.name='AiRuntimeError'}}
 
 const TIMEOUT_MS=24000;
@@ -18,7 +18,7 @@ function normalizeAnswer(value:unknown):AiRuntimeAnswer{
   const citations=Array.isArray(x.citations)?x.citations.slice(0,6).map(item=>{const c=(item||{}) as Record<string,unknown>;return{id:safe(c.id,120),label:safe(c.label,240),url:c.url?safe(c.url,1200):null}}).filter(c=>c.id&&c.label):[];
   const confidence=validConfidence.has(String(x.confidence))?String(x.confidence) as AiRuntimeAnswer['confidence']:'low';
   const safety=validSafety.has(String(x.safety))?String(x.safety) as AiRuntimeAnswer['safety']:'needs_source_check';
-  const provider=x.provider==='openai'?'openai':'local';
+  const provider=x.provider==='openai'||x.provider==='gemini'?x.provider:'local';
   const suggestedQueries=Array.isArray(x.suggestedQueries)?x.suggestedQueries.map(v=>safe(v,180)).filter(Boolean).slice(0,3):[];
   const toolsUsed=Array.isArray(x.toolsUsed)?[...new Set(x.toolsUsed.map(v=>safe(v,80)).filter(Boolean))].slice(0,6):[];
   return{answer,citations,confidence,safety,suggestedQueries,provider,degraded:Boolean(x.degraded),latencyMs:Number.isFinite(Number(x.latencyMs))?Number(x.latencyMs):0,toolsUsed};
