@@ -1,0 +1,136 @@
+name: Vercel Cleanup Once
+
+on:
+  push:
+    branches: [ops/vercel-cleanup-20260910]
+    paths:
+      - '.github/workflows/vercel-cleanup-once.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_TEAM_ID: team_zMTBj85c4Dh5QoDNIjWqQRTg
+      VERCEL_PROJECT_NAME: yhct-hiu-final4-stage
+      PROD_ALIAS: yhct-hiu-final4-stage.vercel.app
+      KEEP_IDS: dpl_B8PmeuGRnf7NCcisSWFuorMjSdsx,dpl_Hv1WzTecbvHQvC7NRvJJpGMXqYYC,dpl_FKq7ZE6Avk1zNY9wMnBzJaix9wQV
+    steps:
+      - name: Require Vercel credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${VERCEL_TOKEN:-}" || { echo 'Missing VERCEL_TOKEN'; exit 78; }
+
+      - name: Remove audited redundant deployments
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidates=(
+            dpl_CToXEQsbA4WG2VgYG25UP24pM6cY
+            dpl_2e9bzLRe1hpPJdaYoQGcV5aGKaSS
+            dpl_FDKWeDwPwhaJvviZyJKbV2tTEY3J
+            dpl_DTQA4rTiP8u95VrbnTdd2P2mwyUe
+            dpl_CxRaT4bFdJesE65fsoDv75gXbFTh
+            dpl_HjNBmSswS4P4yCQSHXn33HGseH7J
+            dpl_448rh8wNSfj5BMSNom6KjRLg8pZi
+            dpl_925tfTRszWsL4exxkFn162aEzr1R
+            dpl_7j1zbTW88eDis9evGzDFSQCCo3KN
+            dpl_3cCz4CGc94SjWcwWwzzzQ3kiFTeD
+            dpl_7yvTEiFNXfyCPd4wfF48YsFCvdX2
+            dpl_9YCB3wtm6K7LpTpqX43QYkRjofMG
+          )
+          deleted=0
+          skipped=0
+          failed=0
+          : > /tmp/cleanup-summary.txt
+
+          for id in "${candidates[@]}"; do
+            if [[ ",${KEEP_IDS}," == *",${id},"* ]]; then
+              echo "SKIP protected ${id}" | tee -a /tmp/cleanup-summary.txt
+              skipped=$((skipped+1))
+              continue
+            fi
+
+            info="$(mktemp)"
+            code="$(curl --silent --show-error --output "$info" --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v13/deployments/${id}?teamId=${VERCEL_TEAM_ID}")"
+
+            if [[ "$code" == "404" ]]; then
+              echo "SKIP missing ${id}" | tee -a /tmp/cleanup-summary.txt
+              rm -f "$info"
+              skipped=$((skipped+1))
+              continue
+            fi
+            if [[ "$code" != "200" ]]; then
+              detail="$(node - "$info" <<'NODE'
+const fs=require('node:fs');
+try{const b=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));process.stdout.write(String(b?.error?.message||b?.error?.code||'lookup failed').slice(0,240));}catch{process.stdout.write('lookup failed')}
+NODE
+              )"
+              echo "FAIL lookup ${id}: HTTP ${code} ${detail}" | tee -a /tmp/cleanup-summary.txt
+              rm -f "$info"
+              failed=$((failed+1))
+              continue
+            fi
+
+            verdict="$(node - "$info" "$VERCEL_PROJECT_NAME" "$PROD_ALIAS" <<'NODE'
+const fs=require('node:fs');
+const [file,expectedName,prodAlias]=process.argv.slice(2);
+const b=JSON.parse(fs.readFileSync(file,'utf8'));
+const aliases=Array.isArray(b.alias)?b.alias:[];
+if(b.name!==expectedName){process.stdout.write('wrong-project');process.exit(0)}
+if(aliases.includes(prodAlias)){process.stdout.write('production-alias');process.exit(0)}
+if(b.target && b.target!=='production'){process.stdout.write('non-production-target');process.exit(0)}
+process.stdout.write('ok');
+NODE
+            )"
+            rm -f "$info"
+
+            if [[ "$verdict" != "ok" ]]; then
+              echo "SKIP ${id}: ${verdict}" | tee -a /tmp/cleanup-summary.txt
+              skipped=$((skipped+1))
+              continue
+            fi
+
+            out="$(mktemp)"
+            code="$(curl --silent --show-error --output "$out" --write-out '%{http_code}' \
+              --request DELETE \
+              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v13/deployments/${id}?teamId=${VERCEL_TEAM_ID}")"
+            if [[ "$code" == "200" ]]; then
+              state="$(node - "$out" <<'NODE'
+const fs=require('node:fs');
+try{const b=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));process.stdout.write(String(b.state||'DELETED'));}catch{process.stdout.write('DELETED')}
+NODE
+              )"
+              echo "DELETE ${id}: ${state}" | tee -a /tmp/cleanup-summary.txt
+              deleted=$((deleted+1))
+            else
+              detail="$(node - "$out" <<'NODE'
+const fs=require('node:fs');
+try{const b=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));process.stdout.write(String(b?.error?.message||b?.error?.code||'delete failed').slice(0,240));}catch{process.stdout.write('delete failed')}
+NODE
+              )"
+              echo "FAIL delete ${id}: HTTP ${code} ${detail}" | tee -a /tmp/cleanup-summary.txt
+              failed=$((failed+1))
+            fi
+            rm -f "$out"
+          done
+
+          {
+            echo "## Vercel cleanup result"
+            echo "- Deleted: ${deleted}"
+            echo "- Skipped: ${skipped}"
+            echo "- Failed: ${failed}"
+            echo '```text'
+            cat /tmp/cleanup-summary.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if (( failed > 0 )); then exit 1; fi
