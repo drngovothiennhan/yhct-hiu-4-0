@@ -45,6 +45,7 @@ import './yquan-scale-harmony.css';
 import './yquan-display-fix.css';
 import './yquan-v18-visual-coherence.css';
 import './yquan-v18-final-character-scene.css';
+import './yquan-v19-reference-art-direction.css';
 
 bootstrapThemeState();
 
