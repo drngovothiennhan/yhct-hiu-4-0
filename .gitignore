@@ -4,3 +4,7 @@ android/.gradle
 android/local.properties
 .env
 .env.*.local
+
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts

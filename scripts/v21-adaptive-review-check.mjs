@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import ts from 'typescript';
+const code=ts.transpileModule(fs.readFileSync('src/services/adaptiveReview.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const {scheduleReview,recordReview,readReviewCards}=await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+const memory=new Map();globalThis.localStorage={getItem:k=>memory.get(k)??null,setItem:(k,v)=>memory.set(k,v)};globalThis.window=new EventTarget();
+const card={id:'q1',topic:'test',stem:'Question',answer:'Explanation',source:'fixture',due:0,interval:0,streak:0,lastAttempt:''};
+const one=scheduleReview(card,true,'a',1000);assert.equal(one.due,86401000);assert.equal(one.streak,1);
+assert.deepEqual(scheduleReview(one,false,'a',2000),one,'Retry cannot alter a recorded attempt');
+const two=scheduleReview(one,true,'b',2000);assert.equal(two.interval,2);
+const failed=scheduleReview(two,false,'c',3000);assert.equal(failed.due,603000);assert.equal(failed.streak,0);
+let repeated=card;for(let i=0;i<30;i++)repeated=scheduleReview(repeated,true,`r${i}`,0);assert.equal(repeated.interval,60);
+assert.equal(recordReview('alice',card,'Explanation','fixture',false,'x'),true);assert.equal(readReviewCards('alice').length,1);assert.equal(readReviewCards('bob').length,0);
+recordReview('alice',card,'Explanation','fixture',false,'x');assert.equal(readReviewCards('alice').length,1);
+memory.set('yhct-review-v1:bob','bad json');assert.deepEqual(readReviewCards('bob'),[]);
+memory.set('yhct-review-v1:bob',JSON.stringify([{id:'broken',due:0}]));assert.deepEqual(readReviewCards('bob'),[]);
+globalThis.localStorage.setItem=()=>{throw new Error('quota')};assert.equal(recordReview('alice',card,'Explanation','fixture',true,'new'),false);
+console.log('V21 PASS: interval growth, lapse, replay, cap, account isolation, corrupt storage, quota failure');

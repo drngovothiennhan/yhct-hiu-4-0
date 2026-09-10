@@ -14,7 +14,7 @@ const validConfidence=new Set(['high','medium','low']);
 
 function normalizeAnswer(value:unknown):AiRuntimeAnswer{
   if(!value||typeof value!=='object')throw new AiRuntimeError('invalid','A.I gateway trả về dữ liệu không hợp lệ.');
-  const x=value as Record<string,unknown>,answer=safe(x.answer);
+  const x=value as Record<string,unknown>,answer=String(x.answer??'').replace(/\r\n/g,'\n').trim().slice(0,7000);
   if(!answer)throw new AiRuntimeError('invalid','A.I gateway không trả về câu trả lời.');
   const citations=Array.isArray(x.citations)?x.citations.slice(0,6).map(item=>{const c=(item||{}) as Record<string,unknown>;return{id:safe(c.id,120),label:safe(c.label,240),url:c.url?safe(c.url,1200):null}}).filter(c=>c.id&&c.label):[];
   const confidence=validConfidence.has(String(x.confidence))?String(x.confidence) as AiRuntimeAnswer['confidence']:'low';
@@ -37,7 +37,7 @@ export async function askServerAi(query:string,mode:AiMode='fast',sources:AiSour
   }catch(error){
     ensureActive(signal);
     if(error instanceof AiRuntimeError)throw error;
-    if((error as Error)?.name==='AbortError')throw new AiRuntimeError('timeout','A.I cloud quá thời gian chờ; hệ thống chuyển sang hỗ trợ cục bộ theo ngữ cảnh.');
+    if(deadline.signal.aborted||(error as Error)?.name==='AbortError'||(error as Error)?.name==='TimeoutError')throw new AiRuntimeError('timeout','A.I cloud quá thời gian chờ; hệ thống chuyển sang hỗ trợ cục bộ theo ngữ cảnh.');
     throw new AiRuntimeError('network','Không kết nối được A.I cloud; hệ thống chuyển sang hỗ trợ cục bộ theo ngữ cảnh.');
   }finally{deadline.dispose()}
 }

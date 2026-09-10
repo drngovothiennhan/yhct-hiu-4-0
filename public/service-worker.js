@@ -1,4 +1,4 @@
-const CACHE='yhct-hiu-4-final4-v5-atomic-theme-pwa-v6-authoritative-sync';
+const CACHE='yhct-hiu-4-final4-v5-atomic-theme-pwa-v21-adaptive-review';
 const SCOPE_URL=new URL(self.registration.scope);
 const ROOT=SCOPE_URL.pathname.endsWith('/')?SCOPE_URL.pathname:`${SCOPE_URL.pathname}/`;
 const path=name=>new URL(name,self.registration.scope).pathname;

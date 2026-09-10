@@ -6,6 +6,7 @@ import {fetchSchedules} from '../../services/scheduleService';
 import {getPwaInstallStatus,requestPwaInstall,subscribePwaInstall,type PwaInstallStatus} from '../../services/pwaInstallService';
 import {readStudentJourney,saveStudentPreferences,subscribeStudentJourney,type StudentPreferences,type StudentYear,type StudyGoal} from '../../services/studentJourneyService';
 import '../../student-home.css';
+import {getPerformancePreference,setPerformancePreference,type PerformancePreference} from '../../services/deviceCapability';
 
 type Props={member:Member|null;onNavigate:(module:ModuleId)=>void;onLogin:()=>void};
 type NextSchedule={title:string;startsAt:string;location?:string};
@@ -17,6 +18,7 @@ const goalLabel=(goal?:StudyGoal)=>GOALS.find(item=>item.value===goal)?.label||'
 
 export default function StudentHome({member,onNavigate,onLogin}:Props){
   const identity=member?.id||null,[journey,setJourney]=useState(()=>readStudentJourney(identity)),[editing,setEditing]=useState(()=>!readStudentJourney(identity).preferences),[year,setYear]=useState<StudentYear>(()=>readStudentJourney(identity).preferences?.year||1),[focus,setFocus]=useState(()=>readStudentJourney(identity).preferences?.focus||SUBJECTS[0]),[goal,setGoal]=useState<StudyGoal>(()=>readStudentJourney(identity).preferences?.goal||'daily'),[dailyMinutes,setDailyMinutes]=useState<StudentPreferences['dailyMinutes']>(()=>readStudentJourney(identity).preferences?.dailyMinutes||20),[nextSchedule,setNextSchedule]=useState<NextSchedule|null>(null),[installStatus,setInstallStatus]=useState<PwaInstallStatus>(()=>getPwaInstallStatus()),[ask,setAsk]=useState(''),[notice,setNotice]=useState('');
+  const [performance,setPerformance]=useState<PerformancePreference>(getPerformancePreference);
   const profile=journey.preferences;
   const name=member?.herbalAlias||member?.fullName?.split(/\s+/).filter(Boolean).slice(-2).join(' ')||'bạn';
   const dailyProgress=Math.min(DAY_TARGET,journey.todayQuestions),dailyPercent=Math.round(dailyProgress/DAY_TARGET*100);
@@ -48,6 +50,7 @@ export default function StudentHome({member,onNavigate,onLogin}:Props){
 
     <div className="student-ai-strip"><div className="student-ai-copy"><span><Brain/></span><div><b>HIU YHCT AI</b><small>Một trợ lý xuyên suốt: học tập · y văn · luyện thi · lịch · cách dùng ứng dụng</small></div></div><div className="student-ai-ask"><input value={ask} onChange={e=>setAsk(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')openAi()}} placeholder={`Hỏi nhanh về ${continueLabel}…`} maxLength={500}/><button onClick={openAi}>{member?<><Sparkles/> Hỏi AI</>:<><LogIn/> Đăng nhập để hỏi</>}</button></div></div>
 
+    <div className="student-performance"><label htmlFor="performance-mode">Hiệu ứng giao diện</label> <select id="performance-mode" value={performance} onChange={e=>{const value=e.target.value as PerformancePreference;setPerformance(value);setPerformancePreference(value)}}><option value="auto">Tự động theo thiết bị</option><option value="low">Chế độ nhẹ</option></select></div>
     <div className="student-shortcuts">
       <button onClick={()=>onNavigate('research')}><Brain/><span><b>Nghiên cứu</b><small>AI có nguồn & học liệu</small></span></button>
       <button onClick={()=>member?onNavigate('garden'):onLogin()}><Gamepad2/><span><b>Game YHCT</b><small>Gia Viên & HIU-Y-Quán</small></span></button>

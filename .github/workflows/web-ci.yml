@@ -50,6 +50,8 @@ jobs:
       - name: HIU Y Quan V20 actor runtime playthrough
         run: node scripts/v20-yquan-runtime-playthrough.mjs
       - run: npm audit --omit=dev --audit-level=high
+      - name: Adaptive review and cancellation regression
+        run: node scripts/v21-adaptive-review-check.mjs && node scripts/v18-request-behavior-check.mjs
       - run: npm run build
       - name: Real Google Chrome responsive smoke
         run: node scripts/chrome-real-smoke.mjs

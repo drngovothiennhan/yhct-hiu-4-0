@@ -1,4 +1,7 @@
 export type PerformanceTier='low'|'balanced'|'high';
+export type PerformancePreference='auto'|'low';
+export function getPerformancePreference():PerformancePreference{try{return localStorage.getItem('yhct-performance')==='low'?'low':'auto'}catch{return 'auto'}}
+export function setPerformancePreference(value:PerformancePreference){try{localStorage.setItem('yhct-performance',value)}catch{}window.dispatchEvent(new Event('yhct:performance'));}
 export type DisplayClass='compact'|'standard'|'wide'|'ultrawide';
 
 type NavigatorHints=Navigator&{
@@ -51,7 +54,7 @@ function profile():DeviceCapabilityProfile{
   if(saveData)score-=3;
   if(/(^|-)2g$|slow-2g/.test(effectiveType))score-=3;else if(effectiveType==='3g')score-=1;
   if(reducedMotion)score-=2;
-  const tier:PerformanceTier=score<=-1?'low':score>=3?'high':'balanced';
+  const tier:PerformanceTier=getPerformancePreference()==='low'?'low':score<=-1?'low':score>=3?'high':'balanced';
   return{tier,cores,memoryGb,saveData,effectiveType,reducedMotion,touch,viewportWidth:viewport.width,viewportHeight:viewport.height,screenWidth:Math.round(screen.width||viewport.width),screenHeight:Math.round(screen.height||viewport.height),devicePixelRatio:dpr,orientation:viewport.width>=viewport.height?'landscape':'portrait',displayClass:displayClass(viewport.width),finePointer};
 }
 
@@ -76,6 +79,10 @@ export function applyDeviceCapabilityProfile(){
   };
   const schedule=()=>{if(raf)cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{raf=0;sync()})};
   const initial=sync();
+  const pointer=window.matchMedia('(hover: hover) and (pointer: fine)');
+  pointer.addEventListener?.('change',schedule);
+  window.addEventListener('yhct:performance',schedule);
+  window.addEventListener('storage',schedule);
   const motion=window.matchMedia('(prefers-reduced-motion: reduce)');
   const n=navigator as NavigatorHints;
   motion.addEventListener?.('change',schedule);
@@ -84,5 +91,5 @@ export function applyDeviceCapabilityProfile(){
   window.addEventListener('orientationchange',schedule,{passive:true});
   window.visualViewport?.addEventListener('resize',schedule,{passive:true});
   window.visualViewport?.addEventListener('scroll',schedule,{passive:true});
-  return{profile:initial,dispose:()=>{if(raf)cancelAnimationFrame(raf);motion.removeEventListener?.('change',schedule);n.connection?.removeEventListener?.('change',schedule);window.removeEventListener('resize',schedule);window.removeEventListener('orientationchange',schedule);window.visualViewport?.removeEventListener('resize',schedule);window.visualViewport?.removeEventListener('scroll',schedule)}};
+  return{profile:initial,dispose:()=>{pointer.removeEventListener?.('change',schedule);window.removeEventListener('yhct:performance',schedule);window.removeEventListener('storage',schedule);if(raf)cancelAnimationFrame(raf);motion.removeEventListener?.('change',schedule);n.connection?.removeEventListener?.('change',schedule);window.removeEventListener('resize',schedule);window.removeEventListener('orientationchange',schedule);window.visualViewport?.removeEventListener('resize',schedule);window.visualViewport?.removeEventListener('scroll',schedule)}};
 }
