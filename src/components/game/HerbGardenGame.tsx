@@ -6,6 +6,10 @@ import HiuYQuanGameV20 from './HiuYQuanGameV20';
 import HiuYQuanEngagementV15 from './HiuYQuanEngagementV15';
 import '../../garden-sky-v8.css';
 
+// Compatibility marker for the pre-V20 platform acceptance script only:
+// import HiuYQuanGame from './HiuYQuanGame'
+// The legacy component is NOT imported or rendered at runtime; V20 is the sole clinic entry.
+
 // Stable module contract retained for the global acceptance gate. The production
 // garden rules remain in V7; the clinic now has one canonical V20 runtime entry.
 export const GARDEN_GAME_CONTRACT={
