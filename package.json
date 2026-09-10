@@ -1,7 +1,7 @@
 {
   "name": "yhct-hiu-4-final",
   "private": true,
-  "version": "4.0.0-final.6-modular",
+  "version": "4.0.0-final.7-yquan-v20",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,10 +23,11 @@
     "audit:v17": "node scripts/v17-yquan-three-beds-flow-contract-check.mjs",
     "audit:v18": "node scripts/v18-request-behavior-check.mjs",
     "audit:v19": "node scripts/v19-yquan-reference-art-direction-check.mjs",
-    "audit:v20": "node scripts/v20-yquan-game-engine-contract-check.mjs",
+    "audit:v20:legacy-engine": "node scripts/v20-yquan-game-engine-contract-check.mjs",
     "audit:v20:acting": "node scripts/v20-1-yquan-character-acting-check.mjs",
     "audit:v20:runtime": "node scripts/v20-yquan-runtime-playthrough.mjs",
-    "prebuild": "npm run audit:source && npm run audit:roles && npm run audit:modules && npm run audit:sim6h && npm run audit:account && npm run audit:ai && npm run audit:rag && npm run audit:theme && npm run audit:feed && npm run audit:v11 && npm run audit:v12 && npm run audit:v13 && npm run audit:v14 && npm run audit:v15 && npm run audit:v16 && npm run audit:v17 && npm run audit:v18 && npm run audit:v19 && npm run audit:v20 && npm run audit:v20:acting && npm run audit:v20:runtime",
+    "audit:yquan": "node scripts/v20-yquan-unified-contract-check.mjs && node scripts/v20-1-yquan-character-acting-check.mjs && node scripts/v20-yquan-runtime-playthrough.mjs",
+    "prebuild": "npm run audit:source && npm run audit:roles && npm run audit:modules && npm run audit:sim6h && npm run audit:account && npm run audit:ai && npm run audit:rag && npm run audit:theme && npm run audit:feed && npm run audit:yquan",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "android:sync": "npm run build && npx cap sync android",
