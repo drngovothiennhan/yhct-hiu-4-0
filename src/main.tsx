@@ -44,6 +44,7 @@ import './yquan-v17-three-beds-flow.css';
 import './yquan-scale-harmony.css';
 import './yquan-display-fix.css';
 import './yquan-v18-visual-coherence.css';
+import './yquan-v18-final-character-scene.css';
 
 bootstrapThemeState();
 
