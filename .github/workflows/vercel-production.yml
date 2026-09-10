@@ -181,6 +181,11 @@ jobs:
           ref: ${{ env.CI_PASSED_SHA }}
           fetch-depth: 1
 
+      - name: Use CI-proven Node runtime for Chrome QA
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Real Google Chrome production smoke
         shell: bash
         env:
