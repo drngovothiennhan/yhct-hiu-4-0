@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 const root=process.cwd(),read=f=>fs.readFileSync(path.join(root,f),'utf8');let failed=false;
 const ok=m=>console.log(`V13 PASS ${m}`),fail=m=>{failed=true;console.error(`V13 FAIL ${m}`)},has=(t,n,m)=>t.includes(n)?ok(m):fail(`${m} (missing ${n})`),no=(t,n,m)=>!t.includes(n)?ok(m):fail(`${m} (forbidden ${n})`);
-const migration=read('supabase/migrations/202609100335_fix_hiu_y_quan_return_types_and_appearance_v13.sql');
+const migration=read('supabase/migrations/202609101200_fix_hiu_y_quan_return_types_and_appearance_v13.sql');
 const game=read('src/components/game/HiuYQuanGame.tsx'),community=read('src/components/game/HerbGardenSocialHub.tsx'),chibi=read('src/yquan-v13-chibi.css'),communityCss=read('src/garden-community-v13.css'),main=read('src/main.tsx');
 has(migration,'coalesce(a.credits_awarded,0)::smallint','hourly case credits are cast to declared smallint');
 if((migration.match(/coalesce\(a\.credits_awarded,0\)::smallint/g)||[]).length>=2)ok('both hourly case RPC versions repair the return type');else fail('both hourly case RPC versions must repair the return type');
