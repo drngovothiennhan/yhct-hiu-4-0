@@ -30,25 +30,13 @@ import './viewport-native-hotfix.css';
 import './desktop-phone-full.css';
 import './module-display-fixes.css';
 import './garden-professional-v7.css';
-import './hiu-y-quan-v2.css';
 import './xiaozhi-mini-v10.css';
 import './feed-avatar-v10.css';
-import './yquan-v11-hotfix.css';
-import './yquan-v12-three-scene.css';
-import './yquan-v13-chibi.css';
 import './garden-community-v13.css';
-import './yquan-v14-clinic-flow.css';
 import './yquan-v15-engagement.css';
-import './yquan-v16-character-content.css';
-import './yquan-v17-three-beds-flow.css';
-import './yquan-scale-harmony.css';
-import './yquan-display-fix.css';
-import './yquan-v18-visual-coherence.css';
-import './yquan-v18-final-character-scene.css';
-import './yquan-v19-reference-art-direction.css';
 import './yquan-v20-game-engine.css';
 import './yquan-v20-1-character-acting.css';
-import './components/game/yquan-v20/bootstrap';
+import './yquan-v20-unified.css';
 
 bootstrapThemeState();
 

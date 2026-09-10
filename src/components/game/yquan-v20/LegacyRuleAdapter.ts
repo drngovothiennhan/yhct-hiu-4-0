@@ -11,7 +11,8 @@ export class LegacyRuleAdapter{
   }
 
   async getCases(){
-    let response=await supabase.rpc('hiu_y_quan_hourly_cases_v4');
+    let response=await supabase.rpc('hiu_y_quan_hourly_cases_v20');
+    if(response.error&&missingFunction(response.error.message))response=await supabase.rpc('hiu_y_quan_hourly_cases_v4');
     if(response.error&&missingFunction(response.error.message))response=await supabase.rpc('hiu_y_quan_hourly_cases_v3');
     if(response.error&&missingFunction(response.error.message))response=await supabase.rpc('hiu_y_quan_hourly_cases_v2');
     if(response.error&&missingFunction(response.error.message))response=await supabase.rpc('hiu_y_quan_hourly_cases_v1');
@@ -47,7 +48,8 @@ export class LegacyRuleAdapter{
   }
 
   async disposition(caseKey:string,action:'observe'|'discharge'){
-    const response=await supabase.rpc('hiu_y_quan_disposition_v17',{p_case_key:caseKey,p_action:action});
+    let response=await supabase.rpc('hiu_y_quan_disposition_v20',{p_case_key:caseKey,p_action:action});
+    if(response.error&&missingFunction(response.error.message))response=await supabase.rpc('hiu_y_quan_disposition_v17',{p_case_key:caseKey,p_action:action});
     if(!response.error)return response.data;
     if(action!=='observe'||!missingFunction(response.error.message))throw response.error;
     const fallback=await supabase.rpc('hiu_y_quan_start_treatment_v14',{p_case_key:caseKey});
