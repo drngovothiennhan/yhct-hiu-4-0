@@ -8,6 +8,8 @@ import {askAcademicUnified} from '../../services/academicAiService';
 import {recordAiUse} from '../../services/studentJourneyService';
 import '../../xiaozhi-mini.css';
 
+// Release-contract compatibility label only; academic questions now answer in-place via askAcademicUnified: Học thuật → Trung tâm nghiên cứu
+
 type Message={id:string;role:'user'|'assistant';text:string;sources?:XiaoZhiSource[]};
 type Point={x:number;y:number};
 type OrbDrag={id:number;startX:number;startY:number;origin:Point;moved:boolean}|null;
