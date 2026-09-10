@@ -1,10 +1,11 @@
 import {cloudAiConfigured,cloudAiModel,publicRpc} from '../_lib/member-access.js';
+import {geminiAiConfigured,geminiAiModel} from '../_lib/gemini-provider.js';
 
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');
   res.setHeader('X-Content-Type-Options','nosniff');
   if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
-  const cloudReady=cloudAiConfigured(),model=cloudAiModel();
+  const openAiReady=cloudAiConfigured(),geminiReady=geminiAiConfigured(),cloudReady=openAiReady||geminiReady,model=openAiReady?cloudAiModel():geminiReady?geminiAiModel():cloudAiModel();
   let centralRagReady=false,knowledgeStats=null;
   try{
     const stats=await publicRpc('ai_knowledge_stats_v3',{},3500);
@@ -16,8 +17,9 @@ export default async function handler(req,res){
     }
   }catch{}
   return res.status(200).json({ok:true,ai:{
-    mode:cloudReady?'cloud+local':'local-only',
+    mode:cloudReady?'multi-cloud+local':'local-only',
     cloudReady,
+    providers:{openai:openAiReady,gemini:geminiReady},
     localFallback:true,
     offlineFallback:true,
     centralRag:true,
@@ -30,6 +32,8 @@ export default async function handler(req,res){
     functionCalling:true,
     roleBoundTools:true,
     readOnlyTools:true,
-    model
+    model,
+    geminiModel:geminiReady?geminiAiModel():null,
+    privateContextToGemini:process.env.GEMINI_ALLOW_PRIVATE_CONTEXT==='true'
   }});
 }
