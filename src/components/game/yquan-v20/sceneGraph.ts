@@ -82,7 +82,7 @@ export const SCENES:Record<SceneId,SceneDefinition>={clinic:CLINIC_SCENE,pharmac
 
 export const SCENE_LABEL:Record<SceneId,string>={clinic:'Phòng Chẩn Mạch',pharmacy:'Phòng Chế Dược',ward:'Phòng Dưỡng Trị'};
 
-export const BED_WAYPOINTS={1:'W_BED1',2:'W_BED2',3:'W_BED3'} as const;
-export const BED_INTERACTIONS={1:'BED_01',2:'BED_02',3:'BED_03'} as const;
+export const BED_WAYPOINTS:Record<number,string>={1:'W_BED1',2:'W_BED2',3:'W_BED3'};
+export const BED_INTERACTIONS:Record<number,string>={1:'BED_01',2:'BED_02',3:'BED_03'};
 
 export const sceneWaypoint=(scene:SceneId,id:string)=>SCENES[scene].waypoints[id]??SCENES[scene].waypoints[SCENES[scene].spawn];
