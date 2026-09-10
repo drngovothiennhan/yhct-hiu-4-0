@@ -46,6 +46,8 @@ import './yquan-display-fix.css';
 import './yquan-v18-visual-coherence.css';
 import './yquan-v18-final-character-scene.css';
 import './yquan-v19-reference-art-direction.css';
+import './yquan-v20-game-engine.css';
+import './components/game/yquan-v20/bootstrap';
 
 bootstrapThemeState();
 
