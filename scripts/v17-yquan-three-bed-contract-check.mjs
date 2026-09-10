@@ -1,0 +1,17 @@
+import fs from 'node:fs';
+import path from 'node:path';
+const root=process.cwd(),read=f=>fs.readFileSync(path.join(root,f),'utf8');let failed=false;
+const ok=m=>console.log(`V17 PASS ${m}`),fail=m=>{failed=true;console.error(`V17 FAIL ${m}`)},has=(t,n,m)=>t.includes(n)?ok(m):fail(`${m} (missing ${n})`),no=(t,n,m)=>!t.includes(n)?ok(m):fail(`${m} (forbidden ${n})`);
+const sql=read('supabase/migrations/202609101720_hiu_y_quan_three_bed_flow_v17.sql');
+const ui=read('src/components/game/HiuYQuanBedManagerV17.tsx');
+const host=read('src/components/game/HerbGardenGame.tsx');
+const css=read('src/yquan-v17-three-bed.css');
+has(sql,'bed_no smallint','bed number is persisted');has(sql,'bed_no between 1 and 3','bed range is constrained');has(sql,'hiu_y_quan_cases_member_active_bed_uq','one patient per active bed is enforced');
+has(sql,'create or replace function public.hiu_y_quan_beds_v17()','three-bed state RPC exists');has(sql,'create or replace function public.hiu_y_quan_disposition_v17','doctor disposition RPC exists');
+has(sql,"if not bed_occupied then",'new hourly cases are gated by bed occupancy');has(sql,"'intake_blocked',true",'busy shift is blocked while a bed is occupied');has(sql,"limit 1",'first free bed allocation is bounded');
+has(sql,"now()+interval '10 minutes'",'recheck waiting uses the existing educational ten-minute beat');
+has(ui,'[1,2,3]','exactly three bed slots are normalized');has(ui,"'hiu_y_quan_beds_v17'",'bed manager loads server state');has(ui,"'hiu_y_quan_disposition_v17'",'doctor decisions are server persisted');has(ui,'role="alert"','recheck reminder is accessible');has(ui,"document.title='🔔 Tái khám • HIU Y Quán'",'tab reminder is surfaced');has(ui,"'Cho về'",'discharge choice exists');has(ui,"'Chờ tái khám'",'recheck-wait choice exists');
+has(host,'HiuYQuanBedManagerV17','bed manager is mounted in clinic hub');
+has(css,'grid-template-columns:repeat(3,minmax(0,1fr))','desktop shows three distinct beds');has(css,'.hyq-lab-shelf button','lab labels are overflow hardened');has(css,'-webkit-line-clamp:2','long labels are clamped');has(css,'.hyq-treatment-card.ready>.hyq-primary','legacy automatic recheck action is hidden');no(css,'100vh','V17 avoids viewport-height stretching');no(css,'100dvh','V17 avoids dynamic viewport-height stretching');has(css,'html[data-desktop-on-phone="true"]','desktop-on-phone guard exists');
+const routeCount=dir=>fs.readdirSync(dir,{withFileTypes:true}).reduce((n,e)=>e.isDirectory()?n+(e.name.startsWith('_')?0:routeCount(path.join(dir,e.name))):n+(/\.(?:js|ts)$/.test(e.name)?1:0),0);const apiRoutes=routeCount(path.join(root,'api'));if(apiRoutes<=12)ok(`Vercel Hobby function budget preserved (${apiRoutes}/12)`);else fail(`Vercel Hobby function budget exceeded (${apiRoutes}/12)`);
+if(failed)process.exit(1);console.log('V17 HIU Y Quan three-bed contract passed.');
