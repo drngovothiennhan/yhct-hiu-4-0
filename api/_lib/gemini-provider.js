@@ -3,14 +3,14 @@ const DEFAULT_GEMINI_RESEARCH_MODEL='gemini-3.5-flash';
 const MAX_ERROR_TEXT=180;
 
 const clean=(value,max=2000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
-export const geminiAiEnabled=()=>process.env.ENABLE_GEMINI_AI==='true';
+export const geminiAiEnabled=()=>Boolean(process.env.GEMINI_API_KEY)&&process.env.ENABLE_GEMINI_AI!=='false';
 export const geminiAiModel=(mode='default')=>{
   const configured=mode==='research'
     ?process.env.GEMINI_RESEARCH_MODEL||process.env.GEMINI_MODEL||DEFAULT_GEMINI_RESEARCH_MODEL
     :process.env.GEMINI_MODEL||DEFAULT_GEMINI_MODEL;
   return String(configured).trim();
 };
-export const geminiAiConfigured=(mode='default')=>Boolean(geminiAiEnabled()&&process.env.GEMINI_API_KEY&&geminiAiModel(mode));
+export const geminiAiConfigured=(mode='default')=>Boolean(geminiAiEnabled()&&geminiAiModel(mode));
 
 function extractText(payload){
   const parts=[];
