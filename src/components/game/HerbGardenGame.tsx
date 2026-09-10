@@ -3,7 +3,7 @@ import {Leaf,Stethoscope} from 'lucide-react';
 import type {Member} from '../../types';
 import HerbGardenGameV7 from './HerbGardenGameV7';
 import HiuYQuanGameV20 from './HiuYQuanGameV20';
-import HiuYQuanEngagementV15 from './HiuYQuanEngagementV15';
+import HiuYQuanEngagementV20 from './HiuYQuanEngagementV20';
 import '../../garden-sky-v8.css';
 
 // Compatibility marker for the pre-V20 platform acceptance script only:
@@ -69,6 +69,6 @@ export default function HerbGardenGame({member}:{member:Member}){
         <span className="garden-pan-tip">Cảnh quan cố định · kéo riêng khối 9 ô để xem vườn</span>
         <HerbGardenGameV7 member={member}/>
       </div>
-    </div>:<div className="hyq-v20-host"><HiuYQuanGameV20 key={clinicRefreshKey} member={member}/><HiuYQuanEngagementV15 member={member} onClinicRefresh={()=>setClinicRefreshKey(value=>value+1)}/></div>}
+    </div>:<div className="hyq-v20-host"><HiuYQuanGameV20 key={clinicRefreshKey} member={member}/><HiuYQuanEngagementV20 member={member} onClinicRefresh={()=>setClinicRefreshKey(value=>value+1)}/></div>}
   </div>;
 }
