@@ -1,0 +1,8 @@
+.post-card .post-author{display:flex;align-items:center;gap:10px;min-width:0}
+.post-card .post-avatar{position:relative;width:42px;height:42px;min-width:42px;flex:0 0 42px;display:grid;place-items:center;overflow:hidden;border-radius:50%;background:linear-gradient(145deg,var(--primary,#176b55),color-mix(in srgb,var(--primary,#176b55) 72%,#ffffff));border:2px solid color-mix(in srgb,var(--primary,#176b55) 28%,#fff);box-shadow:0 3px 10px color-mix(in srgb,var(--primary,#176b55) 18%,transparent);color:#fff;font-size:12px;font-weight:850;letter-spacing:.04em}
+.post-card .post-avatar img{display:block;width:100%;height:100%;object-fit:cover;object-position:center;background:#eef3ef}
+.post-card .post-avatar span{display:grid;place-items:center;width:100%;height:100%;line-height:1}
+.post-card .post-author-copy{display:grid;min-width:0;gap:2px}
+.post-card .post-author-copy>b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.post-card .post-author-copy>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:min(65vw,520px)}
+@media(max-width:760px){.post-card .post-author{gap:8px}.post-card .post-avatar{width:38px;height:38px;min-width:38px;flex-basis:38px;font-size:11px}.post-card .post-author-copy>b{font-size:13px}.post-card .post-author-copy>span{font-size:9.5px;max-width:58vw}}
