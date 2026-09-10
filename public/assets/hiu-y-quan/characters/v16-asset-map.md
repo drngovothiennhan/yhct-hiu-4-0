@@ -1,0 +1,1 @@
+V16 character sprite source: ChatGPT-generated approved concept sheet, optimized into a local WebP spritesheet. Slot order: doctor-male, doctor-female, patient-male-child, patient-male-adult, patient-male-senior, patient-female-child, patient-female-adult, patient-female-senior.
