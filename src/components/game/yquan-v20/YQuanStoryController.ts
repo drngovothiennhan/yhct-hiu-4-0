@@ -1,6 +1,6 @@
 import {CharacterActor} from './CharacterActor';
 import {gameEventBus,GameEventBus} from './GameEventBus';
-import {BED_WAYPOINTS,SCENES} from './sceneGraph';
+import {BED_DOCTOR_WAYPOINTS,BED_WAYPOINTS,SCENES} from './sceneGraph';
 import type {ActorAnimation,DoctorState,PatientState,PersistedStoryState,SceneId,VisualCase} from './types';
 
 type ActorName='doctor'|'patient';
@@ -25,7 +25,7 @@ export interface StoryViewState{
 }
 
 const doctorAnimationFor=(state:DoctorState):ActorAnimation=>({
-  IDLE:'idle',WALKING:'walk_front',WAITING_PATIENT:'idle',GREETING:'greet',OBSERVING:'observe_patient',LISTENING:'talk_patient',QUESTIONING:'talk_patient',
+  IDLE:'idle',WALKING:'walk_front',WAITING_PATIENT:'idle',GREETING:'greet',OBSERVING:'observe_patient',LISTENING:'observe_patient',QUESTIONING:'talk_patient',
   PULSE_CHECK:'pulse_check',WRITING:'write_record',THINKING:'think',DIAGNOSING:'think',PRESCRIBING:'write_record',WALK_TO_PHARMACY:'walk_left',
   SELECTING_HERBS:'take_herb',WEIGHING_HERBS:'weigh_herb',GRINDING_HERBS:'grind_herb',COOKING_MEDICINE:'cook_medicine',PACKING_MEDICINE:'package_medicine',
   WALK_TO_WARD:'walk_right',CHECKING_BED:'check_bed',CARING_PATIENT:'talk_patient',RETURNING:'walk_left',RESTING:'idle'
@@ -41,6 +41,8 @@ const casePriority=(cases:VisualCase[])=>
   cases.find(item=>item.care_status==='awaiting_transfer')||
   cases.find(item=>item.care_status==='waiting_diagnosis')||
   cases.find(item=>item.care_status==='observing')||null;
+
+const bedSlotOf=(item:VisualCase)=>Math.max(1,Math.min(3,Number(item.bed_slot)||1)) as 1|2|3;
 
 export class YQuanStoryController{
   readonly doctor:CharacterActor<DoctorState>;
@@ -159,6 +161,15 @@ export class YQuanStoryController{
     return[{kind:'move',actor:'doctor',waypoint:target}];
   }
 
+  private repairLegacyWardOverlap(item:VisualCase){
+    if(item.care_status!=='observing'&&item.care_status!=='recheck_due')return;
+    const slot=bedSlotOf(item),patientPoint=SCENES.ward.waypoints[BED_WAYPOINTS[slot]],doctorPoint=SCENES.ward.waypoints[BED_DOCTOR_WAYPOINTS[slot]];
+    if(this.patient.scene==='ward'&&this.patient.waypoint!==BED_WAYPOINTS[slot])this.patient.setScene('ward',BED_WAYPOINTS[slot]);
+    if(this.doctor.scene!=='ward')return;
+    const separation=Math.hypot(this.doctor.position.x-patientPoint.x,this.doctor.position.y-patientPoint.y);
+    if(this.doctor.waypoint===BED_WAYPOINTS[slot]||separation<220)this.doctor.setScene('ward',doctorPoint.id);
+  }
+
   private patientDepartureSteps():StoryStep[]{
     if(!this.patient.visible)return[];
     if(this.patient.scene==='ward')return[
@@ -189,8 +200,10 @@ export class YQuanStoryController{
       {kind:'action',actor:'doctor',state:'GREETING',animation:'greet'},
       {kind:'action',actor:'patient',state:'CONSULTING',animation:'talk'},
       {kind:'action',actor:'doctor',state:'OBSERVING',animation:'observe_patient'},
-      {kind:'action',actor:'doctor',state:'LISTENING',animation:'talk_patient'},
+      {kind:'action',actor:'doctor',state:'LISTENING',animation:'observe_patient'},
+      {kind:'action',actor:'patient',state:'CONSULTING',animation:'talk'},
       {kind:'action',actor:'doctor',state:'QUESTIONING',animation:'talk_patient'},
+      {kind:'action',actor:'patient',state:'CONSULTING',animation:'talk'},
       {kind:'action',actor:'doctor',state:'PULSE_CHECK',animation:'pulse_check'},
       {kind:'action',actor:'patient',state:'BEING_EXAMINED',animation:'being_examined'},
       {kind:'action',actor:'doctor',state:'WRITING',animation:'write_record'},
@@ -228,37 +241,39 @@ export class YQuanStoryController{
   }
 
   private wardSequence(item:VisualCase){
-    const slot=Math.max(1,Math.min(3,Number(item.bed_slot)||1)) as 1|2|3;this.bedAssignment=slot;
-    const patientRoute:StoryStep[]=this.patient.scene==='ward'?[{kind:'move',actor:'patient',waypoint:BED_WAYPOINTS[slot]}]:[
+    const slot=bedSlotOf(item),patientPoint=BED_WAYPOINTS[slot],doctorPoint=BED_DOCTOR_WAYPOINTS[slot];this.bedAssignment=slot;
+    const patientRoute:StoryStep[]=this.patient.scene==='ward'?[{kind:'move',actor:'patient',waypoint:patientPoint}]:[
       {kind:'switch',actor:'patient',scene:'clinic',waypoint:this.patient.scene==='clinic'?this.patient.waypoint:'C_DESK_PATIENT'},
       {kind:'action',actor:'patient',state:'WALKING_TO_WARD',animation:'walk'},
       {kind:'move',actor:'patient',waypoint:'C_WARD_EXIT'},
       {kind:'switch',actor:'patient',scene:'ward',waypoint:'W_ENTRANCE'},
-      {kind:'move',actor:'patient',waypoint:BED_WAYPOINTS[slot]}
+      {kind:'move',actor:'patient',waypoint:patientPoint}
     ];
-    const doctorRoute=this.doctorToWard(BED_WAYPOINTS[slot]);
+    const doctorRoute=this.doctorToWard(doctorPoint);
     this.patient.visible=true;
     this.replace('TRANSFER_TO_WARD',[
       ...patientRoute,
       {kind:'action',actor:'patient',state:'IN_TREATMENT',animation:'lying'},
       ...doctorRoute,
-      {kind:'action',actor:'doctor',state:'CHECKING_BED',animation:'check_bed'},
+      {kind:'action',actor:'doctor',state:'CHECKING_BED',animation:'observe_patient'},
+      {kind:'action',actor:'doctor',state:'CHECKING_BED',animation:'pulse_check'},
       {kind:'action',actor:'doctor',state:'CARING_PATIENT',animation:'talk_patient'},
       {kind:'move',actor:'doctor',waypoint:'W_DESK'},
       {kind:'action',actor:'doctor',state:'WRITING',animation:'write_record'},
-      {kind:'move',actor:'doctor',waypoint:BED_WAYPOINTS[slot]},
+      {kind:'move',actor:'doctor',waypoint:doctorPoint},
       {kind:'action',actor:'doctor',state:'RESTING',animation:'idle'}
     ],'ward');
   }
 
   private followupSequence(item:VisualCase){
-    const slot=Math.max(1,Math.min(3,Number(item.bed_slot)||1)) as 1|2|3;this.bedAssignment=slot;
-    if(this.patient.scene!=='ward')this.patient.setScene('ward',BED_WAYPOINTS[slot]);
+    const slot=bedSlotOf(item),patientPoint=BED_WAYPOINTS[slot],doctorPoint=BED_DOCTOR_WAYPOINTS[slot];this.bedAssignment=slot;
+    if(this.patient.scene!=='ward'||this.patient.waypoint!==patientPoint)this.patient.setScene('ward',patientPoint);
     this.patient.visible=true;
-    const doctorRoute=this.doctorToWard(BED_WAYPOINTS[slot]);
+    const doctorRoute=this.doctorToWard(doctorPoint);
     this.replace('FOLLOW_UP',[
       ...doctorRoute,
-      {kind:'action',actor:'doctor',state:'CHECKING_BED',animation:'check_bed'},
+      {kind:'action',actor:'doctor',state:'CHECKING_BED',animation:'observe_patient'},
+      {kind:'action',actor:'doctor',state:'CHECKING_BED',animation:'pulse_check'},
       {kind:'action',actor:'patient',state:'FOLLOW_UP',animation:'talk'},
       {kind:'action',actor:'doctor',state:'CARING_PATIENT',animation:'talk_patient'},
       {kind:'action',actor:'patient',state:'RECOVERING',animation:'recovering'}
@@ -284,7 +299,7 @@ export class YQuanStoryController{
     const restored=this.pendingRestore;
     if(restored&&restored.caseKey===next.case_key){
       this.pendingRestore=null;this.currentCase=next;this.stage=restored.stage;this.bedAssignment=restored.bedAssignment;
-      this.doctor.restore(restored.doctor);this.patient.restore(restored.patient);this.cameraHint=this.doctor.scene;this.changed('Đã khôi phục đúng trạng thái ca đang chơi.');return;
+      this.doctor.restore(restored.doctor);this.patient.restore(restored.patient);this.repairLegacyWardOverlap(next);this.cameraHint=this.doctor.scene;this.changed('Đã khôi phục đúng trạng thái ca đang chơi.');return;
     }
     if(restored&&restored.caseKey!==next.case_key)this.pendingRestore=null;
 
@@ -296,7 +311,7 @@ export class YQuanStoryController{
     if(isNew){
       this.bus.emit('PATIENT_ARRIVED',{caseKey:next.case_key});
       if(next.care_status==='recheck_due'){
-        const slot=Math.max(1,Math.min(3,Number(next.bed_slot)||1));
+        const slot=bedSlotOf(next);
         this.patient.setScene('ward',BED_WAYPOINTS[slot]);this.patient.visible=true;this.patient.setState('IN_TREATMENT');this.patient.play('lying',true);
         this.bus.emit('FOLLOWUP_REQUIRED',{caseKey:next.case_key,bedSlot:slot});this.followupSequence(next);
       }else if(next.care_status==='observing'){
@@ -315,17 +330,17 @@ export class YQuanStoryController{
         this.bus.emit('PRESCRIPTION_CREATED',{caseKey:next.case_key});this.medicineSequence();return;
       }
       if(next.care_status==='recheck_due'&&previous?.care_status!=='recheck_due'){
-        const slot=Math.max(1,Math.min(3,Number(next.bed_slot)||1));
+        const slot=bedSlotOf(next);
         this.bus.emit('FOLLOWUP_REQUIRED',{caseKey:next.case_key,bedSlot:slot});this.followupSequence(next);return;
       }
       if(next.care_status==='observing'&&previous?.care_status!=='observing'){
-        const slot=Math.max(1,Math.min(3,Number(next.bed_slot)||1));
+        const slot=bedSlotOf(next);
         this.bus.emit('INPATIENT_REQUIRED',{caseKey:next.case_key});this.bus.emit('BED_ASSIGNED',{caseKey:next.case_key,bedSlot:slot});this.bus.emit('TREATMENT_STARTED',{caseKey:next.case_key,bedSlot:slot});this.wardSequence(next);return;
       }
     }
 
     if(next.care_status==='recheck_due'&&this.stage!=='FOLLOW_UP'){
-      const slot=Math.max(1,Math.min(3,Number(next.bed_slot)||1));this.bus.emit('FOLLOWUP_REQUIRED',{caseKey:next.case_key,bedSlot:slot});this.followupSequence(next);return;
+      const slot=bedSlotOf(next);this.bus.emit('FOLLOWUP_REQUIRED',{caseKey:next.case_key,bedSlot:slot});this.followupSequence(next);return;
     }
 
     if(ward.length&&this.stage==='RESTING')this.wardSequence(next);
@@ -362,7 +377,7 @@ export class YQuanStoryController{
   private enqueueIdlePatrol(){
     const from=this.doctor.scene;
     if(from==='clinic')this.replace('IDLE_PATROL',[{kind:'move',actor:'doctor',waypoint:'C_PHARMACY_EXIT'},{kind:'switch',actor:'doctor',scene:'pharmacy',waypoint:'P_ENTRANCE'},{kind:'move',actor:'doctor',waypoint:'P_CABINET'},{kind:'action',actor:'doctor',state:'SELECTING_HERBS',animation:'open_drawer'}],'pharmacy');
-    else if(from==='pharmacy')this.replace('IDLE_PATROL',[{kind:'move',actor:'doctor',waypoint:'P_EXIT'},{kind:'switch',actor:'doctor',scene:'ward',waypoint:'W_ENTRANCE'},{kind:'move',actor:'doctor',waypoint:'W_BED2'},{kind:'action',actor:'doctor',state:'CHECKING_BED',animation:'check_bed'}],'ward');
+    else if(from==='pharmacy')this.replace('IDLE_PATROL',[{kind:'move',actor:'doctor',waypoint:'P_EXIT'},{kind:'switch',actor:'doctor',scene:'ward',waypoint:'W_ENTRANCE'},{kind:'move',actor:'doctor',waypoint:'W_BED2_DOCTOR'},{kind:'action',actor:'doctor',state:'CHECKING_BED',animation:'check_bed'}],'ward');
     else this.replace('IDLE_PATROL',[{kind:'move',actor:'doctor',waypoint:'W_EXIT'},{kind:'switch',actor:'doctor',scene:'clinic',waypoint:'C_WARD_EXIT'},{kind:'move',actor:'doctor',waypoint:'C_IDLE'},{kind:'action',actor:'doctor',state:'RESTING',animation:'idle'}],'clinic');
   }
 
@@ -373,12 +388,12 @@ export class YQuanStoryController{
       if(this.currentCase.care_status==='waiting_diagnosis'&&this.stage!=='WAITING_DIAGNOSIS'){this.stage='WAITING_DIAGNOSIS';this.setDoctor('WAITING_PATIENT','idle');this.setPatient('WAITING_DIAGNOSIS','idle');this.changed()}
       else if(this.currentCase.care_status==='awaiting_transfer'&&this.stage!=='WAITING_DISPOSITION'){this.stage='WAITING_DISPOSITION';this.cameraHint='clinic';this.changed();this.bus.emit('MEDICINE_READY',{caseKey:this.currentCase.case_key})}
       else if(this.currentCase.care_status==='recheck_due'&&this.stage!=='FOLLOW_UP'){
-        const slot=Math.max(1,Math.min(3,Number(this.currentCase.bed_slot)||1));this.bus.emit('FOLLOWUP_REQUIRED',{caseKey:this.currentCase.case_key,bedSlot:slot});this.followupSequence(this.currentCase);return;
+        const slot=bedSlotOf(this.currentCase);this.bus.emit('FOLLOWUP_REQUIRED',{caseKey:this.currentCase.case_key,bedSlot:slot});this.followupSequence(this.currentCase);return;
       }
       else if(this.currentCase.care_status==='observing'&&this.stage!=='IN_TREATMENT'){
-        const slot=Math.max(1,Math.min(3,Number(this.currentCase.bed_slot)||1));
+        const slot=bedSlotOf(this.currentCase);
         if(this.patient.scene!=='ward'||this.patient.waypoint!==BED_WAYPOINTS[slot]){this.wardSequence(this.currentCase);return}
-        this.stage='IN_TREATMENT';this.cameraHint='ward';this.setPatient('IN_TREATMENT','sleeping');this.changed();
+        this.stage='IN_TREATMENT';this.cameraHint='ward';this.setPatient('IN_TREATMENT','sleeping');this.repairLegacyWardOverlap(this.currentCase);this.changed();
       }
       return;
     }

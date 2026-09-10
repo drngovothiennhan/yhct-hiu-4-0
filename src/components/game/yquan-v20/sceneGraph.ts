@@ -61,11 +61,14 @@ export const WARD_SCENE:SceneDefinition={
   id:'ward',width:1600,height:900,spawn:'W_ENTRANCE',exit:'W_EXIT',
   waypoints:{
     W_ENTRANCE:wp('W_ENTRANCE',120,705,['W_CENTER','W_EXIT']),
-    W_CENTER:wp('W_CENTER',700,710,['W_ENTRANCE','W_BED1','W_BED2','W_BED3','W_DESK']),
-    W_BED1:wp('W_BED1',430,555,['W_CENTER','W_DESK']),
-    W_BED2:wp('W_BED2',820,555,['W_CENTER','W_DESK']),
-    W_BED3:wp('W_BED3',1210,555,['W_CENTER','W_DESK']),
-    W_DESK:wp('W_DESK',1390,710,['W_CENTER','W_BED1','W_BED2','W_BED3']),
+    W_CENTER:wp('W_CENTER',700,710,['W_ENTRANCE','W_BED1','W_BED2','W_BED3','W_BED1_DOCTOR','W_BED2_DOCTOR','W_BED3_DOCTOR','W_DESK']),
+    W_BED1:wp('W_BED1',430,555,['W_CENTER','W_DESK','W_BED1_DOCTOR']),
+    W_BED2:wp('W_BED2',820,555,['W_CENTER','W_DESK','W_BED2_DOCTOR']),
+    W_BED3:wp('W_BED3',1210,555,['W_CENTER','W_DESK','W_BED3_DOCTOR']),
+    W_BED1_DOCTOR:wp('W_BED1_DOCTOR',680,700,['W_CENTER','W_BED1','W_DESK']),
+    W_BED2_DOCTOR:wp('W_BED2_DOCTOR',1070,700,['W_CENTER','W_BED2','W_DESK']),
+    W_BED3_DOCTOR:wp('W_BED3_DOCTOR',1450,700,['W_CENTER','W_BED3','W_DESK']),
+    W_DESK:wp('W_DESK',1390,710,['W_CENTER','W_BED1','W_BED2','W_BED3','W_BED1_DOCTOR','W_BED2_DOCTOR','W_BED3_DOCTOR']),
     W_EXIT:wp('W_EXIT',75,705,['W_ENTRANCE'])
   },
   interactions:{
@@ -82,7 +85,8 @@ export const SCENES:Record<SceneId,SceneDefinition>={clinic:CLINIC_SCENE,pharmac
 
 export const SCENE_LABEL:Record<SceneId,string>={clinic:'Phòng Chẩn Mạch',pharmacy:'Phòng Chế Dược',ward:'Phòng Dưỡng Trị'};
 
-export const BED_WAYPOINTS:Record<number,string>={1:'W_BED1',2:'W_BED2',3:'W_BED3'};
+export const BED_WAYPOINTS:Record<1|2|3,string>={1:'W_BED1',2:'W_BED2',3:'W_BED3'};
+export const BED_DOCTOR_WAYPOINTS:Record<1|2|3,string>={1:'W_BED1_DOCTOR',2:'W_BED2_DOCTOR',3:'W_BED3_DOCTOR'};
 export const BED_INTERACTIONS:Record<number,string>={1:'BED_01',2:'BED_02',3:'BED_03'};
 
 export const sceneWaypoint=(scene:SceneId,id:string)=>SCENES[scene].waypoints[id]??SCENES[scene].waypoints[SCENES[scene].spawn];

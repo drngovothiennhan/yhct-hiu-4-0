@@ -74,11 +74,11 @@ function bedState(item:VisualCase|null):BedState{
   return item.bed_slot?'OCCUPIED':'RESERVED';
 }
 
-function WardBed({slot,item,onClick}:{slot:1|2|3;item:VisualCase|null;onClick:()=>void}){
+function WardBed({slot,item,active=false,onClick}:{slot:1|2|3;item:VisualCase|null;active?:boolean;onClick:()=>void}){
   const state=bedState(item);
-  return <button type="button" className={`hyq-v20-bed hyq-v20-bed-${slot}`} data-bed-state={state} onClick={onClick} disabled={!item} aria-label={`BED_0${slot} ${state}`}>
+  return <button type="button" className={`hyq-v20-bed hyq-v20-bed-${slot}`} data-bed-state={state} data-active={active?'true':'false'} onClick={onClick} disabled={!item} aria-label={`BED_0${slot} ${state}`}>
     <span className="bed-headboard"/><span className="bed-mattress"/><span className="bed-pillow"/><span className="bed-blanket"/>
-    {item&&<span className="bed-occupant"><span className="occupant-head"/><span className="occupant-hair"/></span>}
+    {item&&!active&&<span className="bed-occupant"><span className="occupant-head"/><span className="occupant-hair"/></span>}
     <span className="bed-label"><b>Giường {slot}</b><small>{state==='EMPTY'?'Trống':state==='RECOVERING'?'Đến giờ tái khám':'Đang theo dõi'}</small></span>
   </button>;
 }
@@ -128,6 +128,7 @@ export default function V20World(){
   const visibleHerbs=useMemo(()=>herbs.length?herbs.slice(0,12):fallbackHerbs.map((name,index)=>({herb_key:`fallback-${index}`,name})),[herbs]);
   const wardCases=cases.filter(item=>item.care_status==='observing'||item.care_status==='recheck_due');
   const bed=(slot:1|2|3)=>wardCases.find(item=>Number(item.bed_slot)===slot)||null;
+  const activeBed=(slot:1|2|3)=>{const item=bed(slot);return Boolean(item&&story.caseKey===item.case_key&&controller.patient.visible&&controller.patient.scene==='ward'&&story.patientState!=='LEAVING'&&story.patientState!=='COMPLETED')};
   const gender:DoctorGender=player.gender==='male'?'male':'female',outfit:DoctorOutfit=player.outfit==='academy'||player.outfit==='master'?player.outfit:'classic';
 
   return <section className="hyq-v20-shell" aria-label="HIU Y Quán V20 game engine">
@@ -136,7 +137,7 @@ export default function V20World(){
       <div className="hyq-v20-stage" ref={stageRef} data-focus-scene={focusScene}>
         <section className="hyq-v20-scene hyq-v20-scene-clinic" aria-label="ClinicScene" hidden={focusScene!=='clinic'}><ClinicBackdrop/><div className="hyq-v20-scene-title"><b>PHÒNG CHẨN MẠCH</b><small>Vọng · Văn · Vấn · Thiết</small></div><span className="hyq-v20-interaction pulse-desk" title="pulseDeskDoctorPoint"/><span className="hyq-v20-interaction waiting-point" title="patientWaitingPoint"/></section>
         <section className="hyq-v20-scene hyq-v20-scene-pharmacy" aria-label="PharmacyScene" hidden={focusScene!=='pharmacy'}><PharmacyBackdrop/><div className="hyq-v20-scene-title"><b>PHÒNG CHẾ DƯỢC</b><small>Chọn · cân · nghiền · sắc · đóng gói</small></div><div className="hyq-v20-drawer-wall">{visibleHerbs.map((herb,index)=><MedicineDrawer key={herb.herb_key} name={herb.name} index={index} onClick={()=>setSelectedHerb(herb)}/>)}</div><span className="hyq-v20-tool-label scale">CÂN THUỐC</span><span className="hyq-v20-tool-label mortar">CỐI NGHIỀN</span><span className="hyq-v20-tool-label pot">NỒI SẮC</span><span className="hyq-v20-tool-label package">ĐÓNG GÓI</span></section>
-        <section className="hyq-v20-scene hyq-v20-scene-ward" aria-label="WardScene" hidden={focusScene!=='ward'}><WardBackdrop/><div className="hyq-v20-scene-title"><b>PHÒNG DƯỠNG TRỊ</b><small>Đúng 3 giường · theo dõi và tái khám</small></div><WardBed slot={1} item={bed(1)} onClick={()=>setBedNotice(bed(1)?`Giường 1 · ${bedState(bed(1))}`:'')}/><WardBed slot={2} item={bed(2)} onClick={()=>setBedNotice(bed(2)?`Giường 2 · ${bedState(bed(2))}`:'')}/><WardBed slot={3} item={bed(3)} onClick={()=>setBedNotice(bed(3)?`Giường 3 · ${bedState(bed(3))}`:'')}/>{bedNotice&&<div className="hyq-v20-bed-notice">{bedNotice}</div>}</section>
+        <section className="hyq-v20-scene hyq-v20-scene-ward" aria-label="WardScene" hidden={focusScene!=='ward'}><WardBackdrop/><div className="hyq-v20-scene-title"><b>PHÒNG DƯỠNG TRỊ</b><small>Đúng 3 giường · theo dõi và tái khám</small></div><WardBed slot={1} item={bed(1)} active={activeBed(1)} onClick={()=>setBedNotice(bed(1)?`Giường 1 · ${bedState(bed(1))}`:'')}/><WardBed slot={2} item={bed(2)} active={activeBed(2)} onClick={()=>setBedNotice(bed(2)?`Giường 2 · ${bedState(bed(2))}`:'')}/><WardBed slot={3} item={bed(3)} active={activeBed(3)} onClick={()=>setBedNotice(bed(3)?`Giường 3 · ${bedState(bed(3))}`:'')}/>{bedNotice&&<div className="hyq-v20-bed-notice">{bedNotice}</div>}</section>
         <div ref={doctorRef} className="hyq-v20-actor hyq-v20-actor-doctor" data-animation="idle" data-direction="front"><DoctorSprite gender={gender} outfit={outfit}/><span className="hyq-v20-nameplate">{player.display_name||'Thầy thuốc HIU'}</span></div>
         <div ref={patientRef} className="hyq-v20-actor hyq-v20-actor-patient" data-animation="idle" data-direction="front"><PatientSprite gender={(controller.currentCase?.patient_gender||cases[0]?.patient_gender||'female') as DoctorGender} age={controller.currentCase?.patient_age||cases[0]?.patient_age||45} variant={controller.currentCase?.patient_variant||cases[0]?.patient_variant||1}/></div>
       </div>

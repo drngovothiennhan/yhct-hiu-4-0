@@ -29,14 +29,15 @@ try{
     get length(){return memory.size}
   };
 
-  const [{YQuanStoryController},{GameEventBus}]=await Promise.all([
+  const [{YQuanStoryController},{GameEventBus},{BED_DOCTOR_WAYPOINTS}]=await Promise.all([
     import(pathToFileURL(path.join(tempDir,'YQuanStoryController.js')).href),
-    import(pathToFileURL(path.join(tempDir,'GameEventBus.js')).href)
+    import(pathToFileURL(path.join(tempDir,'GameEventBus.js')).href),
+    import(pathToFileURL(path.join(tempDir,'sceneGraph.js')).href)
   ]);
 
   const bus=new GameEventBus();
   const seen=[];
-  const watched=['PATIENT_ARRIVED','PATIENT_READY_FOR_EXAM','EXAM_STARTED','INSPECTION_COMPLETED','LISTENING_COMPLETED','INQUIRY_COMPLETED','PALPATION_COMPLETED','DIAGNOSIS_SUBMITTED','DIAGNOSIS_CORRECT','DIAGNOSIS_INCORRECT','PRESCRIPTION_CREATED','MEDICINE_PREPARATION_STARTED','MEDICINE_READY','INPATIENT_REQUIRED','BED_ASSIGNED','TREATMENT_STARTED','TREATMENT_COMPLETED','PATIENT_DISCHARGED','FOLLOWUP_REQUIRED','ACTOR_ARRIVED'];
+  const watched=['PATIENT_ARRIVED','PATIENT_READY_FOR_EXAM','EXAM_STARTED','INSPECTION_COMPLETED','LISTENING_COMPLETED','INQUIRY_COMPLETED','PALPATION_COMPLETED','DIAGNOSIS_SUBMITTED','DIAGNOSIS_CORRECT','DIAGNOSIS_INCORRECT','PRESCRIPTION_CREATED','MEDICINE_PREPARATION_STARTED','MEDICINE_READY','INPATIENT_REQUIRED','BED_ASSIGNED','TREATMENT_STARTED','TREATMENT_COMPLETED','PATIENT_DISCHARGED','FOLLOWUP_REQUIRED','ACTOR_ARRIVED','ANIMATION_COMPLETED'];
   watched.forEach(event=>bus.on(event,payload=>seen.push({event,payload})));
 
   const controller=new YQuanStoryController({storageKey:'v20-runtime-playthrough',bus});
@@ -47,6 +48,8 @@ try{
   };
   const hasEvent=name=>seen.some(item=>item.event===name);
   const arrived=(actor,scene,waypoint)=>seen.some(item=>item.event==='ACTOR_ARRIVED'&&item.payload?.actor===actor&&item.payload?.scene===scene&&item.payload?.waypoint===waypoint);
+  const animations=(actor,animation)=>seen.filter(item=>item.event==='ANIMATION_COMPLETED'&&item.payload?.actor===actor&&item.payload?.animation===animation).length;
+  const separation=()=>Math.hypot(controller.doctor.position.x-controller.patient.position.x,controller.doctor.position.y-controller.patient.position.y);
 
   const waiting={case_key:'V20-PLAY-001',patient_age:68,patient_gender:'female',patient_variant:2,completed:false,correct:false,care_status:'waiting_diagnosis',bed_slot:null};
   controller.sync([waiting]);
@@ -54,6 +57,9 @@ try{
   assert(controller.doctor.scene==='clinic'&&controller.doctor.waypoint==='C_DESK_DOCTOR','doctor reaches clinic examination desk');
   assert(controller.patient.scene==='clinic'&&controller.patient.waypoint==='C_DESK_PATIENT','patient reaches clinic examination desk');
   ['PATIENT_ARRIVED','PATIENT_READY_FOR_EXAM','EXAM_STARTED','INSPECTION_COMPLETED','LISTENING_COMPLETED','INQUIRY_COMPLETED','PALPATION_COMPLETED'].forEach(event=>assert(hasEvent(event),`${event} emitted during Tứ chẩn`));
+  assert(animations('patient','talk')>=3,'patient visibly speaks during initial complaint, listening response and questioning response');
+  assert(animations('doctor','talk_patient')===1,'doctor speaks for questioning but does not animate mouth while LISTENING');
+  assert(animations('doctor','observe_patient')>=2,'doctor observes and listens with non-speaking animation');
 
   const diagnosed={...waiting,completed:true,correct:true,care_status:'awaiting_transfer'};
   controller.sync([diagnosed]);
@@ -64,9 +70,13 @@ try{
 
   const observing={...diagnosed,care_status:'observing',bed_slot:2,treatment_started_at:new Date().toISOString()};
   controller.sync([observing]);
-  advanceUntil(()=>controller.snapshot().stage==='IN_TREATMENT','transfer -> bed -> IN_TREATMENT');
+  advanceUntil(()=>controller.snapshot().stage==='IN_TREATMENT','transfer -> bedside exam -> IN_TREATMENT');
   assert(controller.patient.scene==='ward'&&controller.patient.waypoint==='W_BED2','patient reaches BED_02 without scene teleport');
-  assert(controller.doctor.scene==='ward'&&controller.doctor.waypoint==='W_BED2','doctor reaches BED_02 after patient');
+  assert(controller.doctor.scene==='ward'&&controller.doctor.waypoint===BED_DOCTOR_WAYPOINTS[2],'doctor uses dedicated bedside examination waypoint');
+  assert(separation()>=220,`doctor/patient bedside spacing stays collision-safe (${Math.round(separation())}px)`);
+  assert(arrived('doctor','ward',BED_DOCTOR_WAYPOINTS[2]),'doctor physically reaches dedicated BED_02 examination lane');
+  assert(animations('doctor','pulse_check')>=2,'pulse animation exists in clinic and is repeated at bedside');
+  assert(animations('doctor','observe_patient')>=3,'bedside observation animation is executed');
   ['INPATIENT_REQUIRED','BED_ASSIGNED','TREATMENT_STARTED'].forEach(event=>assert(hasEvent(event),`${event} emitted for ward transfer`));
 
   const restoreBus=new GameEventBus();
@@ -74,7 +84,8 @@ try{
   restored.sync([observing]);
   assert(restored.snapshot().stage==='IN_TREATMENT','reload restores IN_TREATMENT stage');
   assert(restored.patient.scene==='ward'&&restored.patient.waypoint==='W_BED2','reload restores patient at BED_02');
-  assert(restored.doctor.scene==='ward','reload restores doctor scene');
+  assert(restored.doctor.scene==='ward'&&restored.doctor.waypoint===BED_DOCTOR_WAYPOINTS[2],'reload restores doctor in separated bedside lane');
+  assert(Math.hypot(restored.doctor.position.x-restored.patient.position.x,restored.doctor.position.y-restored.patient.position.y)>=220,'reload preserves collision-safe doctor/patient separation');
   restored.dispose();
 
   const recheck={...observing,care_status:'recheck_due'};
@@ -82,6 +93,8 @@ try{
   advanceFor(30000);
   assert(controller.snapshot().stage==='FOLLOW_UP','observing -> recheck_due transitions directly to FOLLOW_UP');
   assert(controller.patient.scene==='ward'&&controller.patient.waypoint==='W_BED2','follow-up keeps patient at assigned bed');
+  assert(controller.doctor.waypoint===BED_DOCTOR_WAYPOINTS[2],'follow-up keeps doctor in bedside examination lane');
+  assert(separation()>=220,'follow-up remains collision-safe');
   assert(hasEvent('FOLLOWUP_REQUIRED'),'FOLLOWUP_REQUIRED emitted');
 
   controller.sync([]);
@@ -101,7 +114,7 @@ try{
   wrong.dispose();
   controller.dispose();
 
-  console.log('V20 runtime playthrough PASS: arrival -> Tứ chẩn -> diagnosis -> pharmacy -> BED_02 -> restore -> follow-up -> discharge; incorrect-diagnosis event path verified.');
+  console.log('V20.1 runtime playthrough PASS: natural question/listen turn-taking -> diagnosis -> pharmacy -> collision-safe BED_02 bedside exam -> restore -> lying follow-up -> discharge.');
 }finally{
   fs.rmSync(tempDir,{recursive:true,force:true});
 }
