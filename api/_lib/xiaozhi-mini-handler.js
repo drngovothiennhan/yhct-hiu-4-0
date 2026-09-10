@@ -1,11 +1,79 @@
 import {cloudAiEnabled,cloudAiModel,memberAccess} from './member-access.js';
 
 const TIMEOUT_MS=20000;
+const PUBLIC_TIMEOUT_MS=6500;
 const clean=(value,max=2000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 const safeUrl=value=>{try{const url=new URL(String(value||''));return url.protocol==='https:'?url.toString():''}catch{return''}};
+const withTimeout=async(url,options={},timeoutMs=PUBLIC_TIMEOUT_MS)=>{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);try{return await fetch(url,{...options,signal:controller.signal})}finally{clearTimeout(timer)}};
 function extractText(payload){if(typeof payload?.output_text==='string'&&payload.output_text.trim())return payload.output_text.trim();const parts=[];for(const item of Array.isArray(payload?.output)?payload.output:[])for(const content of Array.isArray(item?.content)?item.content:[])if(typeof content?.text==='string')parts.push(content.text);return parts.join('\n').trim()}
 function extractSources(payload){const found=[];for(const item of Array.isArray(payload?.output)?payload.output:[]){for(const content of Array.isArray(item?.content)?item.content:[]){for(const ann of Array.isArray(content?.annotations)?content.annotations:[]){const raw=ann?.url_citation||ann;const url=safeUrl(raw?.url);if(url)found.push({title:clean(raw?.title||url,220),url})}}if(item?.type==='web_search_call'){for(const source of Array.isArray(item?.action?.sources)?item.action.sources:[]){const url=safeUrl(source?.url);if(url)found.push({title:clean(source?.title||url,220),url})}}}return [...new Map(found.map(x=>[x.url,x])).values()].slice(0,6)}
 const academic=/\b(pubmed|openalex|doi|systematic review|meta[- ]?analysis|clinical trial)\b|nghiên\s*cứu|y\s*văn|bài\s*báo\s*khoa\s*học|phương\s*tễ|huyệt\s*vị|dược\s*lý|cơ\s*chế\s*bệnh|chẩn\s*đoán\s*lâm\s*sàng|kê\s*đơn|điều\s*trị\s*bệnh/i;
+const weatherIntent=/\b(thời tiết|weather|nhiệt độ|mưa|nắng|bão|dự báo)\b/i;
+const newsIntent=/\b(tin mới|tin tức|mới nhất|news|điểm tin|tin hôm nay)\b/i;
+const decodeXml=value=>String(value||'').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/<[^>]+>/g,'').trim();
+
+function headerLocation(req){
+  const lat=Number(req.headers?.['x-vercel-ip-latitude']),lon=Number(req.headers?.['x-vercel-ip-longitude']);
+  const city=clean(req.headers?.['x-vercel-ip-city']||'',80);
+  return Number.isFinite(lat)&&Number.isFinite(lon)?{lat,lon,label:city||'vị trí hiện tại'}:null;
+}
+function explicitPlace(query){
+  const m=query.match(/(?:\bở\b|\btại\b|\bở khu vực\b)\s+([^,.?!]{2,70})/i);
+  return clean(m?.[1]||'',70).replace(/\b(hôm nay|ngày mai|bây giờ|hiện tại)$/i,'').trim();
+}
+async function geocodePlace(name){
+  if(!name)return null;
+  const url=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1&language=vi&format=json`;
+  const response=await withTimeout(url,{headers:{accept:'application/json','user-agent':'HIU-YHCT-4.0-XiaoZhi/1.0'}});
+  if(!response.ok)return null;
+  const payload=await response.json().catch(()=>null),hit=Array.isArray(payload?.results)?payload.results[0]:null;
+  const lat=Number(hit?.latitude),lon=Number(hit?.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lon))return null;
+  return {lat,lon,label:[hit?.name,hit?.admin1,hit?.country].filter(Boolean).join(', ')};
+}
+async function weatherReply(req,query){
+  if(!weatherIntent.test(query))return null;
+  const requested=explicitPlace(query),location=(requested?await geocodePlace(requested):null)||headerLocation(req);
+  if(!location)return null;
+  const api=`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(location.lat)}&longitude=${encodeURIComponent(location.lon)}&current=temperature_2m,apparent_temperature,precipitation,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max&forecast_days=2&timezone=auto`;
+  const response=await withTimeout(api,{headers:{accept:'application/json','user-agent':'HIU-YHCT-4.0-XiaoZhi/1.0'}});
+  if(!response.ok)return null;
+  const data=await response.json().catch(()=>null);if(!data?.current||!data?.daily)return null;
+  const temp=Number(data.current.temperature_2m),feels=Number(data.current.apparent_temperature),rainNow=Number(data.current.precipitation||0),rainSum=Number(data.daily.precipitation_sum?.[0]||0),rainProb=Number(data.daily.precipitation_probability_max?.[0]||0),high=Number(data.daily.temperature_2m_max?.[0]),low=Number(data.daily.temperature_2m_min?.[0]);
+  const rainLikely=rainNow>0||rainSum>=0.2||rainProb>=30;
+  const parts=[`Hôm nay tại ${location.label}, ${rainLikely?'có khả năng có mưa':'khả năng mưa thấp'}.`,`Xác suất mưa cao nhất khoảng ${Math.round(rainProb)}%${Number.isFinite(rainSum)?`, tổng lượng mưa dự báo ${rainSum.toFixed(1)} mm`:''}.`];
+  if(Number.isFinite(temp))parts.push(`Hiện khoảng ${temp.toFixed(1)}°C${Number.isFinite(feels)?`, cảm giác như ${feels.toFixed(1)}°C`:''}${Number.isFinite(high)&&Number.isFinite(low)?`; hôm nay ${low.toFixed(0)}–${high.toFixed(0)}°C`:''}.`);
+  return {answer:parts.join(' '),sources:[{title:'Open-Meteo · Dự báo thời tiết',url:'https://open-meteo.com/'}],provider:'open-meteo',degraded:false};
+}
+async function newsReply(query){
+  if(!newsIntent.test(query))return null;
+  const topic=clean(query.replace(/\b(tin mới|tin tức|mới nhất|news|điểm tin|tin hôm nay)\b/gi,' '),140)||'Việt Nam';
+  const rss=`https://news.google.com/rss/search?q=${encodeURIComponent(topic)}&hl=vi&gl=VN&ceid=VN:vi`;
+  const response=await withTimeout(rss,{headers:{accept:'application/rss+xml,application/xml,text/xml','user-agent':'HIU-YHCT-4.0-XiaoZhi/1.0'}});
+  if(!response.ok)return null;
+  const xml=await response.text(),items=[...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].slice(0,4).map(match=>{const body=match[1],title=decodeXml(body.match(/<title>([\s\S]*?)<\/title>/i)?.[1]),link=decodeXml(body.match(/<link>([\s\S]*?)<\/link>/i)?.[1]),pubDate=decodeXml(body.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1]);return {title,link:safeUrl(link),pubDate}}).filter(x=>x.title&&x.link);
+  if(!items.length)return null;
+  const answer=`Các tin nổi bật tôi vừa tìm được về “${topic}”: ${items.map((x,i)=>`${i+1}) ${x.title}${x.pubDate?` (${new Date(x.pubDate).toLocaleDateString('vi-VN')})`:''}`).join(' · ')}`;
+  return {answer,sources:items.map(x=>({title:x.title,url:x.link})),provider:'google-news',degraded:false};
+}
+async function wikipediaReply(query){
+  const searchUrl=`https://vi.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=1&format=json&origin=*`;
+  const response=await withTimeout(searchUrl,{headers:{accept:'application/json','user-agent':'HIU-YHCT-4.0-XiaoZhi/1.0'}});if(!response.ok)return null;
+  const data=await response.json().catch(()=>null),hit=data?.query?.search?.[0];if(!hit?.pageid)return null;
+  const extractUrl=`https://vi.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&pageids=${encodeURIComponent(hit.pageid)}&format=json&origin=*`;
+  const detail=await withTimeout(extractUrl,{headers:{accept:'application/json','user-agent':'HIU-YHCT-4.0-XiaoZhi/1.0'}});if(!detail.ok)return null;
+  const payload=await detail.json().catch(()=>null),page=payload?.query?.pages?.[String(hit.pageid)],extract=clean(page?.extract,1800);if(!extract)return null;
+  const title=clean(page?.title||hit.title,180),url=`https://vi.wikipedia.org/?curid=${encodeURIComponent(hit.pageid)}`;
+  return {answer:extract,sources:[{title:`Wikipedia · ${title}`,url}],provider:'wikipedia',degraded:true};
+}
+async function publicDirectReply(req,query){
+  try{const weather=await weatherReply(req,query);if(weather)return weather}catch{}
+  try{const news=await newsReply(query);if(news)return news}catch{}
+  return null;
+}
+async function publicFallbackReply(req,query){
+  const direct=await publicDirectReply(req,query);if(direct)return direct;
+  try{return await wikipediaReply(query)}catch{return null}
+}
 
 export async function handleXiaoZhiMini(req,res){
   const started=Date.now();res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Vary','Authorization');
@@ -14,8 +82,12 @@ export async function handleXiaoZhiMini(req,res){
   const query=clean(req.body?.query,1600),pageContext=clean(req.body?.pageContext,1600),localContext=clean(req.body?.localContext,5000);
   if(query.length<2)return res.status(400).json({error:'Query is required'});
   if(academic.test(query))return res.status(200).json({answer:'Nội dung này thuộc nhóm học thuật/chuyên môn. A.I Mini đã tách khỏi chức năng học thuật; hãy mở Trung tâm nghiên cứu để sử dụng A.I nghiên cứu có nguồn.',sources:[],provider:'policy-router',degraded:false,route:'research',latencyMs:Date.now()-started});
+
+  const direct=await publicDirectReply(req,query);
+  if(direct){const latencyMs=Date.now()-started;res.setHeader('Server-Timing',`xiaozhi;dur=${latencyMs}`);res.setHeader('X-AI-Provider',direct.provider);return res.status(200).json({...direct,route:null,latencyMs})}
+
   const key=process.env.OPENAI_API_KEY,model=cloudAiModel();
-  if(!cloudAiEnabled()||!key||!model)return res.status(200).json({answer:'A.I Mini đang ở chế độ cục bộ. Tôi vẫn có thể hỗ trợ điểm hoạt động, lịch CLB và điều hướng hệ thống; tra cứu web tạm thời chưa sẵn sàng.',sources:[],provider:'local',degraded:true,latencyMs:Date.now()-started});
+  if(!cloudAiEnabled()||!key||!model){const fallback=await publicFallbackReply(req,query);if(fallback)return res.status(200).json({...fallback,route:null,latencyMs:Date.now()-started});return res.status(200).json({answer:'A.I tổng hợp đang tạm nghỉ, nhưng các nguồn công khai miễn phí vẫn hoạt động cho thời tiết, tin tức và tra cứu kiến thức phổ thông. Hãy thử nêu rõ chủ đề hoặc địa điểm cần tìm.',sources:[],provider:'public-sources',degraded:true,latencyMs:Date.now()-started})}
   const instructions=[
     'Bạn là A.I Mini của mạng xã hội HIU YHCT 4.0, lớp tương tác giọng nói và công cụ theo phong cách XiaoZhi.',
     'Bạn được phép trả lời rộng về thông tin công khai ngoài hệ thống: tin tức, công nghệ, giáo dục, văn hóa, đời sống, giao thông, thời tiết, thể thao, sự kiện và kiến thức phổ thông khi phù hợp.',
@@ -33,5 +105,10 @@ export async function handleXiaoZhiMini(req,res){
     const payload=await response.json(),answer=clean(extractText(payload),6500);if(!answer)throw new Error('AI returned an empty answer');
     const sources=extractSources(payload),latencyMs=Date.now()-started;res.setHeader('Server-Timing',`xiaozhi;dur=${latencyMs}`);res.setHeader('X-AI-Provider','openai-web');
     return res.status(200).json({answer,sources,provider:'openai-web',degraded:false,route:null,latencyMs});
-  }catch(error){const latencyMs=Date.now()-started;console.warn(JSON.stringify({event:'xiaozhi_mini',ok:false,role:access.role,latencyMs,error:clean(error?.message,180)}));return res.status(200).json({answer:'Tôi chưa kết nối được nguồn bên ngoài lúc này. Các chức năng nội bộ như điểm hoạt động, lịch CLB và điều hướng ứng dụng vẫn dùng được.',sources:[],provider:'local',degraded:true,latencyMs})}finally{clearTimeout(timer)}
+  }catch(error){
+    const fallback=await publicFallbackReply(req,query),latencyMs=Date.now()-started;
+    console.warn(JSON.stringify({event:'xiaozhi_mini',ok:Boolean(fallback),role:access.role,latencyMs,error:clean(error?.message,180),fallback:fallback?.provider||null}));
+    if(fallback){res.setHeader('X-AI-Provider',fallback.provider);return res.status(200).json({...fallback,route:null,latencyMs})}
+    return res.status(200).json({answer:'Nguồn A.I tổng hợp đang tạm hết hạn mức. XiaoZhi vẫn giữ các nguồn công khai miễn phí; hãy thử hỏi rõ địa điểm thời tiết, chủ đề tin tức hoặc một khái niệm phổ thông.',sources:[],provider:'public-sources',degraded:true,latencyMs})
+  }finally{clearTimeout(timer)}
 }
