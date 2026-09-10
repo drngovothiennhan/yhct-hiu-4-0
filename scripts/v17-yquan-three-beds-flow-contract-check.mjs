@@ -22,7 +22,7 @@ has(sql,'pg_advisory_xact_lock','bed allocation is transaction-serialized per me
 has(sql,'generate_series(1,3)','allocator scans exactly three beds');
 has(sql,'Cả 3 giường Dưỡng Trị đang có bệnh nhân','full ward is rejected server-side');
 has(sql,"action='discharge'",'doctor can choose direct discharge after diagnosis');
-has(sql,"action='observe'",'doctor can choose observation bed after diagnosis');
+has(sql,"public.hiu_y_quan_disposition_v17(p_case_key,'observe')",'doctor can choose observation bed after diagnosis');
 has(sql,"create or replace function public.hiu_y_quan_hourly_cases_v4()",'V17 case RPC exists without replacing rollback V3');
 has(sql,"c.care_status in ('awaiting_transfer','observing','recheck_due')",'new intake is paused while disposition or ward care remains');
 has(sql,'c.recheck_count,c.bed_slot','case payload exposes assigned bed');
