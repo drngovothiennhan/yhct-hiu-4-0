@@ -4,6 +4,7 @@ const MAX_ERROR_TEXT=180;
 
 const clean=(value,max=2000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 export const geminiAiEnabled=()=>Boolean(process.env.GEMINI_API_KEY)&&process.env.ENABLE_GEMINI_AI!=='false';
+export const geminiPrivateContextAllowed=()=>process.env.GEMINI_ALLOW_PRIVATE_CONTEXT==='true';
 export const geminiAiModel=(mode='default')=>{
   const configured=mode==='research'
     ?process.env.GEMINI_RESEARCH_MODEL||process.env.GEMINI_MODEL||DEFAULT_GEMINI_RESEARCH_MODEL
@@ -100,4 +101,18 @@ export async function createGeminiWebSearch({systemInstruction,prompt,signal,mod
   const parsed=extractInteraction(await response.json());
   if(!parsed.text)throw new Error('Gemini returned an empty answer');
   return{...parsed,model};
+}
+
+export async function probeGeminiModel(model,{timeoutMs=7000}={}){
+  const safeModel=String(model||'').trim();
+  if(!geminiAiEnabled()||!safeModel)return{model:safeModel,ok:false,status:0,displayName:safeModel,error:'Gemini configuration missing'};
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),Math.max(1000,Math.min(Number(timeoutMs)||7000,10000)));
+  try{
+    const key=process.env.GEMINI_API_KEY;
+    const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(safeModel)}`,{method:'GET',signal:controller.signal,headers:{'x-goog-api-key':key,accept:'application/json'}});
+    const payload=await response.json().catch(()=>null);
+    return{model:safeModel,ok:response.ok,status:response.status,displayName:clean(payload?.displayName||payload?.name||safeModel,120),error:response.ok?'':clean(payload?.error?.message||`HTTP ${response.status}`,MAX_ERROR_TEXT)};
+  }catch(error){
+    return{model:safeModel,ok:false,status:0,displayName:safeModel,error:error?.name==='AbortError'?'timeout':clean(error?.message||'network error',MAX_ERROR_TEXT)};
+  }finally{clearTimeout(timer)}
 }
