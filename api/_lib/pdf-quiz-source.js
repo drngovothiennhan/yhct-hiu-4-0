@@ -8,6 +8,7 @@ const MAX_BASE64_CHARS=2_800_000;
 const PDF_MIME='application/pdf';
 const cleanName=value=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,300);
 const sha256=value=>createHash('sha256').update(value).digest('hex');
+const stripParserPageMarkers=value=>String(value||'').replace(/(?:^|\n)\s*--\s*\d+\s+of\s+\d+\s*--\s*(?=\n|$)/gi,'\n').replace(/\n{3,}/g,'\n\n').trim();
 
 function decodePdfBase64(base64){
  if(typeof base64!=='string'||!base64.length||base64.length>MAX_BASE64_CHARS||!/^[A-Za-z0-9+/]*={0,2}$/.test(base64))throw new Error('Tệp PDF không hợp lệ hoặc lớn hơn 2 MB.');
@@ -26,7 +27,8 @@ export async function readUploadedPdfFile(name,base64){
   if(!Number.isInteger(pages)||pages<1)throw new Error('Không xác định được số trang PDF.');
   if(pages>MAX_PDF_PAGES)throw new Error(`PDF có ${pages} trang, vượt giới hạn ${MAX_PDF_PAGES} trang; hãy chia nhỏ trước khi nhập.`);
   const extracted=await parser.getText();
-  let text=String(extracted?.text||'').replace(/\r\n?/g,'\n').replace(/\u0000/g,'').trim();
+  const normalized=String(extracted?.text||'').replace(/\r\n?/g,'\n').replace(/\u0000/g,'').trim();
+  const text=stripParserPageMarkers(normalized);
   if(!text)throw new Error('PDF không có lớp văn bản có thể trích xuất. Hệ thống không OCR tự động; hãy dùng PDF có text hoặc chuyển sang DOCX/TXT.');
   if(text.length>MAX_SOURCE_TEXT)throw new Error('Nội dung PDF vượt 400.000 ký tự; hãy chia nhỏ trước khi nhập.');
   return{file:{id:`upload-${sourceHash}`,name:cleanName(name),mimeType:PDF_MIME},text,sourceHash,warnings:[`Đã trích xuất văn bản từ PDF ${pages} trang; cần đối chiếu nguyên văn trước khi nhập.`],pdfPages:pages};
