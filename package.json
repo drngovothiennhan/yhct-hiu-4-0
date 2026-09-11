@@ -11,6 +11,7 @@
     "audit:sim6h": "node scripts/simulate-6h.mjs",
     "audit:account": "node scripts/account-layout-check.mjs",
     "audit:ai": "node scripts/ai-runtime-check.mjs",
+    "audit:ai-roles": "node scripts/ai-role-contract-check.mjs",
     "audit:rag": "node scripts/central-rag-check.mjs",
     "audit:theme": "node scripts/theme-atomic-check.mjs",
     "audit:feed": "node scripts/feed-ai-contract-check.mjs",
@@ -27,7 +28,7 @@
     "audit:v20:acting": "node scripts/v20-1-yquan-character-acting-check.mjs",
     "audit:v20:runtime": "node scripts/v20-yquan-runtime-playthrough.mjs",
     "audit:yquan": "node scripts/v20-yquan-unified-contract-check.mjs && node scripts/v20-1-yquan-character-acting-check.mjs && node scripts/v20-yquan-runtime-playthrough.mjs",
-    "prebuild": "npm run audit:source && npm run audit:roles && npm run audit:modules && npm run audit:sim6h && npm run audit:account && npm run audit:ai && npm run audit:rag && npm run audit:theme && npm run audit:feed && npm run audit:yquan",
+    "prebuild": "npm run audit:source && npm run audit:roles && npm run audit:modules && npm run audit:sim6h && npm run audit:account && npm run audit:ai && npm run audit:ai-roles && npm run audit:rag && npm run audit:theme && npm run audit:feed && npm run audit:yquan",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "android:sync": "npm run build && npx cap sync android",
@@ -50,7 +51,6 @@
     "@capacitor/cli": "7.4.3",
     "@types/react": "18.3.12",
     "@types/react-dom": "18.3.1",
-    "@vitejs/plugin-react": "4.3.4",
     "typescript": "5.7.2",
     "vite": "6.0.5"
   }
