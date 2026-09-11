@@ -1,7 +1,7 @@
 import {useEffect,useState} from 'react';
 import {CheckCircle2,FileUp,RefreshCcw,ShieldCheck,XCircle} from 'lucide-react';
 import {getPracticeReviewQueue,reviewPracticeQuestion,type PracticeReviewQuestion} from '../../services/dailyPracticeService';
-import {quizWorkspace,wordBase64,type QuizCandidate,type QuizDraft,type QuizWorkspaceError} from '../../services/quizWorkspaceService';
+import {quizWorkspace,retryQuizPipeline,startQuizPipeline,wordBase64,type QuizCandidate,type QuizDraft} from '../../services/quizWorkspaceService';
 import './quiz-import.css';
 
 // Server-side review authorization contract: practice_question_review_v1.
@@ -12,32 +12,13 @@ export default function LearningContentManagerPanel(){
   const loadReview=async()=>setReview(await getPracticeReviewQueue(20));
   useEffect(()=>{void loadReview().catch(e=>setMessage((e as Error).message))},[]);
   const run=async(fn:()=>Promise<void>)=>{if(busy)return;setBusy(true);setMessage('');try{await fn()}catch(e){setMessage((e as Error).message)}finally{setBusy(false)}};
-  const continuePipeline=async(initial:QuizDraft)=>{
-    let current=initial;setDraft(current);
-    while(current.pipeline?.state==='processing'){
-      setMessage(`Đang xử lý ${current.pipeline.completedChunks}/${current.pipeline.totalChunks} phần · ${current.pipeline.percent}%`);
-      try{current=await quizWorkspace<QuizDraft>('quiz-process-chunk',{id:current.id,revision:current.revision})}
-      catch(error){
-        const known=(error as QuizWorkspaceError).draft;
-        current=known||await quizWorkspace<QuizDraft>('quiz-draft',{id:current.id});
-        setDraft(current);throw error;
-      }
-      setDraft(current);
-    }
-    if(current.pipeline?.state==='error')throw new Error(current.pipeline.lastError||'Pipeline đang dừng và có thể thử lại.');
-    setSelected(new Set());
-    setMessage(`Đã hoàn tất chuyển đổi: ${current.total} câu. Chưa có câu nào được tự động nhập; cần đối chiếu trước khi xác nhận.`);
-  };
+  const track=(next:QuizDraft)=>{setDraft(next);if(next.pipeline?.state==='processing')setMessage(`Đang xử lý ${next.pipeline.completedChunks}/${next.pipeline.totalChunks} phần · ${next.pipeline.percent}%`)};
+  const finish=(next:QuizDraft)=>{setDraft(next);setSelected(new Set());setMessage(`Đã hoàn tất chuyển đổi: ${next.total} câu. Chưa có câu nào được tự động nhập; cần đối chiếu trước khi xác nhận.`)};
   const preview=async()=>{
     if(!file||!subject.trim())throw new Error('Nhập chủ đề và chọn tệp Word trước khi chuyển đổi.');
-    const next=await quizWorkspace<QuizDraft>('quiz-start',{fileName:file.name,base64:await wordBase64(file),subjectName:subject.trim(),conversionMode:mode});
-    await continuePipeline(next);
+    finish(await startQuizPipeline({fileName:file.name,base64:await wordBase64(file),subjectName:subject.trim(),conversionMode:mode},track));
   };
-  const retry=async()=>{
-    if(!draft?.pipeline||draft.pipeline.state!=='error')return;
-    const next=await quizWorkspace<QuizDraft>('quiz-retry',{id:draft.id,revision:draft.revision});
-    await continuePipeline(next);
-  };
+  const retry=async()=>{if(draft?.pipeline?.state==='error')finish(await retryQuizPipeline(draft,track))};
   const toggle=(q:QuizCandidate,checked:boolean)=>setSelected(old=>{const next=new Set(old);if(checked&&q.correctIndex!==null&&!q.imported&&next.size<200)next.add(q.id);else next.delete(q.id);return next});
   const commit=async()=>{if(!draft||!selected.size)throw new Error('Chọn ít nhất một câu đã đối chiếu có đáp án.');if(draft.pipeline?.state==='processing'||draft.pipeline?.state==='error')throw new Error('Hoàn tất pipeline trước khi nhập câu hỏi.');const selection=draft.questions.filter(q=>selected.has(q.id)&&!q.imported&&q.correctIndex!==null).map(q=>({...q,confirmed:true}));if(!selection.length)throw new Error('Không có câu hợp lệ để nhập.');await quizWorkspace('quiz-commit',{id:draft.id,revision:draft.revision,selection});const next=await quizWorkspace<QuizDraft>('quiz-draft',{id:draft.id});setDraft(next);setSelected(new Set());await loadReview();setMessage(`Đã nhập ${selection.length} câu được xác nhận vào ngân hàng ôn tập.`)};
   const decide=async(id:string,status:'expert_approved'|'rejected')=>{await reviewPracticeQuestion(id,status);await loadReview();setMessage(status==='expert_approved'?'Đã duyệt câu hỏi.':'Đã loại câu hỏi khỏi hàng chờ duyệt.')};
