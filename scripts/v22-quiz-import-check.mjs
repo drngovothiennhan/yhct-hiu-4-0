@@ -5,6 +5,7 @@ import JSZip from 'jszip';
 import {parseMcqDocument,normalizeImportQuestion} from '../api/_lib/mcq-parser.js';
 import {readUploadedQuizFile,parseExplicitMcqs} from '../api/_lib/drive-quiz.js';
 import {handleQuizWorkspace} from '../api/_lib/quiz-workspace.js';
+import {handleQuizPipelineV2,isQuizPipelineV2Action,planQuizChunks} from '../api/_lib/quiz-pipeline-v2.js';
 const body='Câu 1: Chọn ký tự đầu tiên\nA. Alpha\nB. Beta\nC. Gamma\nD. Delta';
 test('numbered, inline, multiline and answer zero',()=>{
  for(const text of [body+'\nĐáp án: A',body.replaceAll('\n',' ')+'\nĐáp án: A',body.replace('B. Beta','B. Beta\ntiếp dòng')+'\nĐáp án đúng là A']){
@@ -42,7 +43,7 @@ test('real DOCX extraction and upload rejection',async()=>{
  await assert.rejects(readUploadedQuizFile('test.docx','!invalid'));
  await assert.rejects(readUploadedQuizFile('test.docx','A'.repeat(2800001)));
 });
-test('all workspace actions require learning-content capability; regular member is rejected before Drive',async()=>{
+test('legacy workspace actions require learning-content capability; regular member is rejected before Drive',async()=>{
  const original=globalThis.fetch;
  for(const action of ['quiz-roots','quiz-browse','quiz-preview','quiz-commit','quiz-drafts','quiz-draft']){
   let status=200;const res={status(n){status=n;return this},json(x){return x}};
@@ -51,6 +52,33 @@ test('all workspace actions require learning-content capability; regular member 
   await handleQuizWorkspace({headers:{authorization:'Bearer '+ 'a'.repeat(40)},body:{action}},res);assert.equal(status,403);
  }
  globalThis.fetch=original;
+});
+test('pipeline v2 actions are capability-gated before file processing',async()=>{
+ const original=globalThis.fetch;
+ for(const action of ['quiz-start','quiz-process-chunk','quiz-retry']){
+  assert.equal(isQuizPipelineV2Action(action),true);
+  let status=200;const res={status(n){status=n;return this},json(x){return x}};
+  await handleQuizPipelineV2({headers:{},body:{action}},res);assert.equal(status,401);
+  globalThis.fetch=async()=>new Response(JSON.stringify({approved:true,role:'member',learningContentManager:false}));
+  await handleQuizPipelineV2({headers:{authorization:'Bearer '+ 'a'.repeat(40)},body:{action}},res);assert.equal(status,403);
+ }
+ globalThis.fetch=original;
+});
+test('pipeline v2 chunk planner is deterministic, bounded and preserves multi-chunk progress units',()=>{
+ const source=Array.from({length:1800},(_,i)=>`Đoạn ${i}. Nội dung học tập có căn cứ để kiểm tra và tạo câu hỏi.\n`).join('');
+ const a=planQuizChunks(source),b=planQuizChunks(source);
+ assert.deepEqual(a,b);assert.ok(a.length>1&&a.length<=48);
+ assert.ok(a.every((x,i)=>x.index===i&&x.text.length>0&&x.text.length<=12000&&x.start<x.end&&x.hash.length===16));
+});
+test('pipeline v2 persistence contract uses revision CAS and exposes real progress/retry in UI',()=>{
+ const sql=fs.readFileSync('ops/sql/20260911_quiz_pipeline_v2_cas.sql','utf8');
+ const api=fs.readFileSync('api/_lib/quiz-pipeline-v2.js','utf8');
+ const route=fs.readFileSync('api/ai/drive-rag.js','utf8');
+ const ui=fs.readFileSync('src/components/admin/LearningContentManagerPanel.tsx','utf8');
+ assert.ok(sql.includes("p_action='replace'")&&sql.includes("(p_payload->>'revision')::integer")&&sql.includes('revision=revision+1'));
+ assert.ok(api.includes("state:'processing'")&&api.includes("state:'error'")&&api.includes("'quiz-process-chunk'")&&api.includes("'quiz-retry'"));
+ assert.ok(route.includes('isQuizPipelineV2Action')&&route.includes('handleQuizPipelineV2'));
+ assert.ok(ui.includes("'quiz-start'")&&ui.includes("'quiz-process-chunk'")&&ui.includes("'quiz-retry'")&&ui.includes('<progress'));
 });
 test('student UI delegates all imports to ACC and records flashcards',()=>{
  const student=fs.readFileSync('src/components/exam/DailyDrivePractice.tsx','utf8');
