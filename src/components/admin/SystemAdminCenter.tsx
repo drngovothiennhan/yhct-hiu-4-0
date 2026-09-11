@@ -5,6 +5,7 @@ import {SUPABASE_PUBLISHABLE_KEY,SUPABASE_URL,supabase} from '../../services/aut
 import {formatLunar} from '../../utils/lunar';
 import {TaijiIcon} from '../icons/YhctIcons';
 import AiOperationsPanel from './AiOperationsPanel';
+import './acc-system-center.css';
 
 type Snapshot={id:string;scope:string;checksum_sha256:string;row_counts:Record<string,number>;created_at:string};
 type Audit={id:string;action:string;severity:string;entity_type?:string|null;entity_id?:string|null;metadata:Record<string,unknown>;created_at:string};
