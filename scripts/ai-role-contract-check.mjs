@@ -36,7 +36,7 @@ forbid(assistant,['GEMINI_ALLOW_PRIVATE_CONTEXT'],'server private-context gate')
 need(geminiProvider,['geminiPrivateContextAllowed=()=>false','process.env.GEMINI_API_KEY'],'server-only Gemini provider');
 
 need(quiz,['createGeminiJson','geminiAiConfigured','gemini-quiz-designer-v1','Chỉ được dùng thông tin nằm trong SOURCE',"reviewStatus:'expert_approved'",'adminConfirmed:true','sourceEvidence.includes(evidence.toLowerCase())','!explanation',"driveConfigured:credentialMode!=='none'",'clean(body.subjectName,160)'],'Gemini quiz designer and Drive readiness');
-need(acc,['Tài liệu → Ngân hàng trắc nghiệm','conversionMode','Gemini thiết kế trắc nghiệm từ tài liệu','Tải tài liệu trực tiếp tại ACC','Đồng bộ & chuyển đổi','setChecked(new Set())','Tất cả kết quả chỉ ở trạng thái bản nháp','driveConfigured===false','manualSubject.trim()','subjectName','Drive tạm chưa khả dụng'],'ACC Drive-to-quiz UX with direct-upload fallback');
+need(acc,['Tài liệu → Ngân hàng trắc nghiệm','conversionMode','Gemini thiết kế trắc nghiệm từ tài liệu','Tải tài liệu trực tiếp tại ACC','Tự chuyển đổi','Cập nhật vào ngân hàng','setChecked(new Set())','Tất cả kết quả chỉ ở trạng thái bản nháp','driveConfigured===false','manualSubject.trim()','subjectName','Drive tạm chưa khả dụng'],'ACC Drive-to-quiz UX with direct-upload fallback');
 forbid(acc,['selection:ready','setChecked(new Set(d.questions'],'ACC explicit admin review');
 
 need(aiOps,['fetchAiHealth','readiness · model/provider · latency · degraded mode · privacy gate · contract'],'Admin A.I Operations observability');
