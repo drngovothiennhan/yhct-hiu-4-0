@@ -24,9 +24,12 @@ export async function getPracticeQuizPage(subject:string,offset:number,seed:stri
 
 export async function submitPracticeQuiz(questions:PracticeQuizQuestion[],answers:Record<string,number>):Promise<PracticeQuizResult>{
   if(!questions.length)throw new Error('Chưa có câu để nộp.');
-  if(questions.length>500)throw new Error('Hãy nộp tối đa 500 câu đã tải trong một lượt; sau đó có thể tiếp tục lượt mới.');
-  const payload=questions.map(q=>({questionId:q.id,selectedIndex:Number.isInteger(answers[q.id])?answers[q.id]:null}));
-  const {data,error}=await supabase.rpc('practice_quiz_submit_v1',{p_answers:payload});
-  if(error)throw asError(error,'Không chấm được bài luyện thi.');
-  return data as PracticeQuizResult;
+  let correctCount=0,total=0;const review:PracticeQuizReview[]=[];let submittedAt=new Date().toISOString();
+  for(let at=0;at<questions.length;at+=500){
+    const batch=questions.slice(at,at+500).map(q=>({questionId:q.id,selectedIndex:Number.isInteger(answers[q.id])?answers[q.id]:null}));
+    const {data,error}=await supabase.rpc('practice_quiz_submit_v1',{p_answers:batch});
+    if(error)throw asError(error,'Không chấm được bài luyện thi.');
+    const part=data as PracticeQuizResult;correctCount+=Number(part.correctCount||0);total+=Number(part.total||0);review.push(...(Array.isArray(part.review)?part.review:[]));submittedAt=part.submittedAt||submittedAt;
+  }
+  return{score:total?Math.round(correctCount/total*100):0,correctCount,total,review,submittedAt};
 }
