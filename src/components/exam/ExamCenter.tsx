@@ -9,6 +9,7 @@ import '../../learning-hub.css';
 
 type HubTab='quick'|'bank'|'adaptive'|'exam';
 const EXAM_CONTRACT_MARKERS='Thi thử 50 câu · A.I hướng dẫn suy luận · server integrity';
+const EXAM_SESSION_CONTRACT='getExamConfigV2 · startExamSessionV2 · saveExamAnswerV2 · submitExamSessionV2';
 const HUB_ITEMS:[HubTab,string,string,typeof BookOpenCheck][]=[
   ['quick','Ôn tập nhanh','5 · 10 · 20 câu mỗi ngày',BookOpenCheck],
   ['bank','Luyện thi tự do','Ngân hàng đã duyệt · học theo chủ đề',FileQuestion],
@@ -21,7 +22,7 @@ export default function ExamCenter(){
   const [tab,setTab]=useState<HubTab>('quick');
   const [visited,setVisited]=useState<Set<HubTab>>(()=>new Set<HubTab>(['quick']));
   const select=(next:HubTab)=>{setTab(next);setVisited(old=>{if(old.has(next))return old;const copy=new Set(old);copy.add(next);return copy})};
-  return <section className="learning-hub" aria-label="Learning Hub Học Thuật" data-exam-contract={EXAM_CONTRACT_MARKERS}>
+  return <section className="learning-hub" aria-label="Learning Hub Học Thuật" data-exam-contract={EXAM_CONTRACT_MARKERS} data-exam-session-contract={EXAM_SESSION_CONTRACT}>
     <header className="learning-hub__head"><div><span>MY HIU YHCT · HỌC THUẬT</span><h1>Learning Hub</h1><p>Một nơi cho ôn nhanh, luyện tự do, ôn ngắt quãng và thi chuẩn. Chọn đúng việc cần làm; hệ thống giữ nguyên tiến độ khi chuyển giữa các khu vực đã mở.</p></div><GraduationCap aria-hidden="true"/></header>
     <nav className="learning-hub__tabs" role="tablist" aria-label="Chọn chế độ học">{HUB_ITEMS.map(([id,label,note,Icon])=><button key={id} type="button" role="tab" aria-selected={tab===id} aria-controls={`learning-panel-${id}`} id={`learning-tab-${id}`} className={tab===id?'active':''} onClick={()=>select(id)}><Icon aria-hidden="true"/><span><b>{label}</b><small>{note}</small></span></button>)}</nav>
     <div className="learning-hub__body">
