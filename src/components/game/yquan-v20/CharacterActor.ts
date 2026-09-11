@@ -36,9 +36,12 @@ export class CharacterActor<S extends string>{
   }
 
   restore(snapshot:ActorSnapshot<S>){
-    if(!SCENES[snapshot.scene]?.waypoints[snapshot.waypoint])return false;
+    if(!snapshot||!SCENES[snapshot.scene]?.waypoints[snapshot.waypoint]||!Number.isFinite(snapshot.position?.x)||!Number.isFinite(snapshot.position?.y))return false;
+    if(snapshot.path?.some(point=>!SCENES[snapshot.scene].waypoints[point.id]||!Number.isFinite(point.x)||!Number.isFinite(point.y)))return false;
     this.scene=snapshot.scene;this.position={...snapshot.position};this.waypoint=snapshot.waypoint;this.direction=snapshot.direction;this.state=snapshot.state;this.visible=snapshot.visible;
-    this.path=[];this.targetWaypoint=null;this.animation.play(snapshot.animation,true);return true;
+    this.path=(snapshot.path||[]).map(point=>({...point}));this.targetWaypoint=snapshot.targetWaypoint||null;
+    this.animation.play(snapshot.animation,true);
+    if(snapshot.animationProgress)this.animation.restore(snapshot.animationProgress);return true;
   }
 
   requestMove(targetWaypoint:string){
@@ -72,6 +75,6 @@ export class CharacterActor<S extends string>{
   }
 
   snapshot():ActorSnapshot<S>{
-    return {scene:this.scene,position:{...this.position},waypoint:this.waypoint,direction:this.direction,state:this.state,animation:this.animation.current,visible:this.visible};
+    return {scene:this.scene,position:{...this.position},waypoint:this.waypoint,direction:this.direction,state:this.state,animation:this.animation.current,visible:this.visible,path:this.path.map(point=>({...point})),targetWaypoint:this.targetWaypoint,animationProgress:this.animation.snapshot()};
   }
 }

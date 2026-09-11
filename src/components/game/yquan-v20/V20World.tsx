@@ -121,7 +121,11 @@ export default function V20World(){
       if(node.dataset.animation!==snapshot.animation)node.dataset.animation=snapshot.animation;if(node.dataset.direction!==snapshot.direction)node.dataset.direction=snapshot.direction;node.dataset.state=String(snapshot.state);node.dataset.scene=snapshot.scene;node.dataset.frame=String(actor.animation.frame);
     };
     const tick=(time:number)=>{const delta=lastFrame.current?time-lastFrame.current:16;lastFrame.current=time;controller.update(delta);renderActor(doctorRef.current,controller.doctor,true);renderActor(patientRef.current,controller.patient,false);frame=requestAnimationFrame(tick)};
-    frame=requestAnimationFrame(tick);return()=>{cancelAnimationFrame(frame);lastFrame.current=0;controller.dispose()};
+    const checkpoint=()=>controller.dispose();
+    const visibilityCheckpoint=()=>{if(document.hidden)checkpoint()};
+    window.addEventListener('pagehide',checkpoint);
+    document.addEventListener('visibilitychange',visibilityCheckpoint);
+    frame=requestAnimationFrame(tick);return()=>{cancelAnimationFrame(frame);lastFrame.current=0;window.removeEventListener('pagehide',checkpoint);document.removeEventListener('visibilitychange',visibilityCheckpoint);checkpoint()};
   },[controller,focusScene]);
 
   const chooseScene=(scene:SceneId)=>{manualFocusUntil.current=Date.now()+9000;setFocusScene(scene)};

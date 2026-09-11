@@ -1,4 +1,4 @@
-import type {ActorAnimation} from './types';
+import type {ActorAnimation,AnimationSnapshot} from './types';
 
 export interface AnimationClip{
   name:ActorAnimation;
@@ -47,6 +47,20 @@ export class AnimationController{
       if(def.loop){this.frame=0;this.loopCycles+=1;continue}
       this.frame=def.frames-1;this.finished=true;this.onComplete?.(this.current);break;
     }
+  }
+
+  snapshot():AnimationSnapshot{
+    return {current:this.current,frame:this.frame,elapsed:this.elapsed,finished:this.finished,loopCycles:this.loopCycles,playbackSpeed:this.playbackSpeed};
+  }
+
+  restore(snapshot:AnimationSnapshot){
+    const def=ANIMATION_CLIPS[snapshot.current];
+    if(!def||!Number.isInteger(snapshot.frame)||snapshot.frame<0||snapshot.frame>=def.frames||
+      !Number.isFinite(snapshot.elapsed)||snapshot.elapsed<0||snapshot.elapsed>=1000/def.fps||
+      !Number.isInteger(snapshot.loopCycles)||snapshot.loopCycles<0||
+      !Number.isFinite(snapshot.playbackSpeed)||snapshot.playbackSpeed<=0)return false;
+    this.current=snapshot.current;this.frame=snapshot.frame;this.elapsed=snapshot.elapsed;
+    this.finished=snapshot.finished;this.loopCycles=snapshot.loopCycles;this.playbackSpeed=snapshot.playbackSpeed;return true;
   }
 
   isComplete(){return this.finished||(ANIMATION_CLIPS[this.current].loop&&this.loopCycles>0)}

@@ -103,6 +103,48 @@ try{
   assert(hasEvent('TREATMENT_COMPLETED'),'TREATMENT_COMPLETED emitted after ward care');
   assert(hasEvent('PATIENT_DISCHARGED'),'PATIENT_DISCHARGED emitted after exit animation');
 
+  // Reload during movement and tool work, not just at stable end states.
+  const resumeAt=(label,setup,predicate)=>{
+    const key=`v20-resume-${label}`,originalBus=new GameEventBus();
+    const original=new YQuanStoryController({storageKey:key,bus:originalBus});
+    setup(original);
+    let reached=false;
+    for(let i=0;i<2400;i++){original.update(50);if(predicate(original)){reached=true;break}}
+    assert(reached,`${label}: interruption point reached`);
+    original.dispose();
+    const resumedBus=new GameEventBus(),resumed=new YQuanStoryController({storageKey:key,bus:resumedBus});
+    resumed.sync([original.currentCase]);
+    assert(JSON.stringify(original.doctor.snapshot())===JSON.stringify(resumed.doctor.snapshot()),`${label}: doctor path and animation frame restored`);
+    assert(JSON.stringify(original.patient.snapshot())===JSON.stringify(resumed.patient.snapshot()),`${label}: patient path and animation frame restored`);
+    const before=[],after=[];
+    watched.forEach(event=>{
+      originalBus.on(event,payload=>before.push({event,payload}));
+      resumedBus.on(event,payload=>after.push({event,payload}));
+    });
+    for(let i=0;i<2400;i++){
+      original.update(50);resumed.update(50);
+      assert(JSON.stringify(original.doctor.snapshot())===JSON.stringify(resumed.doctor.snapshot()),`${label}: doctor trajectory after reload at tick ${i}`);
+      assert(JSON.stringify(original.patient.snapshot())===JSON.stringify(resumed.patient.snapshot()),`${label}: patient trajectory after reload at tick ${i}`);
+    }
+    assert(JSON.stringify(before)===JSON.stringify(after),`${label}: remaining events run once in original order`);
+    assert(original.snapshot().stage===resumed.snapshot().stage,`${label}: same terminal story stage`);
+    original.dispose();resumed.dispose();
+  };
+  resumeAt('patient-enter',c=>c.sync([waiting]),c=>c.patient.isMoving());
+  resumeAt('pulse',c=>c.sync([waiting]),c=>c.doctor.state==='PULSE_CHECK'&&c.doctor.animation.frame>=3);
+  resumeAt('pharmacy-walk',c=>c.sync([diagnosed]),c=>c.doctor.scene==='pharmacy'&&c.doctor.isMoving());
+  resumeAt('medicine-pot',c=>c.sync([diagnosed]),c=>c.doctor.state==='COOKING_MEDICINE'&&c.doctor.animation.frame>=3);
+  for(const bed_slot of [1,2,3]){
+    resumeAt(`ward-${bed_slot}`,c=>c.sync([{...observing,bed_slot}]),c=>c.patient.scene==='ward'&&c.patient.isMoving());
+  }
+  const stale=new YQuanStoryController({storageKey:'v20-stale-server'});
+  stale.sync([waiting]);stale.update(50);stale.dispose();
+  const newer=new YQuanStoryController({storageKey:'v20-stale-server'});
+  newer.sync([observing]);
+  for(let i=0;i<2400&&newer.snapshot().stage!=='IN_TREATMENT';i++)newer.update(50);
+  assert(newer.patient.waypoint==='W_BED2'&&newer.snapshot().stage==='IN_TREATMENT','server disposition overrides stale locally saved exam');
+  newer.dispose();
+
   const wrongBus=new GameEventBus();
   const wrongSeen=[];
   wrongBus.on('DIAGNOSIS_INCORRECT',payload=>wrongSeen.push(payload));
