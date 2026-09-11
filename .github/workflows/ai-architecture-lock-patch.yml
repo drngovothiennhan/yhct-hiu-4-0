@@ -57,6 +57,20 @@ jobs:
           if old2 not in s: raise SystemExit('missing stale app-assistant role assertion')
           s=s.replace(old2,new2,1).replace('Gemini application assistant','application assistant')
           p.write_text(s,encoding='utf-8')
+
+          p=Path('scripts/module-isolation-check.mjs')
+          s=p.read_text(encoding='utf-8')
+          replacements={
+            "need(research,['searchOpenAlex(query,12)','A.I OpenAlex tổng hợp','summarizeOpenAlex','askServerAi'],'research OpenAlex AI');":"need(research,['searchOpenAlex(query,12)','ragInternalConsent','Research A.I tổng hợp nguồn vừa tìm','summarizeOpenAlex','askServerAi'],'research public retrieval');",
+            "need(researchMini,['searchOpenAlex(text,6)','searchDriveRag(text,4,controller.signal)',\"searchKnowledge(text,'all',5)\",\"askServerAi(leaderPrompt,'research'\",'RESEARCH_LEADER=GEMINI','threadContext(messages)','result.suggestedQueries','Cloud + Drive RAG + Central RAG + OpenAlex'],'Research AI mini Gemini leader orchestration');":"need(researchMini,['searchPubMed(text,6)','searchOpenAlex(text,6)','searchClinicalTrials(text,4)','internalEnabled?searchDriveRag(text,4,controller.signal)',\"internalEnabled?searchKnowledge(text,'all',5)\",\"askServerAi(leaderPrompt,'research'\",'RESEARCH_LEADER=GEMINI','threadContext(messages)','result.suggestedQueries','Dùng tài liệu nội bộ','setUseInternal(false)'],'Research AI canonical orchestration');",
+            "need(mini,['academicIntent','askXiaoZhiMini','VOICE_KEY','startListening','Học thuật → Trung tâm nghiên cứu','openResearch(text)'],'global XiaoZhi AI mini system/voice routing');":"need(mini,['researchIntent','askXiaoZhiMini','VOICE_KEY','startListening','Trung tâm nghiên cứu','openResearch(text)'],'global XiaoZhi app-assistant text/voice routing');",
+            "forbid(mini,['searchOpenAlex','searchDriveRag','searchKnowledge','centralKnowledgeService','askAcademicUnified','feedback_submit_v1'],'global XiaoZhi AI mini academic separation');":"forbid(mini,['searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge','centralKnowledgeService','askAcademicUnified','feedback_submit_v1'],'global XiaoZhi AI mini academic separation');",
+            "module-isolation-ok: 10 final areas frozen, inbox embedded in profile, admin/ACC separation, root PWA install, Gemini Research leader with Central/Drive/OpenAlex workers, and application-assistant XiaoZhi separation present":"module-isolation-ok: 10 final areas frozen, inbox embedded in profile, admin/ACC separation, root PWA install, Research A.I with request-scoped internal consent, and application-assistant XiaoZhi separation present"
+          }
+          for old,new in replacements.items():
+            if old not in s: raise SystemExit(f'missing stale module assertion: {old[:80]}')
+            s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
           PY
       - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
