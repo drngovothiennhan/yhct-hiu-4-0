@@ -1,3 +1,4 @@
+import './v20-yquan-master-integrity-check.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
