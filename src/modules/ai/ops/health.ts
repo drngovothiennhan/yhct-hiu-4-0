@@ -54,9 +54,10 @@ export async function checkGeminiProvider():Promise<GeminiProviderCheck>{
   const controller=new AbortController();
   const timer=window.setTimeout(()=>controller.abort(),10000);
   try{
-    const response=await fetch('/api/ai/gemini-check',{
+    const response=await fetch('/api/ai/health',{
       method:'POST',signal:controller.signal,
-      headers:{Authorization:`Bearer ${session.access_token}`}
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},
+      body:JSON.stringify({probe:'gemini'})
     });
     if(response.status===401||response.status===403)throw new Error('Tài khoản hiện tại không có quyền admin để kiểm tra Gemini.');
     if(!response.ok)throw new Error(`Gemini check HTTP ${response.status}`);
