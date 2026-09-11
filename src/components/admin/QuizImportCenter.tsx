@@ -5,8 +5,8 @@ import {
  continueQuizPipeline,
  quizWorkspace,
  retryQuizPipeline,
+ sourceFileBase64,
  startQuizPipeline,
- wordBase64,
  type QuizDraft,
  type QuizDraftSummary,
  type QuizDriveItem
@@ -50,7 +50,7 @@ export default function QuizImportCenter(){
   if(admin){
    void quizWorkspace<{roots:QuizDriveItem[];driveConfigured?:boolean;credentialMode?:string}>('quiz-roots').then(x=>{
     if(!alive.current)return;setRoots(x.roots);setDriveConfigured(x.driveConfigured!==false);
-    if(x.driveConfigured===false)setMessage('Google Drive chưa có credential server-side. Bạn vẫn có thể tải Word trực tiếp và nhập tên chủ đề bên dưới.');
+    if(x.driveConfigured===false)setMessage('Google Drive chưa có credential server-side. Bạn vẫn có thể tải DOCX/TXT trực tiếp và nhập tên chủ đề bên dưới.');
    }).catch(e=>{if(alive.current){setDriveConfigured(false);setMessage(e.message)}});
    void refresh().catch(e=>{if(alive.current)setMessage(e.message)});
   }
@@ -80,8 +80,8 @@ export default function QuizImportCenter(){
   await finishPipeline(d,'Đã chuyển đổi tệp Drive');
  };
  const upload=async(file:File)=>{
-  const subjectName=category?.name||manualSubject.trim();if(!subjectName)throw new Error('Chọn thư mục kiến thức hoặc nhập tên chủ đề trước khi tải Word.');
-  const d=await startQuizPipeline({fileName:file.name,base64:await wordBase64(file),subjectFolderId:category?.id,subjectName,conversionMode},next=>trackPipeline(next,`Đang xử lý ${file.name}`));
+  const subjectName=category?.name||manualSubject.trim();if(!subjectName)throw new Error('Chọn thư mục kiến thức hoặc nhập tên chủ đề trước khi tải tài liệu.');
+  const d=await startQuizPipeline({fileName:file.name,base64:await sourceFileBase64(file),subjectFolderId:category?.id,subjectName,conversionMode},next=>trackPipeline(next,`Đang xử lý ${file.name}`));
   await finishPipeline(d,'Đã chuyển đổi tài liệu');
  };
  const collect=async(entries:QuizDriveItem[])=>{
@@ -130,11 +130,11 @@ export default function QuizImportCenter(){
  if(!admin)return null;
  const pipeline=draft?.pipeline,pipelineBlocked=pipeline?.state==='processing'||pipeline?.state==='error';
  return <section className="panel quiz-import" aria-label="Tài liệu thành ngân hàng trắc nghiệm">
-  <div className="qi-heading"><div><span className="qi-kicker"><Sparkles/>ACC · Gemini Quiz Designer</span><h2>Tài liệu → Ngân hàng trắc nghiệm</h2><p>Chọn thư mục Drive hoặc tải Word trực tiếp tại ACC. Hệ thống nhận diện câu có sẵn hoặc giao Gemini thiết kế câu hỏi chỉ từ nội dung nguồn. Mọi câu chỉ được nhập sau khi admin mở bản nháp, đối chiếu và chủ động xác nhận.</p></div><Bot/></div>
+  <div className="qi-heading"><div><span className="qi-kicker"><Sparkles/>ACC · Gemini Quiz Designer</span><h2>Tài liệu → Ngân hàng trắc nghiệm</h2><p>Chọn thư mục Drive hoặc tải DOCX/TXT trực tiếp tại ACC. Hệ thống nhận diện câu có sẵn hoặc giao Gemini thiết kế câu hỏi chỉ từ nội dung nguồn. Mọi câu chỉ được nhập sau khi admin mở bản nháp, đối chiếu và chủ động xác nhận.</p></div><Bot/></div>
   <div className="qi-flow" aria-label="Quy trình chuyển đổi"><span><b>1</b><FolderOpen/>Chọn nguồn</span><span><b>2</b><Bot/>Chia phần & xử lý</span><span><b>3</b><CheckCircle2/>Xem & đối chiếu</span><span><b>4</b><CheckCircle2/>Cập nhật ngân hàng</span></div>
   <label className="qi-conversion"><span><b>Cách chuyển đổi</b><small>Không tự suy đoán đáp án và không bổ sung kiến thức ngoài tài liệu.</small></span><select disabled={busy} value={conversionMode} onChange={e=>setConversionMode(e.target.value as ConversionMode)}><option value="auto">Tự động — trích xuất nếu có, nếu không thì Gemini thiết kế</option><option value="generate">Gemini thiết kế trắc nghiệm từ tài liệu</option><option value="extract">Chỉ trích xuất câu trắc nghiệm có sẵn</option></select></label>
   <div className="qi-actions qi-root-actions">{roots.map(root=><button key={root.id} disabled={busy||driveConfigured===false} title={driveConfigured===false?'Drive server-side chưa cấu hình credential':'Mở kho Drive'} onClick={()=>void run(()=>browse(root,[root]))}><Cloud/>{root.name}</button>)}<button className="secondary" disabled={busy} onClick={()=>void run(refresh)}>Làm mới bản nháp</button></div>
-  {driveConfigured===false&&<div className="qi-drive-warning" role="alert"><b>Drive tạm chưa khả dụng</b><span>Thiếu credential Google Drive phía server. Chức năng tải Word trực tiếp vẫn hoạt động và không cần Drive.</span></div>}
+  {driveConfigured===false&&<div className="qi-drive-warning" role="alert"><b>Drive tạm chưa khả dụng</b><span>Thiếu credential Google Drive phía server. Chức năng tải DOCX/TXT trực tiếp vẫn hoạt động và không cần Drive.</span></div>}
   <DriveCredentialGuide visible={driveConfigured===false}/>
   {pipeline&&<div className="qi-status" role="status"><b>Pipeline v{pipeline.version} · {pipeline.state==='processing'?'Đang xử lý':pipeline.state==='error'?'Tạm dừng':pipeline.state==='needs_review'?'Chờ đối chiếu':'Sẵn sàng'}</b><progress max={100} value={pipeline.percent}/><span>{pipeline.percent}% · {pipeline.completedChunks}/{pipeline.totalChunks||pipeline.completedChunks} phần · lần chạy {pipeline.attempt}</span>{pipeline.lastError&&<small className="warning">{pipeline.lastError}</small>}{pipeline.state==='error'&&pipeline.retryable&&<button disabled={busy} onClick={()=>void run(async()=>{const next=await retryQuizPipeline(draft!,d=>trackPipeline(d,'Đang thử lại'));await finishPipeline(next,'Đã thử lại và hoàn tất bản nháp')})}><RefreshCcw/>Thử lại từ phần bị lỗi</button>}</div>}
   {message&&<p className="qi-status" role="status">{message}</p>}
@@ -144,9 +144,9 @@ export default function QuizImportCenter(){
    {pageToken&&<button disabled={busy} onClick={()=>void run(()=>browse(folder,trail,pageToken))}>Tải thêm tệp</button>}
    <div className="qi-actions"><button disabled={busy||!Object.keys(selected).length} onClick={()=>void run(sync)}>Tự chuyển đổi {Object.keys(selected).length} mục đã chọn</button><button className="secondary" disabled={busy} onClick={()=>setSelected(Object.fromEntries(items.filter(x=>x.folder||x.supported).map(x=>[x.id,x])))}>Chọn các mục đang hiển thị</button></div>
   </>}
-  {!folder&&<div className="qi-empty"><FolderOpen/><b>{driveConfigured===false?'Drive chưa được cấu hình':'Chọn một kho Drive ở trên'}</b><p>{driveConfigured===false?'Bạn vẫn có thể tải Word trực tiếp ở khối bên dưới; Drive sẽ tự mở lại khi credential server-side được cấu hình.':'Admin có thể duyệt thư mục, chọn cả thư mục hoặc từng tệp, sau đó hệ thống tự xử lý theo chế độ đã chọn.'}</p></div>}
+  {!folder&&<div className="qi-empty"><FolderOpen/><b>{driveConfigured===false?'Drive chưa được cấu hình':'Chọn một kho Drive ở trên'}</b><p>{driveConfigured===false?'Bạn vẫn có thể tải DOCX/TXT trực tiếp ở khối bên dưới; Drive sẽ tự mở lại khi credential server-side được cấu hình.':'Admin có thể duyệt thư mục, chọn cả thư mục hoặc từng tệp, sau đó hệ thống tự xử lý theo chế độ đã chọn.'}</p></div>}
 
-  <div className="qi-direct-upload"><label><span><b>Chủ đề cho Word tải lên</b><small>{category?`Đang lấy từ Drive: ${category.name}`:'Nhập tên chủ đề để upload độc lập với Drive.'}</small></span><input type="text" disabled={busy} value={category?.name||manualSubject} placeholder="Ví dụ: Sinh lý học, Châm cứu học…" onChange={e=>{setCategory(null);setManualSubject(e.target.value)}}/></label><label className="qi-upload"><FileUp/><span><b>Tải tài liệu trực tiếp tại ACC</b><small>Word .docx · tối đa 2 MB · pipeline chia phần, có thể tiếp tục sau lỗi mạng</small></span><input key={pendingUpload?.name||'empty'} type="file" accept=".docx" disabled={busy||!(category||manualSubject.trim())} onChange={e=>setPendingUpload(e.target.files?.[0]||null)}/></label><div className="qi-actions"><button className="qi-primary-convert" disabled={busy||!pendingUpload||!(category||manualSubject.trim())} onClick={()=>void run(async()=>{const file=pendingUpload;if(!file)return;await upload(file);setPendingUpload(null)})}><Sparkles/>Tự chuyển đổi</button>{pendingUpload&&<small>Đã chọn: {pendingUpload.name}</small>}</div><small>Tệp tải lên chỉ được đọc để tạo bản nháp; không ghi đè tài liệu Drive.</small></div>
+  <div className="qi-direct-upload"><label><span><b>Chủ đề cho tài liệu tải lên</b><small>{category?`Đang lấy từ Drive: ${category.name}`:'Nhập tên chủ đề để upload độc lập với Drive.'}</small></span><input type="text" disabled={busy} value={category?.name||manualSubject} placeholder="Ví dụ: Sinh lý học, Châm cứu học…" onChange={e=>{setCategory(null);setManualSubject(e.target.value)}}/></label><label className="qi-upload"><FileUp/><span><b>Tải tài liệu trực tiếp tại ACC</b><small>DOCX hoặc TXT UTF-8 · tối đa 2 MB · pipeline chia phần, có thể tiếp tục sau lỗi mạng</small></span><input key={pendingUpload?.name||'empty'} type="file" accept=".docx,.txt,text/plain" disabled={busy||!(category||manualSubject.trim())} onChange={e=>setPendingUpload(e.target.files?.[0]||null)}/></label><div className="qi-actions"><button className="qi-primary-convert" disabled={busy||!pendingUpload||!(category||manualSubject.trim())} onClick={()=>void run(async()=>{const file=pendingUpload;if(!file)return;await upload(file);setPendingUpload(null)})}><Sparkles/>Tự chuyển đổi</button>{pendingUpload&&<small>Đã chọn: {pendingUpload.name}</small>}</div><small>Tệp tải lên chỉ được đọc để tạo bản nháp; không ghi đè tài liệu Drive.</small></div>
   {busy&&<button onClick={()=>{stop.current=true;setMessage('Sẽ dừng sau tệp đang xử lý. Các bản nháp và tiến độ đã tạo vẫn được giữ.')}}>Dừng sau tệp hiện tại</button>}
   {reports.length>0&&<details open><summary>Kết quả đối soát từng tệp</summary><ul>{reports.map((x,i)=><li key={i}>{x}</li>)}</ul></details>}
 
