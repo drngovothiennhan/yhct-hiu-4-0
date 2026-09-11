@@ -34,17 +34,27 @@ export async function memberRpc(req,rpcName,args={}){
   }finally{clearTimeout(timer)}
 }
 
-export async function memberAccess(req,minRole='member'){
+async function currentAccess(req){
   const auth=bearer(req);
   if(!auth.startsWith('Bearer ')||auth.length<32)return{ok:false,status:401,error:'Authentication required'};
-  try{
-    const data=await memberRpc(req,'current_member_access_v1',{});
-    const approved=Boolean(data?.approved),role=String(data?.role||'guest');
-    if(!approved||!roleAtLeast(role,minRole))return{ok:false,status:403,error:'Insufficient role'};
-    return{ok:true,status:200,memberId:String(data.memberId||''),role};
-  }catch(error){
+  try{return{ok:true,status:200,data:await memberRpc(req,'current_member_access_v1',{})}}
+  catch(error){
     const message=String(error?.message||'');
     if(message.includes('Authentication required'))return{ok:false,status:401,error:'Authentication required'};
     return{ok:false,status:503,error:'Authorization service unavailable'};
   }
+}
+
+export async function memberAccess(req,minRole='member'){
+  const access=await currentAccess(req);if(!access.ok)return access;
+  const data=access.data,approved=Boolean(data?.approved),role=String(data?.role||'guest');
+  if(!approved||!roleAtLeast(role,minRole))return{ok:false,status:403,error:'Insufficient role'};
+  return{ok:true,status:200,memberId:String(data.memberId||''),role,positionTitle:String(data.positionTitle||'')};
+}
+
+export async function learningContentAccess(req){
+  const access=await currentAccess(req);if(!access.ok)return access;
+  const data=access.data,approved=Boolean(data?.approved),role=String(data?.role||'guest');
+  if(!approved||data?.learningContentManager!==true)return{ok:false,status:403,error:'Learning content manager required'};
+  return{ok:true,status:200,memberId:String(data.memberId||''),role,positionTitle:String(data.positionTitle||''),learningContentManager:true};
 }
