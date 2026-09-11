@@ -1,0 +1,45 @@
+name: AI Architecture Lock Patch
+
+on:
+  push:
+    branches: [ai-architecture-lock-20260911]
+    paths:
+      - '.github/workflows/ai-architecture-lock-patch.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ai-architecture-lock-patch
+  cancel-in-progress: true
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ai-architecture-lock-20260911
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply canonical AI architecture migration
+        run: python scripts/_apply_ai_canonical_lock.py
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Required AI gates
+        run: |
+          npm run audit:ai
+          npm run audit:ai-roles
+          npm run audit:rag
+          npm run build
+      - name: Commit verified migration and remove temporary tooling
+        run: |
+          git rm scripts/_apply_ai_canonical_lock.py .github/workflows/ai-architecture-lock-patch.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "refactor(ai): enforce canonical architecture lock"
+          git push origin HEAD:ai-architecture-lock-20260911
