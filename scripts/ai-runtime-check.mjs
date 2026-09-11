@@ -59,15 +59,17 @@ requireText(gateway,"if(req.body?.mode==='xiaozhi-mini')return handleXiaoZhiMini
 requireText(gateway,"import {handleXiaoZhiMini} from '../_lib/xiaozhi-mini-handler.js'",'XiaoZhi runtime is isolated behind shared gateway');
 
 requireText(xiaozhiHandler,"memberAccess(req,'member')",'XiaoZhi requires approved-member auth');
-forbidText(xiaozhiHandler,'const academic=','XiaoZhi no longer blocks public questions before Gemini Search');
-forbidText(xiaozhiHandler,"route:'research'",'XiaoZhi backend does not own Research routing');
-requireText(xiaozhiHandler,'A.I tìm kiếm mặc định của toàn hệ thống','XiaoZhi is the global Gemini Search default');
+forbidText(xiaozhiHandler,'const academic=','XiaoZhi no longer blocks ordinary public questions before Gemini Search');
+requireText(xiaozhiHandler,'researchIntent','XiaoZhi detects deep research intent for explicit handoff');
+requireText(xiaozhiHandler,"answer:'Học thuật → Trung tâm nghiên cứu'",'XiaoZhi exposes the required research handoff label');
+requireText(xiaozhiHandler,"route:'research'",'XiaoZhi server returns an explicit Research route without doing research retrieval');
+requireText(xiaozhiHandler,'Trợ lý ứng dụng HIU YHCT 4.0','XiaoZhi is scoped to the application assistant');
 requireText(xiaozhiHandler,'tuyệt đối không tự giả định rằng kho Drive/tài liệu nội bộ đã được bật','public Gemini path does not auto-enable internal documents');
 requireText(xiaozhiHandler,'createGeminiWebSearch','XiaoZhi uses Gemini as its primary public-search provider');
 if(xiaozhiHandler.indexOf('createGeminiWebSearch')<xiaozhiHandler.indexOf("type:'web_search_preview'"))ok('XiaoZhi attempts Gemini before OpenAI web failover');else fail('XiaoZhi must attempt Gemini before OpenAI web failover');
 requireText(geminiProvider,"tools:[{type:'google_search'}]",'Gemini public answers use Google Search grounding');
 requireText(geminiProvider,'probeGeminiModel','Gemini live probe stays inside the server provider boundary');
-requireText(geminiProvider,'geminiPrivateContextAllowed','Gemini private-context policy is centralized server-side');
+requireText(geminiProvider,'geminiPrivateContextAllowed=()=>false','Gemini has no environment-level private-context bypass');
 requireText(xiaozhiHandler,"type:'web_search_preview'",'XiaoZhi can use bounded web search');
 requireText(xiaozhiHandler,"search_context_size:'low'",'XiaoZhi web search uses low-cost context');
 requireText(xiaozhiHandler,'extractSources','XiaoZhi extracts source links from provider output');
@@ -91,7 +93,9 @@ for(const forbidden of ['searchOpenAlex','searchDriveRag','searchKnowledge','cen
 requireText(runtime,"fetch('/api/ai/assistant'",'academic client routes cloud AI through shared server gateway');
 requireText(runtime,'Authorization:`Bearer ${session.access_token}`','academic client authenticates gateway requests');
 requireText(runtime,'internalContextConsent:options.useInternal===true','internal context requires an explicit request-scoped opt-in');
-requireText(gateway,'containsPrivateDriveContext||internalContextConsent','gateway permits Drive context only after explicit opt-in');
+requireText(gateway,"source?.id?.startsWith('drive:')||source?.id?.startsWith('central:')",'gateway classifies Drive and Central RAG as internal sources');
+requireText(gateway,'sources.some(isInternalSource)&&!internalContextConsent','gateway rejects internal context unless explicitly opted in');
+forbidText(gateway,'GEMINI_ALLOW_PRIVATE_CONTEXT','gateway has no environment bypass for private-context consent');
 const clientBudget=Number(runtime.match(/TIMEOUT_MS=(\d+)/)?.[1]);
 const openAiBudget=Number(gateway.match(/AI_TIMEOUT_MS=(\d+)/)?.[1]);
 const geminiBudget=Number(gateway.match(/GEMINI_TIMEOUT_MS=(\d+)/)?.[1]);
@@ -133,9 +137,9 @@ for(const candidate of ['semantic-scholar','europe-pmc','crossref','opencitation
 requireText(aiOps,'fetchAiHealth','Admin A.I Operations reads non-secret readiness');
 requireText(aiOps,'candidateZeroCostProviders','Admin A.I Operations exposes zero-cost candidate adapters');
 
-forbidText(gemini,'localStorage.setItem(KEY_STORAGE','Gemini API key is not persisted in localStorage');
-requireText(gemini,'session().setItem(KEY_STORAGE','Gemini BYOK secret is session-scoped');
-requireText(gemini,'purgeLegacySecret','legacy persisted BYOK secrets are purged');
+for(const forbidden of ['localStorage','sessionStorage','x-goog-api-key','generativelanguage.googleapis.com'])forbidText(gemini,forbidden,`browser Gemini compatibility layer excludes ${forbidden}`);
+requireText(gemini,"import {askServerAi} from './aiRuntimeService'",'browser Gemini compatibility layer routes through server gateway');
+requireText(gemini,'Vercel Environment Variables','browser Gemini compatibility layer documents server-side secret ownership');
 requireText(envExample,'ENABLE_CLOUD_AI=false','handoff env documents fail-closed cloud flag');
 requireText(envExample,'OPENAI_MODEL=gpt-5.6-luna','handoff env documents default model override');
 
