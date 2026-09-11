@@ -24,7 +24,6 @@ const exam=read('src/components/exam/ExamCenter.tsx');
 const aiPlatform=read('src/modules/ai/index.ts');
 const providerRegistry=read('src/modules/ai/providers/registry.ts');
 const aiOps=read('src/components/admin/AiOperationsPanel.tsx');
-const gemini=read('src/services/geminiByok.ts');
 const envExample=read('.env.example');
 
 requireText(access,"DEFAULT_OPENAI_MODEL='gpt-5.6-luna'",'AI server has a production-safe default OpenAI model');
@@ -60,9 +59,12 @@ requireText(gateway,"import {handleXiaoZhiMini} from '../_lib/xiaozhi-mini-handl
 
 requireText(xiaozhiHandler,"memberAccess(req,'member')",'XiaoZhi requires approved-member auth');
 forbidText(xiaozhiHandler,'const academic=','XiaoZhi no longer blocks ordinary public questions before Gemini Search');
-requireText(xiaozhiHandler,'researchIntent','XiaoZhi detects deep research intent for explicit handoff');
+requireText(xiaozhiHandler,'isResearchIntent','XiaoZhi detects deep research intent for explicit handoff');
 requireText(xiaozhiHandler,"answer:'Học thuật → Trung tâm nghiên cứu'",'XiaoZhi exposes the required research handoff label');
 requireText(xiaozhiHandler,"route:'research'",'XiaoZhi server returns an explicit Research route without doing research retrieval');
+const {isResearchIntent}=await import('../api/_lib/xiaozhi-mini-handler.js');
+for(const query of ['Tạng tượng là gì?','Giải thích âm dương ngũ hành đơn giản','Vitamin C tan trong nước hay dầu?'])isResearchIntent(query)?fail(`ordinary education query incorrectly routed to Research: ${query}`):ok(`ordinary education stays in App Assistant: ${query}`);
+for(const query of ['Tìm y văn PubMed về châm cứu mất ngủ','Phân tích meta-analysis về acupuncture insomnia','So sánh bằng chứng lâm sàng và guideline điều trị tăng huyết áp'])isResearchIntent(query)?ok(`research query routes to Research: ${query}`):fail(`research query missed Research handoff: ${query}`);
 requireText(xiaozhiHandler,'Trợ lý ứng dụng HIU YHCT 4.0','XiaoZhi is scoped to the application assistant');
 requireText(xiaozhiHandler,'tuyệt đối không tự giả định rằng kho Drive/tài liệu nội bộ đã được bật','public Gemini path does not auto-enable internal documents');
 requireText(xiaozhiHandler,'createGeminiWebSearch','XiaoZhi uses Gemini as its primary public-search provider');
@@ -83,7 +85,7 @@ requireText(miniService,"mode:'xiaozhi-mini'",'XiaoZhi client selects dedicated 
 requireText(miniService,'Authorization:`Bearer ${token}`','XiaoZhi client authenticates shared gateway');
 requireText(miniService,'hiu.vn','application assistant prioritizes official HIU web sources');
 requireText(mini,'askXiaoZhiMini','global A.I Mini calls XiaoZhi service');
-requireText(mini,'academicIntent','global A.I Mini detects research intent for explicit handoff');
+requireText(mini,'researchIntent','global A.I Mini detects research intent for explicit handoff');
 requireText(mini,'openResearch(text)','global A.I Mini hands research questions to Research A.I');
 requireText(mini,'speechSynthesis','global A.I Mini supports speech output');
 requireText(mini,'startListening','global A.I Mini supports speech input when available');
@@ -108,16 +110,22 @@ requireText(academicService,"searchKnowledge(query,'all',5)",'academic internal 
 requireText(academicService,'{useInternal:true}','academic internal mode explicitly authorizes final Gemini synthesis');
 requireText(academicService,'đối chiếu chúng với kết quả Gemini Google Search','academic internal mode asks Gemini to cross-check web and internal evidence');
 requireText(researchMini,"from '../../modules/ai'",'Research A.I Mini routes through AI Platform facade');
-requireText(researchMini,'searchDriveRag','Research A.I Mini retains Drive RAG worker');
-requireText(researchMini,'searchOpenAlex','Research A.I Mini retains OpenAlex worker');
+requireText(researchMini,'searchDriveRag','Research A.I retains Drive RAG worker');
+requireText(researchMini,'searchOpenAlex','Research A.I retains OpenAlex worker');
+requireText(researchMini,'searchPubMed','Research A.I retains PubMed worker');
+requireText(researchMini,'searchClinicalTrials','Research A.I retains ClinicalTrials worker');
 requireText(researchMini,'searchKnowledge','Research A.I Mini retains Central RAG worker');
 requireText(researchMini,'RESEARCH_LEADER=GEMINI','Research A.I explicitly makes Gemini the leader');
 requireText(researchMini,"askServerAi(leaderPrompt,'research'",'Gemini Research leader performs final synthesis');
 requireText(researchMini,'result.suggestedQueries','Research A.I surfaces Gemini follow-up suggestions');
 requireText(research,"askServerAi(query,'research',sources,undefined,{useInternal:true})",'Research Center sends explicitly selected Drive sources to Gemini');
-requireText(researchMini,"useInternal?searchDriveRag",'Research A.I skips Drive retrieval until the user opts in');
-requireText(researchMini,"useInternal?searchKnowledge",'Research A.I skips Central RAG until the user opts in');
+requireText(researchMini,"internalEnabled?searchDriveRag",'Research A.I skips Drive retrieval until the user opts in');
+requireText(researchMini,"internalEnabled?searchKnowledge",'Research A.I skips Central RAG until the user opts in');
 requireText(researchMini,'Dùng tài liệu nội bộ','Research A.I exposes the internal-document opt-in; global Mini does not');
+requireText(researchMini,'setUseInternal(false)','Research A.I consumes internal-document consent after each request');
+requireText(researchMini,'{useInternal:internalEnabled}','Research A.I sends request-scoped consent to the shared gateway');
+requireText(research,'ragInternalConsent','Research Center RAG synthesis has an explicit request consent gate');
+requireText(research,'setRagInternalConsent(false)','Research Center consumes RAG consent after each synthesis');
 requireText(research,'aiAnswer.citations','Research Center renders server-validated citations');
 requireText(exam,"from '../../modules/ai'",'Exam A.I Tutor routes through AI Platform facade');
 requireText(exam,'answer.degraded?localTutor','Exam tutor retains contextual local fallback');
@@ -133,13 +141,13 @@ forbidText(health,'process.env.','AI readiness does not read or serialize enviro
 
 requireText(aiPlatform,"export * from './core/gateway'",'AI Platform exposes one academic gateway facade');
 requireText(aiPlatform,"export * from './providers/registry'",'AI Platform exposes provider registry');
-for(const candidate of ['semantic-scholar','europe-pmc','crossref','opencitations','unpaywall'])requireText(providerRegistry,`id:'${candidate}'`,`AI provider registry includes ${candidate}`);
+for(const core of ['gemini-server','central-rag','drive-rag','openalex','pubmed','clinicaltrials'])requireText(providerRegistry,`id:'${core}'`,`AI provider registry contains implemented core ${core}`);
+for(const dead of ['gemini-byok','unpaywall','candidateZeroCostProviders'])forbidText(providerRegistry,dead,`AI provider registry excludes dead/expansion adapter ${dead}`);
 requireText(aiOps,'fetchAiHealth','Admin A.I Operations reads non-secret readiness');
-requireText(aiOps,'candidateZeroCostProviders','Admin A.I Operations exposes zero-cost candidate adapters');
+forbidText(aiOps,'candidateZeroCostProviders','Admin A.I Operations does not advertise provider expansion');
+forbidText(aiOps,'Adapter 0đ có thể tích hợp tiếp','Admin A.I Operations has no provider-sprawl catalog');
+forbidText(aiOps,'GEMINI_ALLOW_PRIVATE_CONTEXT','Admin A.I Operations has no obsolete privacy bypass');
 
-for(const forbidden of ['localStorage','sessionStorage','x-goog-api-key','generativelanguage.googleapis.com'])forbidText(gemini,forbidden,`browser Gemini compatibility layer excludes ${forbidden}`);
-requireText(gemini,"import {askServerAi} from './aiRuntimeService'",'browser Gemini compatibility layer routes through server gateway');
-requireText(gemini,'Vercel Environment Variables','browser Gemini compatibility layer documents server-side secret ownership');
 requireText(envExample,'ENABLE_CLOUD_AI=false','handoff env documents fail-closed cloud flag');
 requireText(envExample,'OPENAI_MODEL=gpt-5.6-luna','handoff env documents default model override');
 

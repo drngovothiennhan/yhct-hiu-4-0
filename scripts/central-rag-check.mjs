@@ -83,7 +83,9 @@ requireText(researchMini,"searchKnowledge(text,'all',5)",'Research A.I Mini exec
 requireText(researchMini,'centralSources','Research A.I Mini maps central evidence into bounded AI sources');
 requireText(researchMini,'h.evidence','Research A.I Mini includes publication evidence in source context');
 requireText(researchMini,'h.authoritySources','Research A.I Mini includes WHO/NCCIH/Cochrane authority evidence in source context');
-requireText(researchMini,'Cloud + Drive RAG + Central RAG + OpenAlex','Research A.I Mini visibly communicates shared retrieval architecture');
+requireText(researchMini,'Dùng tài liệu nội bộ','Research A.I visibly exposes explicit internal-context opt-in');
+requireText(researchMini,'Nguồn công khai','Research A.I presents public evidence without exposing provider selection as product UX');
+requireText(researchMini,'setUseInternal(false)','Research A.I consumes internal-context consent after each request');
 requireText(researchMini,'Nguồn đã truy xuất:','Research A.I Mini visibly exposes source-backed provenance when cloud AI degrades');
 requireText(research,'searchOpenAlex(query,12)','Research Center retains academic OpenAlex retrieval');
 if(!mini.includes('centralKnowledgeService')&&!mini.includes('searchKnowledge(')&&!mini.includes('searchOpenAlex')&&!mini.includes('searchDriveRag'))ok('Global A.I Mini is cleanly separated from academic RAG');else fail('Global A.I Mini must not load academic RAG providers');
