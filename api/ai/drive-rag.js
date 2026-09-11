@@ -1,5 +1,5 @@
 import {handleQuizWorkspace} from '../_lib/quiz-workspace.js';
-import {memberAccess,memberRpc} from '../_lib/member-access.js';
+import {learningContentAccess,memberAccess,memberRpc} from '../_lib/member-access.js';
 import {buildDriveRagIndex,retrieveDriveRag} from '../_lib/drive-rag.js';
 import {driveQuizMeta,generateMcqsFromStudyText,listQuizDocuments,parseExplicitMcqs,readQuizDocument} from '../_lib/drive-quiz.js';
 
@@ -26,7 +26,7 @@ async function handleDriveRag(req,res){
 
 async function handleQuizSync(req,res){
   const started=Date.now();
-  const access=await memberAccess(req,'admin');if(!access.ok)return res.status(access.status).json({error:access.error});
+  const access=await learningContentAccess(req);if(!access.ok)return res.status(access.status).json({error:access.error});
   const maxFiles=Math.max(1,Math.min(5,Number(req.body?.maxFiles)||3)),allowAi=req.body?.allowAi!==false;
   try{
     const listing=await listQuizDocuments(maxFiles);if(!listing.configured)return res.status(200).json({ok:false,degraded:true,reason:listing.reason,folderId:listing.folder,processed:[]});
