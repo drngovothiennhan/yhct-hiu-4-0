@@ -42,12 +42,12 @@ test('real DOCX extraction and upload rejection',async()=>{
  await assert.rejects(readUploadedQuizFile('test.docx','!invalid'));
  await assert.rejects(readUploadedQuizFile('test.docx','A'.repeat(2800001)));
 });
-test('all workspace actions require admin; member is rejected before Drive',async()=>{
+test('all workspace actions require learning-content capability; regular member is rejected before Drive',async()=>{
  const original=globalThis.fetch;
  for(const action of ['quiz-roots','quiz-browse','quiz-preview','quiz-commit','quiz-drafts','quiz-draft']){
   let status=200;const res={status(n){status=n;return this},json(x){return x}};
   await handleQuizWorkspace({headers:{},body:{action}},res);assert.equal(status,401);
-  globalThis.fetch=async()=>new Response(JSON.stringify({approved:true,role:'member'}));
+  globalThis.fetch=async()=>new Response(JSON.stringify({approved:true,role:'member',learningContentManager:false}));
   await handleQuizWorkspace({headers:{authorization:'Bearer '+ 'a'.repeat(40)},body:{action}},res);assert.equal(status,403);
  }
  globalThis.fetch=original;
@@ -58,13 +58,13 @@ test('student UI delegates all imports to ACC and records flashcards',()=>{
  assert.ok(fs.readFileSync('src/components/admin/SystemAdminCenter.tsx','utf8').includes('<QuizImportCenter'));
 });
 
-test('clearing an answer in admin preview cannot silently import the old answer',async()=>{
+test('clearing an answer with learning-content capability cannot silently import the old answer',async()=>{
  const original=globalThis.fetch;
  const q=parseMcqDocument(body+'\nĐáp án: A').questions[0];
  let committed=false,status=200;
  try{
   globalThis.fetch=async(url,init)=>{
-   if(String(url).includes('current_member_access'))return new Response(JSON.stringify({approved:true,role:'admin'}));
+   if(String(url).includes('current_member_access'))return new Response(JSON.stringify({approved:true,role:'member',positionTitle:'Ban Quản lý Học tập',learningContentManager:true}));
    const args=JSON.parse(init.body);
    if(args.p_action==='commit')committed=true;
    return new Response(JSON.stringify({revision:1,questions:[q],file:{id:'fixture',name:'test.docx',parentName:'Test'}}));
