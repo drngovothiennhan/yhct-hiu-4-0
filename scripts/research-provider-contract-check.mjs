@@ -6,5 +6,5 @@ need(service.includes('searchSemanticScholar')&&service.includes('fallback Seman
 need(service.includes('citationCountOpenCitations')&&service.includes('enrichOpenCitationCounts'),'OpenCitations DOI enrichment is active and bounded');
 need(registry.includes("id:'semantic-scholar'")&&registry.match(/id:'semantic-scholar'[\s\S]{0,220}state:'active'/),'Semantic Scholar registry state is active');
 need(registry.includes("id:'opencitations'")&&registry.match(/id:'opencitations'[\s\S]{0,220}state:'active'/),'OpenCitations registry state is active');
-need(registry.includes("id:'unpaywall'")&&registry.match(/id:'unpaywall'[\s\S]{0,220}state:'optional'/),'Unpaywall remains explicit optional rather than silently requiring contact identity');
-if(process.exitCode)process.exit(process.exitCode);console.log('Research provider resilience contract passed.');
+need(!registry.includes("id:'unpaywall'")&&!registry.includes('candidateZeroCostProviders'),'unused expansion adapters stay out of the canonical provider registry');
+if(process.exitCode)process.exit(process.exitCode);console.log('Research provider resilience contract passed with bounded fallbacks and anti-sprawl policy.');
