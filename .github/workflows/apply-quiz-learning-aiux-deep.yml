@@ -1,12 +1,12 @@
 name: Apply deep quiz learning AIUX
 on:
   push:
-    branches: [quiz-learning-aiux-deep-20260911]
+    branches:
+      - quiz-learning-aiux-deep-20260911
 permissions:
   contents: write
 jobs:
   apply:
-    if: ${{ !contains(github.event.head_commit.message, 'feat(quiz): deep approved-bank learning pipeline') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,7 +15,7 @@ jobs:
           fetch-depth: 0
       - name: Apply bounded patch
         run: python3 scripts/apply-quiz-learning-aiux-deep.py
-      - name: Validate patch anchors and TypeScript contracts
+      - name: Validate contracts
         run: |
           node scripts/quiz-learning-pipeline-check.mjs
           node scripts/v22-quiz-import-check.mjs
