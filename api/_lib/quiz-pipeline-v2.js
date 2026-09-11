@@ -28,7 +28,7 @@ export function planQuizChunks(text,maxChars=CHUNK_CHARS,overlap=CHUNK_OVERLAP){
   if(end<=start)end=hardEnd;
   const chunkText=source.slice(start,end).trim();
   if(chunkText)chunks.push({index:chunks.length,start,end,text:chunkText,hash:sha(chunkText).slice(0,16)});
-  if(end>=source.length)break;
+  if(end>=source.length){start=source.length;break;}
   start=Math.max(start+1,end-overlap);
  }
  if(start<source.length)throw new Error('Tài liệu quá dài cho pipeline an toàn; hãy chia tài liệu thành các phần nhỏ hơn.');
