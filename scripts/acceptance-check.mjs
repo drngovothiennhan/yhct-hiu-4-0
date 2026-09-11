@@ -56,7 +56,7 @@ need(theme,["link.setAttribute('href','/api/manifest')",'system_theme_get_v1','t
 const mini=read('src/components/ai/UnifiedAiMini.tsx'),xiaozhiService=read('src/services/xiaozhiMiniService.ts'),xiaozhiHandler=read('api/_lib/xiaozhi-mini-handler.js'),assistantGateway=read('api/ai/assistant.js'),research=read('src/components/research/ResearchCenter.tsx'),researchMini=read('src/components/research/ResearchAiMini.tsx'),proposal=read('src/components/research/ResearchProposalBuilder.tsx'),translation=read('src/services/academicTranslationService.ts'),driveRag=read('src/services/driveRagService.ts');
 need(mini,['checkDrlConversation','fetchSchedules','askXiaoZhiMini','academicIntent','SpeechSynthesisUtterance','SpeechRecognition','Giọng nữ: bật','Học thuật → Trung tâm nghiên cứu'],'XiaoZhi AI Mini voice/system routing');
 need(xiaozhiService,["fetch('/api/ai/assistant'","mode:'xiaozhi-mini'",'Authorization:`Bearer ${token}`'],'XiaoZhi shared gateway client');
-need(xiaozhiHandler,['web_search_preview','handleXiaoZhiMini','policy-router','route:\'research\''],'XiaoZhi web search + academic policy');
+need(xiaozhiHandler,['createGeminiWebSearch','geminiAiConfigured','web_search_preview','handleXiaoZhiMini','A.I tìm kiếm mặc định của toàn hệ thống','tuyệt đối không tự giả định rằng kho Drive/tài liệu nội bộ đã được bật'],'XiaoZhi Gemini-first web search policy');
 need(assistantGateway,["req.body?.mode==='xiaozhi-mini'",'handleXiaoZhiMini'],'shared AI function routing');
 for(const stale of ['searchOpenAlex','searchDriveRag','searchKnowledge','buildResearchLinks'])if(mini.includes(stale))errors.push(`academic retrieval must not remain in UnifiedAiMini: ${stale}`);
 need(research,['searchOpenAlex(query,12)','A.I OpenAlex tổng hợp','summarizeOpenAlex'],'research OpenAlex AI');
@@ -104,4 +104,4 @@ if(!String(pkg.scripts?.prebuild||'').includes('audit:roles'))errors.push('prebu
 if(!String(pkg.scripts?.prebuild||'').includes('audit:modules'))errors.push('prebuild must run module isolation audit');
 
 if(errors.length){console.error('ACCEPTANCE CHECK FAILED');errors.forEach(e=>console.error(`- ${e}`));process.exit(1)}
-console.log(`acceptance-ok: ${sourceFiles.length} application source files scanned; modular shell + separated XiaoZhi Mini + research AI + garden v8/HIU Y Quan + exam integrity + root PWA + anti-flash boot gates clean`);
+console.log(`acceptance-ok: ${sourceFiles.length} application source files scanned; modular shell + Gemini-first XiaoZhi + opt-in internal research AI + garden v8/HIU Y Quan + exam integrity + root PWA + anti-flash boot gates clean`);
