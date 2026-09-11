@@ -4,6 +4,7 @@ import {getPracticeReviewQueue,reviewPracticeQuestion,type PracticeReviewQuestio
 import {quizWorkspace,wordBase64,type QuizCandidate,type QuizDraft} from '../../services/quizWorkspaceService';
 import './quiz-import.css';
 
+// Server-side review authorization contract: practice_question_review_v1.
 type ConversionMode='auto'|'generate'|'extract';
 
 export default function LearningContentManagerPanel(){
