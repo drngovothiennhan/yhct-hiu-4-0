@@ -1,6 +1,7 @@
 export type SystemRole = 'guest'|'member'|'mod'|'super_mod'|'leader'|'admin';
 export type MemberStatus = 'approved'|'pending'|'suspended';
-export type AppointmentTitle = 'Chủ nhiệm CLB'|'Phó Chủ nhiệm Thường trực'|'Phó Chủ nhiệm'|'Trưởng Ban Chuyên môn'|'Trưởng Ban Học thuật'|'Trưởng Ban Dược liệu'|'Cố vấn Học thuật'|'Hội viên';
+export const LEARNING_CONTENT_MANAGER_TITLE='Ban Quản lý Học tập' as const;
+export type AppointmentTitle = 'Chủ nhiệm CLB'|'Phó Chủ nhiệm Thường trực'|'Phó Chủ nhiệm'|'Trưởng Ban Chuyên môn'|'Trưởng Ban Học thuật'|'Trưởng Ban Dược liệu'|'Cố vấn Học thuật'|'Hội viên'|typeof LEARNING_CONTENT_MANAGER_TITLE;
 export type ExamMode = 'practice'|'mock';
 export type ExamDomain = 'Lý luận cơ bản YHCT'|'Nội - Ngoại - Phụ - Nhi YHCT'|'Châm cứu - Dưỡng sinh - Xoa bóp bấm huyệt'|'Dược lý Cổ truyền & Phương tễ học'|'Y đức - Pháp luật - An toàn người bệnh';
 export type ScheduleKind = 'herb_garden'|'clinic'|'club';
@@ -23,5 +24,6 @@ export interface ScheduleDraft { id?:string; kind:ScheduleKind; title:string; st
 // Must mirror private.role_level() in Supabase: leader is operationally equivalent to mod.
 export const ROLE_LEVEL:Record<SystemRole,number>={guest:0,member:1,mod:2,leader:2,super_mod:3,admin:4};
 export const roleAtLeast=(role:SystemRole|undefined,min:SystemRole)=>ROLE_LEVEL[role||'guest']>=ROLE_LEVEL[min];
+export const canManageLearningContent=(member:Pick<Member,'role'|'title'>|null|undefined)=>Boolean(member&&(member.role==='admin'||member.title===LEARNING_CONTENT_MANAGER_TITLE));
 export const roleLabel:Record<SystemRole,string>={guest:'Khách',member:'Hội viên',mod:'Ban quản lý',super_mod:'Phó Chủ nhiệm',leader:'Ban Chủ nhiệm',admin:'Chủ nhiệm CLB'};
 export const BRANDING:Branding={owner:'Trường Đại Học Quốc Tế Hồng Bàng',faculty:'Khoa Y',platformName:'YHCT HIU 4.0',subtitle:'Hệ sinh thái học thuật all-in-one Y học Cổ truyền cho sinh viên HIU',logoUrl:'/yhct-system-mark.svg',defaultAdminTitle:'Chủ nhiệm CLB'};
