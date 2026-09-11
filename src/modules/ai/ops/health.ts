@@ -19,6 +19,7 @@ export type AiHealth={
     model:string;
     geminiModel?:string|null;
     privateContextToGemini?:boolean;
+    internalContextOptIn?:boolean;
   };
 };
 

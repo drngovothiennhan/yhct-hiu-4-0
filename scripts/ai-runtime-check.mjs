@@ -12,6 +12,7 @@ const access=read('api/_lib/member-access.js');
 const toolsSource=read('api/_lib/ai-tools.js');
 const gateway=read('api/ai/assistant.js');
 const xiaozhiHandler=read('api/_lib/xiaozhi-mini-handler.js');
+const geminiProvider=read('api/_lib/gemini-provider.js');
 const health=read('api/ai/health.js');
 const runtime=read('src/services/aiRuntimeService.ts');
 const mini=read('src/components/ai/UnifiedAiMini.tsx');
@@ -59,6 +60,9 @@ requireText(gateway,"import {handleXiaoZhiMini} from '../_lib/xiaozhi-mini-handl
 requireText(xiaozhiHandler,"memberAccess(req,'member')",'XiaoZhi requires approved-member auth');
 requireText(xiaozhiHandler,'const academic=','XiaoZhi has server-side academic policy router');
 requireText(xiaozhiHandler,"route:'research'",'XiaoZhi routes academic intent to Research Center');
+requireText(xiaozhiHandler,"createGeminiWebSearch",'XiaoZhi uses Gemini as its primary public-search provider');
+if(xiaozhiHandler.indexOf("createGeminiWebSearch")<xiaozhiHandler.indexOf("type:'web_search_preview'"))ok('XiaoZhi attempts Gemini before OpenAI web failover');else fail('XiaoZhi must attempt Gemini before OpenAI web failover');
+requireText(geminiProvider,"tools:[{type:'google_search'}]",'Gemini public answers use Google Search grounding');
 requireText(xiaozhiHandler,"type:'web_search_preview'",'XiaoZhi can use bounded web search');
 requireText(xiaozhiHandler,"search_context_size:'low'",'XiaoZhi web search uses low-cost context');
 requireText(xiaozhiHandler,'extractSources','XiaoZhi extracts source links from provider output');
@@ -79,6 +83,8 @@ for(const forbidden of ['searchOpenAlex','searchDriveRag','searchKnowledge','cen
 
 requireText(runtime,"fetch('/api/ai/assistant'",'academic client routes cloud AI through shared server gateway');
 requireText(runtime,'Authorization:`Bearer ${session.access_token}`','academic client authenticates gateway requests');
+requireText(runtime,'internalContextConsent:options.useInternal===true','internal context requires an explicit request-scoped opt-in');
+requireText(gateway,'containsPrivateDriveContext||internalContextConsent','gateway permits Drive context only after explicit opt-in');
 const clientBudget=Number(runtime.match(/TIMEOUT_MS=(\d+)/)?.[1]);
 const openAiBudget=Number(gateway.match(/AI_TIMEOUT_MS=(\d+)/)?.[1]);
 const geminiBudget=Number(gateway.match(/GEMINI_TIMEOUT_MS=(\d+)/)?.[1]);
@@ -88,7 +94,10 @@ requireText(researchMini,"from '../../modules/ai'",'Research A.I Mini routes thr
 requireText(researchMini,'searchDriveRag','Research A.I Mini retains Drive RAG');
 requireText(researchMini,'searchOpenAlex','Research A.I Mini retains OpenAlex');
 requireText(researchMini,'searchKnowledge','Research A.I Mini retains Central RAG');
-requireText(research,"askServerAi(query,'research',sources)",'Research Center sends bounded sources to academic gateway');
+requireText(research,"askServerAi(query,'research',sources,undefined,{useInternal:true})",'Research Center sends explicitly selected Drive sources to Gemini');
+requireText(researchMini,"useInternal?searchDriveRag",'Research A.I skips Drive retrieval until the user opts in');
+requireText(researchMini,"useInternal?searchKnowledge",'Research A.I skips Central RAG until the user opts in');
+requireText(mini,'Dùng tài liệu nội bộ','global A.I exposes an internal-document opt-in');
 requireText(research,'aiAnswer.citations','Research Center renders server-validated citations');
 requireText(exam,"from '../../modules/ai'",'Exam A.I Tutor routes through AI Platform facade');
 requireText(exam,'answer.degraded?localTutor','Exam tutor retains contextual local fallback');

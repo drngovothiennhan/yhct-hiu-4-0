@@ -20,6 +20,24 @@ function extractText(payload){
   return parts.join('').trim();
 }
 
+function extractInteraction(payload){
+  const interaction=payload?.interaction||payload,parts=[],citations=[];
+  if(typeof interaction?.output_text==='string')parts.push(interaction.output_text);
+  for(const step of Array.isArray(interaction?.steps)?interaction.steps:[]){
+    if(step?.type!=='model_output')continue;
+    for(const block of Array.isArray(step?.content)?step.content:[]){
+      if(typeof block?.text==='string')parts.push(block.text);
+      for(const annotation of Array.isArray(block?.annotations)?block.annotations:[]){
+        const raw=annotation?.url_citation||annotation,url=String(raw?.url||'').trim();
+        if(!url.startsWith('https://'))continue;
+        citations.push({title:clean(raw?.title||url,220),url});
+      }
+    }
+  }
+  const text=[...new Set(parts.map(value=>value.trim()).filter(Boolean))].join('\n').trim();
+  return{text,citations:[...new Map(citations.map(item=>[item.url,item])).values()].slice(0,6)};
+}
+
 async function requestGemini(body,signal,mode='default'){
   if(!geminiAiConfigured(mode))throw new Error('Gemini configuration missing');
   const model=geminiAiModel(mode),key=process.env.GEMINI_API_KEY;
@@ -64,4 +82,22 @@ export async function createGeminiText({systemInstruction,prompt,maxOutputTokens
     generationConfig:config
   };
   return requestGemini(body,signal,mode);
+}
+
+export async function createGeminiWebSearch({systemInstruction,prompt,signal,mode='default'}){
+  if(!geminiAiConfigured(mode))throw new Error('Gemini configuration missing');
+  const model=geminiAiModel(mode),key=process.env.GEMINI_API_KEY;
+  const input=`${clean(systemInstruction,8000)}\n\n${clean(prompt,20000)}`;
+  const response=await fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{
+    method:'POST',signal,
+    headers:{'Content-Type':'application/json','x-goog-api-key':key},
+    body:JSON.stringify({model,input,tools:[{type:'google_search'}]})
+  });
+  if(!response.ok){
+    const detail=await response.json().catch(()=>null),message=clean(detail?.error?.message||'',MAX_ERROR_TEXT);
+    throw new Error(`Gemini ${response.status}${message?` ${message}`:''}`);
+  }
+  const parsed=extractInteraction(await response.json());
+  if(!parsed.text)throw new Error('Gemini returned an empty answer');
+  return{...parsed,model};
 }
