@@ -1,0 +1,115 @@
+name: ACC Quiz Interaction Hotfix
+
+on:
+  push:
+    branches: [ai-architecture-lock-20260911]
+    paths:
+      - '.github/workflows/acc-quiz-interaction-hotfix.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: acc-quiz-interaction-hotfix
+  cancel-in-progress: true
+
+jobs:
+  patch-verify-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ai-architecture-lock-20260911
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Patch ACC quiz flow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p=Path(path); s=p.read_text(encoding='utf-8')
+              if old not in s:
+                  raise SystemExit(f'missing anchor in {path}: {old[:120]}')
+              p.write_text(s.replace(old,new,1),encoding='utf-8')
+
+          replace('api/_lib/quiz-workspace.js',
+          "import {browseQuizFolder,quizRoots,scopedQuizItem,readSelectedQuizFile,readUploadedQuizFile,driveQuizMeta} from './drive-quiz.js';",
+          "import {browseQuizFolder,quizRoots,scopedQuizItem,readSelectedQuizFile,readUploadedQuizFile,driveQuizMeta,driveCredentialMode} from './drive-quiz.js';")
+
+          replace('api/_lib/quiz-workspace.js',
+          "  if(action==='quiz-roots')return res.json({roots:quizRoots()});",
+          "  if(action==='quiz-roots'){const credentialMode=driveCredentialMode();return res.json({roots:quizRoots(),driveConfigured:credentialMode!=='none',credentialMode});}")
+
+          replace('api/_lib/quiz-workspace.js',
+          "   if(body.subjectFolderId){const folder=await scopedQuizItem(body.subjectFolderId);if(folder.mimeType!=='application/vnd.google-apps.folder')throw new Error('Chủ đề phải là thư mục kiến thức');source.file.parentName=folder.name;source.file.subjectFolderId=folder.id;}\n   if(!source.file.parentName)throw new Error('Hãy chọn thư mục kiến thức trước khi tải Word.');",
+          "   if(body.subjectFolderId){const folder=await scopedQuizItem(body.subjectFolderId);if(folder.mimeType!=='application/vnd.google-apps.folder')throw new Error('Chủ đề phải là thư mục kiến thức');source.file.parentName=folder.name;source.file.subjectFolderId=folder.id;}\n   else if(!body.fileId&&clean(body.subjectName,160))source.file.parentName=clean(body.subjectName,160);\n   if(!source.file.parentName)throw new Error('Hãy chọn thư mục kiến thức hoặc nhập tên chủ đề trước khi tải Word.');")
+
+          p=Path('src/components/admin/QuizImportCenter.tsx'); s=p.read_text(encoding='utf-8')
+          old=" const [roots,setRoots]=useState<QuizDriveItem[]>([]),[trail,setTrail]=useState<QuizDriveItem[]>([]),[items,setItems]=useState<QuizDriveItem[]>([]),[pageToken,setPageToken]=useState<string|null>(null),[category,setCategory]=useState<QuizDriveItem|null>(null),[selected,setSelected]=useState<Record<string,QuizDriveItem>>({}),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[draft,setDraft]=useState<QuizDraft|null>(null),[drafts,setDrafts]=useState<QuizDraftSummary[]>([]),[checked,setChecked]=useState<Set<string>>(new Set()),[page,setPage]=useState(0),[reports,setReports]=useState<string[]>([]),[review,setReview]=useState<PracticeReviewQuestion[]>([]),[conversionMode,setConversionMode]=useState<ConversionMode>('auto');"
+          new=" const [roots,setRoots]=useState<QuizDriveItem[]>([]),[trail,setTrail]=useState<QuizDriveItem[]>([]),[items,setItems]=useState<QuizDriveItem[]>([]),[pageToken,setPageToken]=useState<string|null>(null),[category,setCategory]=useState<QuizDriveItem|null>(null),[selected,setSelected]=useState<Record<string,QuizDriveItem>>({}),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[draft,setDraft]=useState<QuizDraft|null>(null),[drafts,setDrafts]=useState<QuizDraftSummary[]>([]),[checked,setChecked]=useState<Set<string>>(new Set()),[page,setPage]=useState(0),[reports,setReports]=useState<string[]>([]),[review,setReview]=useState<PracticeReviewQuestion[]>([]),[conversionMode,setConversionMode]=useState<ConversionMode>('auto'),[driveConfigured,setDriveConfigured]=useState<boolean|null>(null),[manualSubject,setManualSubject]=useState('');"
+          if old not in s: raise SystemExit('missing ACC state anchor')
+          s=s.replace(old,new,1)
+
+          old=" useEffect(()=>{alive.current=true;if(admin){void quizWorkspace<{roots:QuizDriveItem[]}>('quiz-roots').then(x=>{if(alive.current)setRoots(x.roots)}).catch(e=>{if(alive.current)setMessage(e.message)});void refresh().catch(e=>{if(alive.current)setMessage(e.message)})}return()=>{alive.current=false;stop.current=true}},[admin]);"
+          new=" useEffect(()=>{alive.current=true;if(admin){void quizWorkspace<{roots:QuizDriveItem[];driveConfigured?:boolean;credentialMode?:string}>('quiz-roots').then(x=>{if(!alive.current)return;setRoots(x.roots);setDriveConfigured(x.driveConfigured!==false);if(x.driveConfigured===false)setMessage('Google Drive chưa có credential server-side. Bạn vẫn có thể tải Word trực tiếp và nhập tên chủ đề bên dưới.')}).catch(e=>{if(alive.current){setDriveConfigured(false);setMessage(e.message)}});void refresh().catch(e=>{if(alive.current)setMessage(e.message)})}return()=>{alive.current=false;stop.current=true}},[admin]);"
+          if old not in s: raise SystemExit('missing ACC roots effect anchor')
+          s=s.replace(old,new,1)
+
+          old=" const upload=async(file:File)=>{if(!category)throw new Error('Chọn thư mục kiến thức làm chủ đề trước.');setMessage(`Đang đọc và chuyển đổi ${file.name}…`);const d=await quizWorkspace<QuizDraft>('quiz-preview',{fileName:file.name,base64:await wordBase64(file),subjectFolderId:category.id,conversionMode});display(d);await refresh();setMessage(`Đã tạo bản nháp: ${d.total} câu; ${d.needsReview} câu cần đối chiếu. Chưa có câu nào được tự động nhập.`)};"
+          new=" const upload=async(file:File)=>{const subjectName=category?.name||manualSubject.trim();if(!subjectName)throw new Error('Chọn thư mục kiến thức hoặc nhập tên chủ đề trước khi tải Word.');setMessage(`Đang đọc và chuyển đổi ${file.name}…`);const d=await quizWorkspace<QuizDraft>('quiz-preview',{fileName:file.name,base64:await wordBase64(file),subjectFolderId:category?.id,subjectName,conversionMode});display(d);await refresh();setMessage(`Đã tạo bản nháp: ${d.total} câu; ${d.needsReview} câu cần đối chiếu. Chưa có câu nào được tự động nhập.`)};"
+          if old not in s: raise SystemExit('missing ACC upload anchor')
+          s=s.replace(old,new,1)
+
+          old=" <div className=\"qi-actions qi-root-actions\">{roots.map(root=><button key={root.id} disabled={busy} onClick={()=>void run(()=>browse(root,[root]))}><Cloud/>{root.name}</button>)}<button className=\"secondary\" disabled={busy} onClick={()=>void run(refresh)}>Làm mới bản nháp</button></div>"
+          new=" <div className=\"qi-actions qi-root-actions\">{roots.map(root=><button key={root.id} disabled={busy||driveConfigured===false} title={driveConfigured===false?'Drive server-side chưa cấu hình credential':'Mở kho Drive'} onClick={()=>void run(()=>browse(root,[root]))}><Cloud/>{root.name}</button>)}<button className=\"secondary\" disabled={busy} onClick={()=>void run(refresh)}>Làm mới bản nháp</button></div>\n {driveConfigured===false&&<div className=\"qi-drive-warning\" role=\"alert\"><b>Drive tạm chưa khả dụng</b><span>Thiếu credential Google Drive phía server. Chức năng tải Word trực tiếp vẫn hoạt động và không cần Drive.</span></div>}\n {message&&<p className=\"qi-status\" role=\"status\">{message}</p>}"
+          if old not in s: raise SystemExit('missing ACC root actions anchor')
+          s=s.replace(old,new,1)
+
+          old=" <label>Chủ đề cho Word tải lên<select disabled={busy} value={category?.id||''} onChange={e=>setCategory([...trail,...items.filter(x=>x.folder)].find(x=>x.id===e.target.value)||null)}>{[...new Map([...trail,...items.filter(x=>x.folder)].map(x=>[x.id,x])).values()].map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>\n <label className=\"qi-upload\"><FileUp/><span><b>Tải tài liệu trực tiếp tại ACC</b><small>Word .docx · tối đa 2 MB · chọn chủ đề trước khi tải</small></span><input type=\"file\" accept=\".docx\" disabled={busy||!category} onChange={e=>{const file=e.target.files?.[0];e.currentTarget.value='';if(file)void run(()=>upload(file))}}/></label><small>Tệp tải lên chỉ được đọc để tạo bản nháp; không ghi đè tài liệu Drive.</small></>}"
+          new=" </>}"
+          if old not in s: raise SystemExit('missing nested upload block anchor')
+          s=s.replace(old,new,1)
+
+          old=" {!folder&&<div className=\"qi-empty\"><FolderOpen/><b>Chọn một kho Drive ở trên</b><p>Admin có thể duyệt thư mục, chọn cả thư mục hoặc từng tệp, sau đó hệ thống tự xử lý theo chế độ đã chọn.</p></div>}"
+          new=" {!folder&&<div className=\"qi-empty\"><FolderOpen/><b>{driveConfigured===false?'Drive chưa được cấu hình':'Chọn một kho Drive ở trên'}</b><p>{driveConfigured===false?'Bạn vẫn có thể tải Word trực tiếp ở khối bên dưới; Drive sẽ tự mở lại khi credential server-side được cấu hình.':'Admin có thể duyệt thư mục, chọn cả thư mục hoặc từng tệp, sau đó hệ thống tự xử lý theo chế độ đã chọn.'}</p></div>}\n <div className=\"qi-direct-upload\"><label><span><b>Chủ đề cho Word tải lên</b><small>{category?`Đang lấy từ Drive: ${category.name}`:'Nhập tên chủ đề để upload độc lập với Drive.'}</small></span><input type=\"text\" disabled={busy} value={category?.name||manualSubject} placeholder=\"Ví dụ: Sinh lý học, Châm cứu học…\" onChange={e=>{setCategory(null);setManualSubject(e.target.value)}}/></label><label className=\"qi-upload\"><FileUp/><span><b>Tải tài liệu trực tiếp tại ACC</b><small>Word .docx · tối đa 2 MB · tạo bản nháp trước, admin duyệt sau</small></span><input type=\"file\" accept=\".docx\" disabled={busy||!(category||manualSubject.trim())} onChange={e=>{const file=e.target.files?.[0];e.currentTarget.value='';if(file)void run(()=>upload(file))}}/></label><small>Tệp tải lên chỉ được đọc để tạo bản nháp; không ghi đè tài liệu Drive.</small></div>"
+          if old not in s: raise SystemExit('missing ACC empty anchor')
+          s=s.replace(old,new,1)
+
+          old=" {message&&<p className=\"qi-status\" role=\"status\">{message}</p>}{reports.length>0&&<details open><summary>Kết quả đối soát từng tệp</summary><ul>{reports.map((x,i)=><li key={i}>{x}</li>)}</ul></details>}"
+          new=" {reports.length>0&&<details open><summary>Kết quả đối soát từng tệp</summary><ul>{reports.map((x,i)=><li key={i}>{x}</li>)}</ul></details>}"
+          if old not in s: raise SystemExit('missing duplicate status anchor')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('src/components/admin/quiz-import.css'); s=p.read_text(encoding='utf-8')
+          anchor='.qi-status{padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--accent,#0f766e) 9%,transparent)}'
+          extra=anchor+'.qi-drive-warning{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;padding:10px 12px;margin:8px 0 12px;border:1px solid color-mix(in srgb,#b88722 35%,var(--line,#dae5e2));border-radius:12px;background:color-mix(in srgb,#b88722 9%,var(--panel,#fff))}.qi-drive-warning span{opacity:.8}.qi-direct-upload{margin:14px 0;padding:14px;border:1px solid var(--line,#dae5e2);border-radius:14px;background:color-mix(in srgb,var(--panel,#fff) 97%,var(--accent,#0f766e) 3%)}.qi-direct-upload>label:first-child{display:grid!important;grid-template-columns:minmax(180px,.8fr) minmax(220px,1.2fr);align-items:center!important}.qi-direct-upload input[type=text]{width:100%;min-height:44px}'
+          if anchor not in s: raise SystemExit('missing CSS status anchor')
+          p.write_text(s.replace(anchor,extra,1).replace('@media(max-width:720px){.qi-flow','@media(max-width:720px){.qi-direct-upload>label:first-child{grid-template-columns:1fr}.qi-flow',1),encoding='utf-8')
+
+          p=Path('scripts/ai-role-contract-check.mjs'); s=p.read_text(encoding='utf-8')
+          old="need(quiz,['createGeminiJson','geminiAiConfigured','gemini-quiz-designer-v1','Chỉ được dùng thông tin nằm trong SOURCE',\"reviewStatus:'expert_approved'\",'adminConfirmed:true','sourceEvidence.includes(evidence.toLowerCase())','!explanation'],'Gemini quiz designer');\nneed(acc,['Tài liệu → Ngân hàng trắc nghiệm','conversionMode','Gemini thiết kế trắc nghiệm từ tài liệu','Tải tài liệu trực tiếp tại ACC','Đồng bộ & chuyển đổi','setChecked(new Set())','Tất cả kết quả chỉ ở trạng thái bản nháp'],'ACC Drive-to-quiz UX');"
+          new="need(quiz,['createGeminiJson','geminiAiConfigured','gemini-quiz-designer-v1','Chỉ được dùng thông tin nằm trong SOURCE',\"reviewStatus:'expert_approved'\",'adminConfirmed:true','sourceEvidence.includes(evidence.toLowerCase())','!explanation',\"driveConfigured:credentialMode!=='none'\",'clean(body.subjectName,160)'],'Gemini quiz designer and Drive readiness');\nneed(acc,['Tài liệu → Ngân hàng trắc nghiệm','conversionMode','Gemini thiết kế trắc nghiệm từ tài liệu','Tải tài liệu trực tiếp tại ACC','Đồng bộ & chuyển đổi','setChecked(new Set())','Tất cả kết quả chỉ ở trạng thái bản nháp','driveConfigured===false','manualSubject.trim()','subjectName','Drive tạm chưa khả dụng'],'ACC Drive-to-quiz UX with direct-upload fallback');"
+          if old not in s: raise SystemExit('missing AI role quiz contract anchor')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          PY
+      - name: Install dependencies without lockfile mutation
+        run: npm install --ignore-scripts --no-audit --no-fund --package-lock=false
+      - name: Required gates
+        run: |
+          npm run audit:ai
+          npm run audit:ai-roles
+          npm run audit:rag
+          npm run build
+      - name: Commit verified hotfix and remove temporary workflow
+        run: |
+          git rm -f .github/workflows/acc-quiz-interaction-hotfix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add api/_lib/quiz-workspace.js src/components/admin/QuizImportCenter.tsx src/components/admin/quiz-import.css scripts/ai-role-contract-check.mjs
+          git commit -m "fix(acc): restore quiz Drive and direct Word interactions"
+          git push origin HEAD:ai-architecture-lock-20260911
