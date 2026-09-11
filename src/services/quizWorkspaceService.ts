@@ -53,7 +53,7 @@ export async function retryQuizPipeline(draft:QuizDraft,onUpdate?:QuizPipelineUp
 }
 
 export async function sourceFileBase64(file:File){
- if(!/\.(?:docx|txt)$/i.test(file.name)||file.size>2000000)throw new Error('Chọn tệp .docx hoặc .txt tối đa 2 MB.');
+ if(!/\.(?:docx|txt|pdf)$/i.test(file.name)||file.size>2000000)throw new Error('Chọn tệp .docx, .txt hoặc .pdf tối đa 2 MB.');
  const bytes=new Uint8Array(await file.arrayBuffer());let binary='';
  for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
  return btoa(binary);
