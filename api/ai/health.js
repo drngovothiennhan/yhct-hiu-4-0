@@ -38,6 +38,7 @@ export default async function handler(req,res){
     model,
     geminiModels:{fast:geminiAiModel(),research:geminiAiModel('research')},
     sharedAcademicRagToGemini:geminiReady,
-    privateContextToGemini:process.env.GEMINI_ALLOW_PRIVATE_CONTEXT==='true'
+    privateContextToGemini:process.env.GEMINI_ALLOW_PRIVATE_CONTEXT==='true',
+    internalContextOptIn:true
   }});
 }
