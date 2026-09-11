@@ -30,6 +30,15 @@ jobs:
           sed -i "s/re.subn(pattern, repl, text, count=1, flags=flags)/re.subn(pattern, lambda _: repl, text, count=1, flags=flags)/" scripts/_apply_ai_canonical_lock.py
           python scripts/_apply_ai_canonical_lock.py
           sed -i 's/A.I OpenAlex dành cho thành viên/Research A.I dành cho thành viên/g' src/components/research/ResearchCenter.tsx
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/central-rag-check.mjs')
+          s=p.read_text(encoding='utf-8')
+          old="requireText(researchMini,'Cloud + Drive RAG + Central RAG + OpenAlex','Research A.I Mini visibly communicates shared retrieval architecture');"
+          new="requireText(researchMini,'Dùng tài liệu nội bộ','Research A.I visibly exposes explicit internal-context opt-in');\nrequireText(researchMini,'Nguồn công khai','Research A.I presents public evidence without exposing provider selection as product UX');\nrequireText(researchMini,'setUseInternal(false)','Research A.I consumes internal-context consent after each request');"
+          if old not in s: raise SystemExit('missing stale RAG UI assertion')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          PY
       - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
       - name: Required AI gates
