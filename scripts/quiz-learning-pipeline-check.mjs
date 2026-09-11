@@ -24,7 +24,7 @@ forbid(pageBody,["'correctIndex'","'explanation'"],'Practice Quiz page must not 
 need(sql,['least(coalesce(p_limit,25),50)','jsonb_array_length(p_answers)>500'],'server request abuse bounds');
 
 for(const count of ['5','10','20'])need(daily,[count],`Quick Review ${count}-question choice`);
-need(daily,['selectedCount','Ôn tập nhanh','getTodayDailyPractice(selectedCount)'],'Quick Review user-selectable daily set');
+need(daily,['selectedCount','Ôn tập nhanh','const openToday=async(count=selectedCount)','getTodayDailyPractice(count)','openToday(selectedCount)'],'Quick Review user-selectable daily set and stable server session');
 need(practice,['Google Quiz','Tải thêm','Nộp bài','hasMore','practice-bank__options'],'continuous Google-style Practice Quiz');
 need(service,['practice_quiz_page_v1','practice_quiz_submit_v1','for(let at=0;at<questions.length;at+=500)'],'continuous client submit is chunked without a 50-question product cap');
 need(exam,["import PracticeBankQuiz from './PracticeBankQuiz'",'<PracticeBankQuiz/>'],'approved bank Practice Quiz is integrated in Exam Center');
