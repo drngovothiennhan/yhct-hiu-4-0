@@ -55,6 +55,8 @@ jobs:
       - name: Quiz import parser, DOCX and authorization regression
         run: node scripts/v22-quiz-import-check.mjs
       - run: npm run build
+      - name: Original character rig browser QA
+        run: node scripts/v20-yquan-master-browser-check.mjs
       - name: Real Google Chrome responsive smoke
         run: node scripts/chrome-real-smoke.mjs
       - name: Adaptive mobile, full desktop-on-phone and Win11 viewport matrix

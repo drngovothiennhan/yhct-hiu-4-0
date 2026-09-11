@@ -20,3 +20,9 @@
 @media(max-width:900px){.hyq-v20-workspace{grid-template-columns:1fr}.hyq-v20-queue{max-height:250px;overflow:auto}.hyq-v20-hud,.hyq-v20-progress-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hyq-v20-herb-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.hyq-v20-page-head{align-items:stretch;flex-direction:column}.hyq-v20-refresh{align-self:flex-start}.hyq-v20-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.hyq-v20-four-exams,.hyq-v20-options,.hyq-v20-rules>div{grid-template-columns:1fr}.hyq-v20-herb-grid{grid-template-columns:1fr}.hyq-v20-record-search{width:100%}.hyq-v20-record-search input{min-width:0;flex:1}.hyq-v20-appearance>span{width:100%;margin-right:0}.hyq-v20-appearance select{flex:1;min-width:150px}}
 @media(prefers-reduced-motion:reduce){.hyq-v20-bed[data-bed-state="RECOVERING"],.hyq-v20-stage:has(.hyq-v20-actor-doctor[data-animation="cook_medicine"]) .hyq-v20-scene-pharmacy::after{animation:none!important}}
+
+/* The approved JPEG layers are driven by the actor frame; never recolor or
+   replace the face, even for a different outfit or walking direction. */
+.hyq-v20-actor-doctor .hyq-master-doctor{animation:none!important;transform:none!important;filter:drop-shadow(0 6px 4px rgba(45,35,26,.12));overflow:visible}
+.hyq-master-doctor [data-master-body],.hyq-master-doctor [data-master-part]{animation:none!important;transition:none!important}
+@media(prefers-reduced-motion:reduce){.hyq-master-doctor [data-master-body],.hyq-master-doctor [data-master-part]{transform:none!important}}
