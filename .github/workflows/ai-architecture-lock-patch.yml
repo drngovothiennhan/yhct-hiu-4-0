@@ -26,7 +26,9 @@ jobs:
         with:
           node-version: '22'
       - name: Apply canonical AI architecture migration
-        run: python scripts/_apply_ai_canonical_lock.py
+        run: |
+          sed -i "s/re.subn(pattern, repl, text, count=1, flags=flags)/re.subn(pattern, lambda _: repl, text, count=1, flags=flags)/" scripts/_apply_ai_canonical_lock.py
+          python scripts/_apply_ai_canonical_lock.py
       - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
       - name: Required AI gates
