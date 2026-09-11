@@ -52,8 +52,8 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
       - name: Adaptive review and cancellation regression
         run: node scripts/v21-adaptive-review-check.mjs && node scripts/v18-request-behavior-check.mjs
-      - name: Quiz import parser, DOCX and authorization regression
-        run: node scripts/v22-quiz-import-check.mjs
+      - name: Quiz import parser, DOCX/TXT/PDF and authorization regression
+        run: node scripts/v22-quiz-import-check.mjs && node scripts/pdf-quiz-source-check.mjs
       - run: npm run build
       - name: Real Google Chrome responsive smoke
         run: node scripts/chrome-real-smoke.mjs
