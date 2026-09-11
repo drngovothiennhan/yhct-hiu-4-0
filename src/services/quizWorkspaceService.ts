@@ -52,4 +52,10 @@ export async function retryQuizPipeline(draft:QuizDraft,onUpdate?:QuizPipelineUp
  return continueQuizPipeline(initial,onUpdate);
 }
 
-export async function wordBase64(file:File){if(!/\.docx$/i.test(file.name)||file.size>2000000)throw new Error('Chọn tệp .docx tối đa 2 MB.');const bytes=new Uint8Array(await file.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(binary)}
+export async function sourceFileBase64(file:File){
+ if(!/\.(?:docx|txt)$/i.test(file.name)||file.size>2000000)throw new Error('Chọn tệp .docx hoặc .txt tối đa 2 MB.');
+ const bytes=new Uint8Array(await file.arrayBuffer());let binary='';
+ for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+ return btoa(binary);
+}
+export async function wordBase64(file:File){if(!/\.docx$/i.test(file.name))throw new Error('Chọn tệp .docx tối đa 2 MB.');return sourceFileBase64(file)}
