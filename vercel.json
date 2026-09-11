@@ -1,9 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
-  "git": {
-    "deploymentEnabled": false
-  },
   "rewrites": [
     {"source": "/manifest.webmanifest", "destination": "/api/manifest"},
     {"source": "/api/research/drive", "destination": "/api/ai/drive-rag"},
