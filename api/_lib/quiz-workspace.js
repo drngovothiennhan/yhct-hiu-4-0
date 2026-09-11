@@ -46,8 +46,24 @@ async function designQuizWithGemini(text,file){
  }finally{clearTimeout(timer)}
 }
 
+const REPAIR_SCHEMA={type:'object',properties:{questions:{type:'array',maxItems:12,items:{type:'object',properties:{id:{type:'string'},correctIndex:{type:'integer',minimum:0,maximum:3},explanation:{type:'string'},evidenceText:{type:'string'}},required:['id','correctIndex','explanation','evidenceText'],additionalProperties:false}}},required:['questions'],additionalProperties:false};
+async function repairQuizWithGemini(parsed,text,file){
+ const candidates=(Array.isArray(parsed?.questions)?parsed.questions:[]).filter(q=>q?.correctIndex===null&&Array.isArray(q?.options)&&q.options.length===4&&q.options.every(Boolean)&&new Set(q.options.map(x=>String(x).toLowerCase())).size===4&&Array.isArray(q?.issues)&&q.issues.length===1&&q.issues[0]==='Chưa xác định đáp án').slice(0,12);
+ if(!candidates.length||!geminiAiConfigured('research'))return parsed;
+ const source=String(text||'').slice(0,18000),sourceEvidence=clean(source,18000).toLowerCase();if(source.trim().length<120)return parsed;
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),22000);
+ try{
+  const output=await createGeminiJson({mode:'research',signal:controller.signal,maxOutputTokens:3200,schema:REPAIR_SCHEMA,systemInstruction:'Bạn là Gemini Quiz Designer. Chỉ dùng SOURCE. Với mỗi CANDIDATE, chỉ trả lời khi SOURCE có bằng chứng trực tiếp đủ xác định đúng duy nhất một đáp án A-D. Không đổi câu hỏi hoặc lựa chọn. evidenceText phải là đoạn nguyên văn có trong SOURCE. Nếu không đủ căn cứ thì bỏ candidate đó. Đây chỉ là bản nháp, admin vẫn phải đối chiếu.',prompt:`FILE=${clean(file.name,240)}\nCANDIDATES=${JSON.stringify(candidates.map(q=>({id:q.id,stem:q.stem,options:q.options})))}\nSOURCE:\n${source}`});
+  const parsedRepair=JSON.parse(output.text),rows=Array.isArray(parsedRepair?.questions)?parsedRepair.questions:[],model=output.model||geminiAiModel('research'),byId=new Map();
+  for(const row of rows){const id=clean(row?.id,80),correctIndex=Number(row?.correctIndex),explanation=clean(row?.explanation,4000),evidence=clean(row?.evidenceText,1200);if(!id||!Number.isInteger(correctIndex)||correctIndex<0||correctIndex>3||!explanation||!evidence||!sourceEvidence.includes(evidence.toLowerCase()))continue;if(candidates.some(q=>q.id===id))byId.set(id,{correctIndex,explanation,evidence});}
+  if(!byId.size)return parsed;
+  const questions=parsed.questions.map(q=>{const fixed=byId.get(q.id);if(!fixed)return q;return{...q,correctIndex:fixed.correctIndex,explanation:fixed.explanation,answerEvidence:`Dẫn chứng từ tài liệu: ${fixed.evidence}`,raw:fixed.evidence,issues:['Câu có đáp án do Gemini suy ra từ SOURCE: admin phải đối chiếu dẫn chứng trước khi nhập.'],aiGenerated:true,generationProvider:'gemini',generationModel:model,topic:'Từ tài liệu gốc',subject:clean(file.parentName||file.name,160)||'Chưa phân loại'};});
+  return{...parsed,questions,total:questions.length,ready:questions.filter(q=>!q.issues.length).length,needsReview:questions.filter(q=>q.issues.length).length,warnings:[...(parsed.warnings||[]),`Gemini ${model} đã bổ sung đáp án có dẫn chứng cho ${byId.size} câu chưa có đáp án. Admin vẫn phải đối chiếu trước khi cập nhật ngân hàng.`],parser:'gemini-answer-repair-v1',aiDesigner:{provider:'gemini',model}};
+ }catch{return{...parsed,warnings:[...(parsed.warnings||[]),'Gemini chưa sửa được câu thiếu đáp án; giữ nguyên bản nháp để admin kiểm tra.']}}finally{clearTimeout(timer)}
+}
+
 function normalizeGeneratedQuestion(q,file){
- const stem=clean(q?.stem,4000),options=Array.isArray(q?.options)?q.options.map(x=>clean(x,1500)):[],correctIndex=Number(q?.correctIndex),evidence=clean(q?.answerEvidence||q?.raw,1400);
+ const stem=clean(q?.stem,4000),options=Array.isArray(q?.options)?q.options.map(x=>clean(x,1500)):[],correctIndex=Number(q?.correctIndex),evidence=clean(q?.raw||q?.answerEvidence,1400);
  if(stem.length<4||options.length!==4||options.some(x=>!x)||new Set(options.map(x=>x.toLowerCase())).size!==4||!Number.isInteger(correctIndex)||correctIndex<0||correctIndex>3||!evidence)throw new Error('Câu Gemini chưa đủ nội dung, đáp án hoặc dẫn chứng để nhập.');
  const basis=`${stem}|${options.join('|')}|${correctIndex}`,digest=sha(basis),subject=clean(file.parentName||file.name,160)||'Chưa phân loại';
  return{externalKey:`drive:${file.id}:gemini:${digest.slice(0,24)}`,contentHash:digest,subject,topic:clean(q.topic,180)||'Từ tài liệu gốc',stem,options,correctIndex,explanation:clean(q.explanation,4000)||`Đáp án ${String.fromCharCode(65+correctIndex)} đã được admin đối chiếu với dẫn chứng trong tài liệu.`,generationMethod:'ai_generated',reviewStatus:'expert_approved',provenance:{driveFileId:file.id,fileName:file.name,subjectFolder:file.parentName||null,evidenceText:evidence,generator:`${clean(q.generationProvider,40)||'gemini'}:${clean(q.generationModel,100)||geminiAiModel('research')}`,adminConfirmed:true}};
@@ -69,7 +85,8 @@ export async function handleQuizWorkspace(req,res){
    if(!source.file.parentName)throw new Error('Hãy chọn thư mục kiến thức hoặc nhập tên chủ đề trước khi tải Word.');
    const conversionMode=MODES.has(body.conversionMode)?body.conversionMode:'auto';
    let parsed=parseMcqDocument(source.text);if(parsed.questions.length>1000)throw new Error('Tài liệu có hơn 1.000 câu; hãy chia nhỏ.');
-   if(conversionMode==='generate'||(conversionMode==='auto'&&!parsed.questions.length))parsed=await designQuizWithGemini(source.text,source.file);
+   if(conversionMode==='generate')parsed=await designQuizWithGemini(source.text,source.file);
+   else if(conversionMode==='auto'){parsed=await repairQuizWithGemini(parsed,source.text,source.file);if(parsed.ready===0&&!parsed.questions.some(q=>q.aiGenerated))parsed=await designQuizWithGemini(source.text,source.file);}
    if(conversionMode==='extract'&&!parsed.questions.length)parsed={...parsed,warnings:[...parsed.warnings,'Chế độ chỉ trích xuất: tài liệu chưa có cấu trúc trắc nghiệm A–D, nên chưa tạo câu AI.']};
    const generated=parsed.parser==='gemini-quiz-designer-v1',id=createHash('sha256').update(`${source.file.id}|${source.sourceHash}|${source.file.parentName}|${conversionMode}`).digest('hex');
    const status=generated||parsed.needsReview?'needs_review':'ready',message=generated?`${parsed.total} câu do Gemini thiết kế; bắt buộc admin đối chiếu dẫn chứng.`:`${parsed.total} câu nhận diện; ${parsed.needsReview} câu cần kiểm tra.`;
