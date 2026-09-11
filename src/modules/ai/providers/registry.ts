@@ -1,3 +1,4 @@
+// Implementation registry only. Product UI must not make students choose providers.
 export type AiProviderKind='cloud-llm'|'browser-local'|'knowledge'|'academic-search'|'translation';
 export type AiProviderState='active'|'optional';
 
