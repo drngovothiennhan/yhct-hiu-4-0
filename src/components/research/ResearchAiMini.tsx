@@ -16,6 +16,8 @@ const PENDING_KEY='yhct-research-pending-query-v1';
 const clean=(v:string)=>v.replace(/\s+/g,' ').trim();
 const dedupe=(items:ResearchWork[])=>[...new Map(items.map(w=>[(w.doi||w.url||w.id).toLowerCase(),w])).values()];
 const asSources=(items:ResearchWork[]):AiSource[]=>items.slice(0,6).map(w=>({id:`${w.provider}:${w.id}`,title:w.title,text:`${w.abstract||w.title} ${w.authors.join(', ')} ${w.source} ${w.year||''}`.slice(0,4200),url:w.url}));
+const sourceCitations=(sources:AiSource[]):AiCitation[]=>sources.filter(s=>s.title).slice(0,6).map(s=>({id:s.id,label:s.title,url:s.url||null}));
+const provenanceLine=(citations:AiCitation[])=>citations.length?`\n\nNguồn đã truy xuất: ${citations.map((c,i)=>`[${i+1}] ${c.label}`).join(' · ')}`:'';
 const centralSources=(hits:CentralKnowledgeHit[]):AiSource[]=>hits.slice(0,5).map(h=>{const record=h.record as typeof h.record&{actions?:string;indications?:string;commonUses?:string;meridian?:string;category?:string};const evidence=h.evidence.find(x=>x.verified&&x.pubmedUrl?.startsWith('https://'));const authority=h.authoritySources.find(x=>x.verified&&x.sourceUrl?.startsWith('https://'));const provenance=referenceLabel(h.evidence,h.authoritySources,3);const body=[record.name,...(record.aliases||[]),record.category,record.actions,record.indications,record.commonUses,record.meridian,provenance].filter(Boolean).join(' · ');return{id:`central:${record.id}`,title:`${record.name}${h.source==='central'?' · Central RAG':' · Local KB'}`,text:body.slice(0,4200),url:evidence?.pubmedUrl||authority?.sourceUrl||null}});
 const threadContext=(items:ThreadMessage[])=>items.slice(-8).map(item=>`${item.role==='user'?'NGƯỜI DÙNG':'GEMINI LEADER'}: ${clean(item.text).slice(0,900)}`).join('\n').slice(0,6500);
 
@@ -31,19 +33,13 @@ export default function ResearchAiMini({member,works,query,onOpenProposal}:Props
     const [drive,liveOpenAlex,central]=await Promise.all([useInternal?searchDriveRag(text,4,controller.signal):Promise.resolve({sources:[],degraded:false}),searchOpenAlex(text,6).catch(()=>[]),useInternal?searchKnowledge(text,'all',5).catch(()=>[]):Promise.resolve([])]);
     if(controller.signal.aborted)return;
     const evidence=dedupe([...liveOpenAlex,...works]).slice(0,10),literature=asSources(evidence),knowledge=centralSources(central),sources=[...knowledge,...drive.sources,...literature].slice(0,6),workers=[liveOpenAlex.length?`OpenAlex ${liveOpenAlex.length}`:'OpenAlex 0',useInternal?`Drive ${drive.sources.length}`:'Drive tắt',useInternal?`Central RAG ${central.length}`:'Central RAG tắt'];
-    const leaderPrompt=[
-      'RESEARCH_LEADER=GEMINI',
-      `CÂU HỎI MỚI: ${text}`,
-      `NGỮ CẢNH HỘI THOẠI:\n${threadContext(messages)||'(lượt đầu)'}`,
-      `WORKERS ĐÃ THỰC THI: ${workers.join(' · ')}`,
-      'Bạn là leader của Trung tâm nghiên cứu: tổng hợp kết quả workers, đối chiếu nguồn, phát hiện mâu thuẫn/thiếu bằng chứng, trả lời trực tiếp câu hỏi mới và đề xuất tối đa 3 bước hỏi tiếp hữu ích. Không bịa dữ liệu hoặc nguồn.'
-    ].join('\n');
+    const leaderPrompt=['RESEARCH_LEADER=GEMINI',`CÂU HỎI MỚI: ${text}`,`NGỮ CẢNH HỘI THOẠI:\n${threadContext(messages)||'(lượt đầu)'}`,`WORKERS ĐÃ THỰC THI: ${workers.join(' · ')}`,'Bạn là leader của Trung tâm nghiên cứu: tổng hợp kết quả workers, đối chiếu nguồn, phát hiện mâu thuẫn/thiếu bằng chứng, trả lời trực tiếp câu hỏi mới và đề xuất tối đa 3 bước hỏi tiếp hữu ích. Không bịa dữ liệu hoặc nguồn.'].join('\n');
     const result=await askServerAi(leaderPrompt,'research',sources,controller.signal,{useInternal});if(controller.signal.aborted)return;
-    const answer=result.degraded?buildAcademicFallback(text,evidence):result.answer;
-    setMessages(xs=>[...xs,{id:crypto.randomUUID(),role:'assistant',text:answer,citations:result.citations,meta:`Gemini Leader · ${workers.join(' · ')}${result.degraded?' · fallback':''}`}].slice(-18));
+    const fallbackRefs=sourceCitations(sources),citations=result.citations.length?result.citations:fallbackRefs,answer=result.degraded?`${buildAcademicFallback(text,evidence)}${provenanceLine(citations)}`:result.answer;
+    setMessages(xs=>[...xs,{id:crypto.randomUUID(),role:'assistant',text:answer,citations,meta:`Gemini Leader · ${workers.join(' · ')}${result.degraded?' · fallback':''}`}].slice(-18));
     setSuggestions(result.suggestedQueries.length?result.suggestedQueries:['Đâu là bằng chứng mạnh nhất cho kết luận vừa rồi?','Có điểm nào còn mâu thuẫn giữa các nguồn?','Đề xuất bước nghiên cứu tiếp theo phù hợp.']);
     setNote(`Gemini Leader · ${workers.join(' · ')} · ${Math.round(result.latencyMs)} ms`);
-  }catch(e){if(controller.signal.aborted)return;const fallback=buildAcademicFallback(text,works);setMessages(xs=>[...xs,{id:crypto.randomUUID(),role:'assistant',text:fallback,meta:'Fallback học thuật cục bộ'}].slice(-18));setSuggestions([]);setNote((e as Error).message||'Research A.I chưa khả dụng; đã dùng fallback local.')}finally{if(pending.current===controller){pending.current=null;setBusy(false)}}};
+  }catch(e){if(controller.signal.aborted)return;const fallbackSources=asSources(works),citations=sourceCitations(fallbackSources),fallback=`${buildAcademicFallback(text,works)}${provenanceLine(citations)}`;setMessages(xs=>[...xs,{id:crypto.randomUUID(),role:'assistant',text:fallback,citations,meta:'Fallback học thuật cục bộ · vẫn giữ provenance nguồn'}].slice(-18));setSuggestions([]);setNote((e as Error).message||'Research A.I chưa khả dụng; đã dùng fallback local có nguồn.')}finally{if(pending.current===controller){pending.current=null;setBusy(false)}}};
 
   useEffect(()=>{let seed='';try{seed=clean(localStorage.getItem(PENDING_KEY)||'');if(seed)localStorage.removeItem(PENDING_KEY)}catch{}if(!seed||queued.current===seed)return;queued.current=seed;setOpen(true);setMode('assistant');setInput(seed);const id=window.setTimeout(()=>void ask(seed),50);return()=>window.clearTimeout(id)},[member.id]);
 
