@@ -190,7 +190,22 @@ jobs:
         shell: bash
         env:
           CHROME_SMOKE_URL: ${{ steps.ready.outputs.url }}
-        run: node scripts/chrome-real-smoke.mjs
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if node scripts/chrome-real-smoke.mjs; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error title=Production Chrome smoke failed::Chrome smoke failed after 3 isolated attempts."
+              exit 1
+            fi
+            echo "::warning::Chrome smoke attempt ${attempt} hit a transient runner/CDP startup failure; cleaning Chrome and retrying."
+            pkill -f 'google-chrome.*remote-debugging-port=9222' || true
+            pkill -f 'google-chrome.*remote-debugging-port=9223' || true
+            rm -rf /tmp/yhct-chrome-* || true
+            sleep 2
+          done
 
       - name: Upload production Chrome QA evidence
         if: always()
