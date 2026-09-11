@@ -29,6 +29,7 @@ jobs:
         run: |
           sed -i "s/re.subn(pattern, repl, text, count=1, flags=flags)/re.subn(pattern, lambda _: repl, text, count=1, flags=flags)/" scripts/_apply_ai_canonical_lock.py
           python scripts/_apply_ai_canonical_lock.py
+          sed -i 's/A.I OpenAlex dành cho thành viên/Research A.I dành cho thành viên/g' src/components/research/ResearchCenter.tsx
       - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
       - name: Required AI gates
