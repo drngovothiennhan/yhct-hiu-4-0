@@ -6,11 +6,14 @@ import {createGeminiJson,geminiAiConfigured,geminiAiModel} from './gemini-provid
 
 const clean=(value,max=4000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 const sha=value=>createHash('sha256').update(String(value||'')).digest('hex');
+const shaBuffer=value=>createHash('sha256').update(value).digest('hex');
 const MODES=new Set(['auto','generate','extract']);
 const PIPELINE_ACTIONS=new Set(['quiz-start','quiz-process-chunk','quiz-retry']);
 const CHUNK_CHARS=12000;
 const CHUNK_OVERLAP=450;
 const MAX_CHUNKS=48;
+const MAX_UPLOAD_BYTES=2_000_000;
+const MAX_SOURCE_TEXT=400_000;
 const QUIZ_SCHEMA={type:'object',properties:{subject:{type:'string'},questions:{type:'array',maxItems:10,items:{type:'object',properties:{topic:{type:'string'},stem:{type:'string'},options:{type:'array',minItems:4,maxItems:4,items:{type:'string'}},correctIndex:{type:'integer',minimum:0,maximum:3},explanation:{type:'string'},evidenceText:{type:'string'}},required:['topic','stem','options','correctIndex','explanation','evidenceText'],additionalProperties:false}}},required:['subject','questions'],additionalProperties:false};
 
 export const isQuizPipelineV2Action=action=>PIPELINE_ACTIONS.has(String(action||''));
@@ -60,13 +63,25 @@ async function designChunkWithGemini(text,file){
  }finally{clearTimeout(timer)}
 }
 
+function readUploadedTextFile(name,base64){
+ if(!/\.txt$/i.test(name))throw new Error('Định dạng tải lên chưa được hỗ trợ.');
+ if(typeof base64!=='string'||base64.length>2_800_000||!/^[A-Za-z0-9+/]*={0,2}$/.test(base64))throw new Error('Tệp TXT không hợp lệ hoặc lớn hơn 2 MB.');
+ const buffer=Buffer.from(base64,'base64');if(!buffer.length||buffer.length>MAX_UPLOAD_BYTES)throw new Error('Tệp TXT phải nhỏ hơn 2 MB.');
+ let text='';try{text=new TextDecoder('utf-8',{fatal:true}).decode(buffer)}catch{throw new Error('TXT phải dùng mã hóa UTF-8 hợp lệ.');}
+ text=text.replace(/\r\n?/g,'\n').replace(/\u0000/g,'').trim();
+ if(!text)throw new Error('Tệp TXT không có nội dung văn bản.');
+ if(text.length>MAX_SOURCE_TEXT)throw new Error('Tài liệu vượt 400.000 ký tự, hãy chia nhỏ.');
+ const sourceHash=shaBuffer(buffer);return{file:{id:`upload-${sourceHash}`,name:clean(name,300),mimeType:'text/plain'},text,sourceHash,warnings:[]};
+}
+
 async function resolveSource(body){
- const source=body.fileId?await readSelectedQuizFile(body.fileId):await readUploadedQuizFile(String(body.fileName||''),body.base64);
+ const fileName=String(body.fileName||'');
+ const source=body.fileId?await readSelectedQuizFile(body.fileId):/\.txt$/i.test(fileName)?readUploadedTextFile(fileName,body.base64):await readUploadedQuizFile(fileName,body.base64);
  if(body.subjectFolderId){
   const folder=await scopedQuizItem(body.subjectFolderId);if(folder.mimeType!=='application/vnd.google-apps.folder')throw new Error('Chủ đề phải là thư mục kiến thức');
   source.file.parentName=folder.name;source.file.subjectFolderId=folder.id;
  }else if(!body.fileId&&clean(body.subjectName,160))source.file.parentName=clean(body.subjectName,160);
- if(!source.file.parentName)throw new Error('Hãy chọn thư mục kiến thức hoặc nhập tên chủ đề trước khi tải Word.');
+ if(!source.file.parentName)throw new Error('Hãy chọn thư mục kiến thức hoặc nhập tên chủ đề trước khi tải tài liệu.');
  return source;
 }
 
