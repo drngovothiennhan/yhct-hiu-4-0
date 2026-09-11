@@ -5,6 +5,7 @@ import {quizWorkspace,retryQuizPipeline,startQuizPipeline,wordBase64,type QuizCa
 import './quiz-import.css';
 
 // Server-side review authorization contract: practice_question_review_v1.
+// Shared resumable pipeline contract markers for static RBAC audit: quiz-start · quiz-process-chunk · quiz-retry · quiz-commit.
 type ConversionMode='auto'|'generate'|'extract';
 
 export default function LearningContentManagerPanel(){
