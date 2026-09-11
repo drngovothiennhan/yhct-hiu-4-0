@@ -19,8 +19,9 @@ async function readAuthoritativeFeed(){
   return {id:String(top.id),title:String(top.title),count:payload.length};
 }
 
-async function openCdp(port){
+async function openCdp(port,proc){
   for(let i=0;i<180;i++){
+    if(proc?.exitCode!==null)throw new Error(`Chrome exited before DevTools endpoint ${port} became ready (exit ${proc.exitCode}).`);
     try{
       const pages=await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
       const page=pages.find(item=>item.type==='page');
@@ -38,8 +39,8 @@ async function stopChrome(proc,profile){
   await rm(profile,{recursive:true,force:true,maxRetries:2,retryDelay:100}).catch(()=>{});
 }
 
-async function runDevice(name,width,height,port,expected){
-  const profile=path.join(os.tmpdir(),`yhct-feed-sync-${name}-${process.pid}`);
+async function runDeviceOnce(name,width,height,port,expected,attempt){
+  const profile=path.join(os.tmpdir(),`yhct-feed-sync-${name}-${process.pid}-${attempt}`);
   await rm(profile,{recursive:true,force:true});
   const proc=spawn(chrome,[
     '--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--hide-scrollbars',
@@ -47,7 +48,7 @@ async function runDevice(name,width,height,port,expected){
   ],{stdio:'ignore'});
   let ws=null;
   try{
-    ws=new WebSocket(await openCdp(port));
+    ws=new WebSocket(await openCdp(port,proc));
     await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error(`${name}: WebSocket timeout`)),5000);ws.addEventListener('open',()=>{clearTimeout(timer);resolve()},{once:true});ws.addEventListener('error',error=>{clearTimeout(timer);reject(error)},{once:true})});
     let seq=0;const pending=new Map();const runtimeErrors=[];const consoleErrors=[];
     ws.addEventListener('message',event=>{
@@ -98,9 +99,18 @@ async function runDevice(name,width,height,port,expected){
   }
 }
 
+async function runDevice(name,width,height,basePort,expected){
+  let lastError=null;
+  for(let attempt=1;attempt<=3;attempt++){
+    try{return await runDeviceOnce(name,width,height,basePort+attempt-1,expected,attempt)}
+    catch(error){lastError=error;if(attempt===3)break;console.warn(`${name}: transient Chrome/CDP attempt ${attempt} failed: ${error?.message||error}; retrying with a fresh profile and port.`);await sleep(600)}
+  }
+  throw lastError||new Error(`${name}: Chrome QA failed.`);
+}
+
 const before=await readAuthoritativeFeed();
 const mobile=await runDevice('mobile',390,844,9332,before);
-const desktop=await runDevice('desktop',1440,1000,9333,before);
+const desktop=await runDevice('desktop',1440,1000,9342,before);
 const after=await readAuthoritativeFeed();
 if(after.id!==before.id||after.title!==before.title)throw new Error(`Authoritative feed changed during device audit; retry required. Before=${JSON.stringify(before)} after=${JSON.stringify(after)}`);
 const report={target,authoritative:before,mobile,desktop,verifiedAt:new Date().toISOString()};
