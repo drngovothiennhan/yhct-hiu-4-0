@@ -217,3 +217,14 @@ jobs:
           path: browser-artifacts/
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Publish deployment summary
+        run: |
+          {
+            echo "### Vercel production deployment"
+            echo "- Commit: \`${CI_PASSED_SHA}\`"
+            echo "- Deployment: \`${{ steps.create.outputs.deployment_id }}\`"
+            echo "- Immutable URL: ${{ steps.create.outputs.deployment_url }}"
+            echo "- Public production alias: ${{ steps.ready.outputs.url }}"
+            echo "- Live Google Chrome smoke: passed on 390x844 mobile and 1440x1000 desktop"
+          } >> "$GITHUB_STEP_SUMMARY"
