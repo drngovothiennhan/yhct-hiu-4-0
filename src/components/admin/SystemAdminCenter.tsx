@@ -1,3 +1,4 @@
+import QuizImportCenter from './QuizImportCenter';
 import {useEffect,useState} from 'react';
 import {Activity,BrainCircuit,CheckCircle2,CloudSun,DatabaseBackup,Download,Pencil,Pin,RefreshCw,RotateCcw,ShieldAlert,Trash2,XCircle} from 'lucide-react';
 import {SUPABASE_PUBLISHABLE_KEY,SUPABASE_URL,supabase} from '../../services/authService';
@@ -41,6 +42,7 @@ export default function SystemAdminCenter(){
     {msg&&<div className="ai-note" role="status">{msg}</div>}
     <div className="acc-grid"><section className="panel acc-status"><div className="row"><TaijiIcon/><div><b>{now.toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})}</b><small>Âm lịch Việt Nam: {formatLunar(now)}</small></div></div><div className="row"><CloudSun/><div><b>{weather?.available?`${weather.temperature}°C · ${weather.condition}`:'Thời tiết chưa xác định'}</b><small>{weather?.available?`Cảm giác ${weather.apparentTemperature}°C · Ẩm ${weather.humidity}% · Gió ${weather.windSpeed} km/h`:'Dùng GPS thiết bị để tăng độ chính xác.'}</small></div></div><button className="secondary" onClick={gps}>Dùng GPS thiết bị</button></section><section className="panel"><div className="row"><Activity/><h3>System Health</h3></div>{health&&<><div className="health-kpis">{Object.entries(health.counts||{}).slice(0,5).map(([k,v])=><span key={k}><b>{v}</b><small>{k}</small></span>)}</div><p className="muted">Postgres {health.postgres} · {new Date(health.serverTime).toLocaleString('vi-VN')}</p></>}<div className="schedule-actions"><button onClick={()=>void purge()}><Trash2/>Purge cache</button><button className="secondary" disabled={busy} onClick={()=>void diagnose()}><BrainCircuit/>A.I Diagnostic</button></div>{diag&&<pre className="diagnostic-output">{diag}</pre>}</section></div>
 
+    <QuizImportCenter/>
     <AiOperationsPanel/>
 
     <div className="admin-v6-grid">
