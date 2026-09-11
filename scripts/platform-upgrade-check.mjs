@@ -9,7 +9,7 @@ need(app.includes("lazy(()=>import('./components/game/HerbGardenSocialHub'))"),'
 need(profileInbox.includes("lazy(()=>import('../messages/MessagesCenter'))"),'messages remain lazy-loaded inside personal wall');
 need(app.includes('UnifiedAiMini member={member}')&&!app.includes('AiMiniFeedbackDock member={member}')&&!app.includes('PersonalCopilotWidget member={member}'),'one unified AI Mini surface is mounted');
 need(mini.includes('SpeechSynthesisUtterance')&&mini.includes('SpeechRecognition')&&mini.includes('VOICE_KEY')&&mini.includes('POS_KEY'),'AI Mini provides persisted voice and desktop drag behavior');
-need(mini.includes('checkDrlConversation')&&mini.includes('fetchSchedules')&&mini.includes('askXiaoZhiMini')&&mini.includes('academicIntent'),'AI Mini is system/club/web focused with academic intent routing');
+need(mini.includes('checkDrlConversation')&&mini.includes('fetchSchedules')&&mini.includes('askXiaoZhiMini')&&mini.includes('researchIntent')&&mini.includes('openResearch(text)'),'AI Mini is application-assistant focused with explicit deep-research handoff');
 need(!mini.includes('searchDriveRag')&&!mini.includes('searchOpenAlex')&&!mini.includes('searchKnowledge'),'academic retrieval is removed from global AI Mini');
 need(xiaozhi.includes("mode:'xiaozhi-mini'")&&xiaozhi.includes("fetch('/api/ai/assistant'"),'XiaoZhi Mini reuses the existing AI serverless gateway');
 need(feed.includes('MOD/Admin đã nhận thông báo'),'post submit success remains explicit');
@@ -27,7 +27,7 @@ need(memberAdmin.includes('MAX_BLOCK_ITEMS=5')&&memberAdmin.includes('.limit(MAX
 need(app.includes("tab==='admin'&&canAdmin&&<AdminControlCenter")&&!memberAdmin.includes('AdminThemeControl'),'Điều hành remains free of theme controls');
 need(app.includes("tab==='acc'&&canAcc&&<>")&&app.includes('AdminThemeControl theme={theme} onChange={changeTheme}'),'theme controls live only in ACC');
 need(pwa.includes('beforeinstallprompt')&&pwa.includes('appinstalled')&&settings.includes('Cài ứng dụng mạng xã hội'),'real PWA installation controller is wired');
-need(research.includes('searchOpenAlex(query,12)')&&research.includes('A.I OpenAlex tổng hợp')&&researchMini.includes('searchOpenAlex(text,6)')&&researchMini.includes("searchKnowledge(text,'all',5)")&&researchMini.includes('Cloud + Drive RAG + Central RAG + OpenAlex'),'OpenAlex and Central RAG remain in Research Center and Research AI Mini');
+need(research.includes('searchOpenAlex(query,12)')&&research.includes('ragInternalConsent')&&researchMini.includes('searchPubMed(text,6)')&&researchMini.includes('searchOpenAlex(text,6)')&&researchMini.includes('searchClinicalTrials(text,4)')&&researchMini.includes("searchKnowledge(text,'all',5)")&&researchMini.includes('Dùng tài liệu nội bộ')&&researchMini.includes('setUseInternal(false)'),'Research A.I owns academic retrieval and request-scoped internal consent');
 
 const gardenFacade=read('src/components/game/HerbGardenGame.tsx'),game=read('src/components/game/HerbGardenGameV7.tsx'),clinic=read('src/components/game/HiuYQuanGame.tsx'),gardenSocial=read('src/components/game/HerbGardenSocialHub.tsx'),gardenCss=read('src/garden-v6.css'),gardenWorldCss=read('src/garden-sky-v8.css'),gardenMigration=read('supabase/migrations/202609080630_admin_news_retention_and_garden_grid_v6.sql'),clinicMigration=read('supabase/migrations/202609092248_hiu_y_quan_game_v1.sql'),sprite=read('public/garden-decor-sprite.svg');
 const catalog=[1,2,3,4,5].map((n,i)=>read(`supabase/migrations/20260908015${5+i}_herb_garden_catalog_qd4664_part${n}.sql`)).join('\n');
