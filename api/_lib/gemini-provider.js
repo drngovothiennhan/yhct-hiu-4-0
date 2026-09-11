@@ -4,7 +4,7 @@ const MAX_ERROR_TEXT=180;
 
 const clean=(value,max=2000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 export const geminiAiEnabled=()=>Boolean(process.env.GEMINI_API_KEY)&&process.env.ENABLE_GEMINI_AI!=='false';
-export const geminiPrivateContextAllowed=()=>process.env.GEMINI_ALLOW_PRIVATE_CONTEXT==='true';
+export const geminiPrivateContextAllowed=()=>false;
 export const geminiAiModel=(mode='default')=>{
   const configured=mode==='research'
     ?process.env.GEMINI_RESEARCH_MODEL||process.env.GEMINI_MODEL||DEFAULT_GEMINI_RESEARCH_MODEL

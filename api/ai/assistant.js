@@ -17,6 +17,7 @@ const SAFETY=new Set(['educational','needs_source_check','refuse_clinical_advice
 const clean=(value,max=1000)=>String(value??'').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').replace(/\s+/g,' ').trim().slice(0,max);
 const safeUrl=value=>{const raw=clean(value,1200);if(!raw)return'';try{const url=new URL(raw);return url.protocol==='https:'?url.toString():''}catch{return''}};
 const sourceId=value=>clean(value,120).replace(/[^a-zA-Z0-9:_./-]/g,'-');
+const isInternalSource=source=>source?.id?.startsWith('drive:')||source?.id?.startsWith('central:');
 
 function normalizeSources(raw){
   if(!Array.isArray(raw))return[];
@@ -85,8 +86,7 @@ function providerFailureClass(error){
 
 function geminiEligible(mode,sources,internalContextConsent=false){
   if(!geminiAiConfigured(mode))return false;
-  const containsPrivateDriveContext=sources.some(source=>source.id.startsWith('drive:'));
-  return !containsPrivateDriveContext||internalContextConsent||process.env.GEMINI_ALLOW_PRIVATE_CONTEXT==='true';
+  return !sources.some(isInternalSource)||internalContextConsent;
 }
 
 function preferGeminiAcademic(mode,canGemini){
@@ -142,6 +142,7 @@ export default async function handler(req,res){
 
   const query=clean(req.body?.query,MAX_QUERY),mode=MODES.has(req.body?.mode)?req.body.mode:'fast',sources=normalizeSources(req.body?.sources),internalContextConsent=req.body?.internalContextConsent===true;
   if(query.length<2)return res.status(400).json({error:'Query is required'});
+  if(sources.some(isInternalSource)&&!internalContextConsent)return res.status(400).json({error:'Tài liệu nội bộ chỉ được dùng khi người dùng chủ động bật Dùng tài liệu nội bộ cho lượt nghiên cứu.'});
   const baseFallback=fallback(sources),key=process.env.OPENAI_API_KEY,model=cloudAiModel(),openAiReady=Boolean(cloudAiEnabled()&&key&&model),canGemini=geminiEligible(mode,sources,internalContextConsent),geminiFirst=preferGeminiAcademic(mode,canGemini);
   if(!openAiReady&&!canGemini){res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class','configuration');return res.status(200).json(baseFallback)}
 
