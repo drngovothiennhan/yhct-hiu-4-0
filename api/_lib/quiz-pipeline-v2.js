@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {learningContentAccess,memberRpc} from './member-access.js';
 import {driveQuizMeta,readSelectedQuizFile,readUploadedQuizFile,scopedQuizItem} from './drive-quiz.js';
+import {readUploadedPdfFile} from './pdf-quiz-source.js';
 import {parseMcqDocument} from './mcq-parser.js';
 import {createGeminiJson,geminiAiConfigured,geminiAiModel} from './gemini-provider.js';
 
@@ -76,7 +77,7 @@ function readUploadedTextFile(name,base64){
 
 async function resolveSource(body){
  const fileName=String(body.fileName||'');
- const source=body.fileId?await readSelectedQuizFile(body.fileId):/\.txt$/i.test(fileName)?readUploadedTextFile(fileName,body.base64):await readUploadedQuizFile(fileName,body.base64);
+ const source=body.fileId?await readSelectedQuizFile(body.fileId):/\.txt$/i.test(fileName)?readUploadedTextFile(fileName,body.base64):/\.pdf$/i.test(fileName)?await readUploadedPdfFile(fileName,body.base64):await readUploadedQuizFile(fileName,body.base64);
  if(body.subjectFolderId){
   const folder=await scopedQuizItem(body.subjectFolderId);if(folder.mimeType!=='application/vnd.google-apps.folder')throw new Error('Chủ đề phải là thư mục kiến thức');
   source.file.parentName=folder.name;source.file.subjectFolderId=folder.id;
