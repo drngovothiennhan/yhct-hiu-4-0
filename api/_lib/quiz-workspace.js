@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import {memberAccess,memberRpc} from './member-access.js';
-import {browseQuizFolder,quizRoots,scopedQuizItem,readSelectedQuizFile,readUploadedQuizFile,driveQuizMeta} from './drive-quiz.js';
+import {browseQuizFolder,quizRoots,scopedQuizItem,readSelectedQuizFile,readUploadedQuizFile,driveQuizMeta,driveCredentialMode} from './drive-quiz.js';
 import {parseMcqDocument,normalizeImportQuestion} from './mcq-parser.js';
 import {createGeminiJson,geminiAiConfigured,geminiAiModel} from './gemini-provider.js';
 
@@ -58,14 +58,15 @@ export async function handleQuizWorkspace(req,res){
  const body=req.body||{},action=String(body.action||'');
  const rpc=(type,key='',payload={})=>memberRpc(req,'practice_import_workspace_v2',{p_action:type,p_key:key,p_payload:payload});
  try{
-  if(action==='quiz-roots')return res.json({roots:quizRoots()});
+  if(action==='quiz-roots'){const credentialMode=driveCredentialMode();return res.json({roots:quizRoots(),driveConfigured:credentialMode!=='none',credentialMode});}
   if(action==='quiz-browse')return res.json(await browseQuizFolder(body.folderId,body.pageToken));
   if(action==='quiz-drafts')return res.json({drafts:await rpc('list')});
   if(action==='quiz-draft')return res.json(await rpc('get',body.id));
   if(action==='quiz-preview'){
    const source=body.fileId?await readSelectedQuizFile(body.fileId):await readUploadedQuizFile(String(body.fileName||''),body.base64);
    if(body.subjectFolderId){const folder=await scopedQuizItem(body.subjectFolderId);if(folder.mimeType!=='application/vnd.google-apps.folder')throw new Error('Chủ đề phải là thư mục kiến thức');source.file.parentName=folder.name;source.file.subjectFolderId=folder.id;}
-   if(!source.file.parentName)throw new Error('Hãy chọn thư mục kiến thức trước khi tải Word.');
+   else if(!body.fileId&&clean(body.subjectName,160))source.file.parentName=clean(body.subjectName,160);
+   if(!source.file.parentName)throw new Error('Hãy chọn thư mục kiến thức hoặc nhập tên chủ đề trước khi tải Word.');
    const conversionMode=MODES.has(body.conversionMode)?body.conversionMode:'auto';
    let parsed=parseMcqDocument(source.text);if(parsed.questions.length>1000)throw new Error('Tài liệu có hơn 1.000 câu; hãy chia nhỏ.');
    if(conversionMode==='generate'||(conversionMode==='auto'&&!parsed.questions.length))parsed=await designQuizWithGemini(source.text,source.file);

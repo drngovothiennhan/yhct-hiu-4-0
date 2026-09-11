@@ -13,10 +13,10 @@ forbid(app,["tab==='messages'","go('messages')","Inbox cá nhân</button>","tab=
 need(profile,['ProfileInbox','<ProfileInbox member={member}/>','Tường cá nhân'],'profile inbox merge');
 need(inbox,['messages_inbox_v1','member_messages','MessagesCenter','role="dialog"','inboxBadge'],'profile inbox dialog');
 need(adminTheme,['THEME_OPTIONS.length','Giao diện hệ thống','module khác chỉ nhận theme đồng bộ'],'ACC compact theme');
-need(research,['searchOpenAlex(query,12)','A.I OpenAlex tổng hợp','summarizeOpenAlex','askServerAi'],'research OpenAlex AI');
-need(researchMini,['searchOpenAlex(text,6)','searchDriveRag(text,4,controller.signal)',"searchKnowledge(text,'all',5)","askServerAi(leaderPrompt,'research'",'RESEARCH_LEADER=GEMINI','threadContext(messages)','result.suggestedQueries','Cloud + Drive RAG + Central RAG + OpenAlex'],'Research AI mini Gemini leader orchestration');
-need(mini,['academicIntent','askXiaoZhiMini','VOICE_KEY','startListening','Học thuật → Trung tâm nghiên cứu','openResearch(text)'],'global XiaoZhi AI mini system/voice routing');
-forbid(mini,['searchOpenAlex','searchDriveRag','searchKnowledge','centralKnowledgeService','askAcademicUnified','feedback_submit_v1'],'global XiaoZhi AI mini academic separation');
+need(research,['searchOpenAlex(query,12)','ragInternalConsent','Research A.I tổng hợp nguồn vừa tìm','summarizeOpenAlex','askServerAi'],'research public retrieval');
+need(researchMini,['searchPubMed(text,6)','searchOpenAlex(text,6)','searchClinicalTrials(text,4)','internalEnabled?searchDriveRag(text,4,controller.signal)',"internalEnabled?searchKnowledge(text,'all',5)","askServerAi(leaderPrompt,'research'",'RESEARCH_LEADER=GEMINI','threadContext(messages)','result.suggestedQueries','Dùng tài liệu nội bộ','setUseInternal(false)'],'Research AI canonical orchestration');
+need(mini,['researchIntent','askXiaoZhiMini','VOICE_KEY','startListening','Trung tâm nghiên cứu','openResearch(text)'],'global XiaoZhi app-assistant text/voice routing');
+forbid(mini,['searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge','centralKnowledgeService','askAcademicUnified','feedback_submit_v1'],'global XiaoZhi AI mini academic separation');
 need(miniService,["fetch('/api/ai/assistant'","mode:'xiaozhi-mini'",'Authorization:`Bearer ${token}`','hiu.vn'],'global XiaoZhi shared gateway client');
 need(vite,['module-feed','module-research','module-profile','module-profile-inbox','module-garden','module-notifications','module-schedule','module-drl','module-exam','module-admin','module-acc'],'module chunks');
 need(manifest,["id:'/'","start_url:'/'","scope:'/'","display:'standalone'","prefer_related_applications:false","shortcuts:",'Trung tâm nghiên cứu','Tường cá nhân'],'root PWA manifest');
@@ -24,4 +24,4 @@ need(pwa,['beforeinstallprompt','appinstalled','requestPwaInstall','display-mode
 need(settings,['Cài ứng dụng mạng xã hội','PWA độc lập của Chrome','requestPwaInstall'],'app settings');
 
 if(errors.length){console.error('MODULE ISOLATION CHECK FAILED');for(const error of errors)console.error(`- ${error}`);process.exit(1)}
-console.log('module-isolation-ok: 10 final areas frozen, inbox embedded in profile, admin/ACC separation, root PWA install, Gemini Research leader with Central/Drive/OpenAlex workers, and application-assistant XiaoZhi separation present');
+console.log('module-isolation-ok: 10 final areas frozen, inbox embedded in profile, admin/ACC separation, root PWA install, Research A.I with request-scoped internal consent, and application-assistant XiaoZhi separation present');
