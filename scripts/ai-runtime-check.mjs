@@ -59,12 +59,12 @@ requireText(gateway,"if(req.body?.mode==='xiaozhi-mini')return handleXiaoZhiMini
 requireText(gateway,"import {handleXiaoZhiMini} from '../_lib/xiaozhi-mini-handler.js'",'XiaoZhi runtime is isolated behind shared gateway');
 
 requireText(xiaozhiHandler,"memberAccess(req,'member')",'XiaoZhi requires approved-member auth');
-forbidText(xiaozhiHandler,'const academic=','XiaoZhi no longer blocks academic questions before Gemini Search');
-forbidText(xiaozhiHandler,"route:'research'",'XiaoZhi no longer diverts academic questions away from Gemini Search');
+forbidText(xiaozhiHandler,'const academic=','XiaoZhi no longer blocks public questions before Gemini Search');
+forbidText(xiaozhiHandler,"route:'research'",'XiaoZhi backend does not own Research routing');
 requireText(xiaozhiHandler,'A.I tìm kiếm mặc định của toàn hệ thống','XiaoZhi is the global Gemini Search default');
 requireText(xiaozhiHandler,'tuyệt đối không tự giả định rằng kho Drive/tài liệu nội bộ đã được bật','public Gemini path does not auto-enable internal documents');
-requireText(xiaozhiHandler,"createGeminiWebSearch",'XiaoZhi uses Gemini as its primary public-search provider');
-if(xiaozhiHandler.indexOf("createGeminiWebSearch")<xiaozhiHandler.indexOf("type:'web_search_preview'"))ok('XiaoZhi attempts Gemini before OpenAI web failover');else fail('XiaoZhi must attempt Gemini before OpenAI web failover');
+requireText(xiaozhiHandler,'createGeminiWebSearch','XiaoZhi uses Gemini as its primary public-search provider');
+if(xiaozhiHandler.indexOf('createGeminiWebSearch')<xiaozhiHandler.indexOf("type:'web_search_preview'"))ok('XiaoZhi attempts Gemini before OpenAI web failover');else fail('XiaoZhi must attempt Gemini before OpenAI web failover');
 requireText(geminiProvider,"tools:[{type:'google_search'}]",'Gemini public answers use Google Search grounding');
 requireText(geminiProvider,'probeGeminiModel','Gemini live probe stays inside the server provider boundary');
 requireText(geminiProvider,'geminiPrivateContextAllowed','Gemini private-context policy is centralized server-side');
@@ -79,12 +79,14 @@ requireText(xiaozhiHandler,"provider:'local',degraded:true",'XiaoZhi has local d
 requireText(miniService,"fetch('/api/ai/assistant'",'XiaoZhi client reuses shared AI endpoint');
 requireText(miniService,"mode:'xiaozhi-mini'",'XiaoZhi client selects dedicated gateway mode');
 requireText(miniService,'Authorization:`Bearer ${token}`','XiaoZhi client authenticates shared gateway');
+requireText(miniService,'hiu.vn','application assistant prioritizes official HIU web sources');
 requireText(mini,'askXiaoZhiMini','global A.I Mini calls XiaoZhi service');
-requireText(mini,'academicIntent','global A.I Mini preserves academic intent detection for safety and richer synthesis');
+requireText(mini,'academicIntent','global A.I Mini detects research intent for explicit handoff');
+requireText(mini,'openResearch(text)','global A.I Mini hands research questions to Research A.I');
 requireText(mini,'speechSynthesis','global A.I Mini supports speech output');
 requireText(mini,'startListening','global A.I Mini supports speech input when available');
 requireText(mini,'VOICE_KEY','global A.I Mini persists voice preference');
-for(const forbidden of ['searchOpenAlex','searchDriveRag','searchKnowledge','centralKnowledgeService','feedback_submit_v1'])forbidText(mini,forbidden,`global A.I Mini excludes direct legacy provider ${forbidden}`);
+for(const forbidden of ['searchOpenAlex','searchDriveRag','searchKnowledge','centralKnowledgeService','askAcademicUnified','feedback_submit_v1'])forbidText(mini,forbidden,`global A.I Mini excludes research provider ${forbidden}`);
 
 requireText(runtime,"fetch('/api/ai/assistant'",'academic client routes cloud AI through shared server gateway');
 requireText(runtime,'Authorization:`Bearer ${session.access_token}`','academic client authenticates gateway requests');
@@ -102,18 +104,21 @@ requireText(academicService,"searchKnowledge(query,'all',5)",'academic internal 
 requireText(academicService,'{useInternal:true}','academic internal mode explicitly authorizes final Gemini synthesis');
 requireText(academicService,'đối chiếu chúng với kết quả Gemini Google Search','academic internal mode asks Gemini to cross-check web and internal evidence');
 requireText(researchMini,"from '../../modules/ai'",'Research A.I Mini routes through AI Platform facade');
-requireText(researchMini,'searchDriveRag','Research A.I Mini retains Drive RAG');
-requireText(researchMini,'searchOpenAlex','Research A.I Mini retains OpenAlex');
-requireText(researchMini,'searchKnowledge','Research A.I Mini retains Central RAG');
+requireText(researchMini,'searchDriveRag','Research A.I Mini retains Drive RAG worker');
+requireText(researchMini,'searchOpenAlex','Research A.I Mini retains OpenAlex worker');
+requireText(researchMini,'searchKnowledge','Research A.I Mini retains Central RAG worker');
+requireText(researchMini,'RESEARCH_LEADER=GEMINI','Research A.I explicitly makes Gemini the leader');
+requireText(researchMini,"askServerAi(leaderPrompt,'research'",'Gemini Research leader performs final synthesis');
+requireText(researchMini,'result.suggestedQueries','Research A.I surfaces Gemini follow-up suggestions');
 requireText(research,"askServerAi(query,'research',sources,undefined,{useInternal:true})",'Research Center sends explicitly selected Drive sources to Gemini');
 requireText(researchMini,"useInternal?searchDriveRag",'Research A.I skips Drive retrieval until the user opts in');
 requireText(researchMini,"useInternal?searchKnowledge",'Research A.I skips Central RAG until the user opts in');
-requireText(mini,'Dùng tài liệu nội bộ','global A.I exposes an internal-document opt-in');
+requireText(researchMini,'Dùng tài liệu nội bộ','Research A.I exposes the internal-document opt-in; global Mini does not');
 requireText(research,'aiAnswer.citations','Research Center renders server-validated citations');
 requireText(exam,"from '../../modules/ai'",'Exam A.I Tutor routes through AI Platform facade');
 requireText(exam,'answer.degraded?localTutor','Exam tutor retains contextual local fallback');
 
-requireText(health,"req.method!=='GET'",'AI readiness endpoint is read-only for status requests');
+requireText(health,"req.method!=='GET'",'AI readiness endpoint rejects unsupported status methods');
 requireText(health,'cloudAiConfigured()','AI readiness uses centralized readiness contract');
 requireText(health,'cloudAiModel()','AI readiness reports non-secret model');
 requireText(health,'centralRagReady','AI readiness reports Central RAG state');
@@ -138,4 +143,4 @@ const srcFiles=[];
 function walk(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const full=path.join(dir,entry.name);if(entry.isDirectory())walk(full);else if(/\.(ts|tsx|js|jsx)$/.test(entry.name))srcFiles.push(full)}}
 walk(path.join(root,'src'));
 for(const file of srcFiles){const text=fs.readFileSync(file,'utf8');if(text.includes('OPENAI_API_KEY'))fail(`server secret name leaked into browser source: ${path.relative(root,file)}`)}
-if(!process.exitCode)ok(`AI runtime acceptance passed across ${srcFiles.length} browser source files with Gemini-first public search and opt-in internal RAG`);
+if(!process.exitCode)ok(`AI runtime acceptance passed across ${srcFiles.length} browser source files with application-assistant Mini, Gemini-first public search, Gemini Research leader and opt-in internal RAG`);
