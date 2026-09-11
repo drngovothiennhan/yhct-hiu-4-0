@@ -3,6 +3,7 @@ import fs from 'node:fs';
 const read = (p) => fs.readFileSync(p, 'utf8');
 const fail = [];
 const migration = read('supabase/migrations/202609111805_quiz_approval_integrity_v4.sql');
+const versionState = read('supabase/migrations/202609111810_quiz_question_version_state_v4.sql');
 const deploy = read('.github/workflows/vercel-production.yml');
 
 const need = (body, tokens, label) => {
@@ -35,12 +36,25 @@ need(migration, [
   "'practice.daily.refresh'",
 ], 'daily practice eligibility repair');
 
+need(versionState, [
+  'create or replace function private.practice_invalidate_changed_question_state_v1()',
+  'old.content_hash is distinct from new.content_hash',
+  'old.options is distinct from new.options',
+  'old.correct_index is distinct from new.correct_index',
+  'delete from public.daily_practice_question_stats',
+  'answers=answers-new.id::text',
+  "status='active'",
+  'after update of content_hash,subject,topic,stem,options,correct_index,explanation',
+  'revoke all on function private.practice_invalidate_changed_question_state_v1() from authenticated',
+], 'question-version state invalidation');
+
 if (deploy.includes('group: vercel-production\n')) {
   fail.push('production deployment concurrency must not let non-main Web CI completion cancel main deployment');
 }
 need(deploy, [
-  'github.event.workflow_run.event',
-  'github.event.workflow_run.head_branch',
+  'group: vercel-production-${{ github.event.workflow_run.event }}-${{ github.event.workflow_run.head_branch }}',
+  "github.event.workflow_run.event == 'push'",
+  "github.event.workflow_run.head_branch == 'main'",
 ], 'production concurrency isolation');
 
 if (fail.length) {
@@ -49,4 +63,4 @@ if (fail.length) {
   process.exit(1);
 }
 
-console.log('Quiz approval integrity PASS: changed content invalidates stale expert approval, daily sessions self-heal eligibility, and deploy concurrency is event/branch isolated.');
+console.log('Quiz approval integrity PASS: changed content invalidates stale approval and versioned answer state, daily sessions self-heal eligibility, and deploy concurrency is event/branch isolated.');
