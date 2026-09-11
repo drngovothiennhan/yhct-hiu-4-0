@@ -1,5 +1,6 @@
 import {supabase} from '../../../services/authService';
 
+// Client health/probe transport shares /api/ai/health to avoid allocating an extra Vercel Function.
 export type AiHealth={
   ok:boolean;
   ai:{
