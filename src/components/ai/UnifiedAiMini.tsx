@@ -10,6 +10,7 @@ import {supabase} from '../../services/authService';
 import '../../xiaozhi-mini.css';
 import '../../app-assistant-ai.css';
 
+// Học thuật → Trung tâm nghiên cứu. A.I Mini chỉ giữ vai trò trợ lý ứng dụng và tra cứu công khai.
 type Message={id:string;role:'user'|'assistant';text:string;sources?:XiaoZhiSource[]};
 type Point={x:number;y:number};
 type OrbDrag={id:number;startX:number;startY:number;origin:Point;moved:boolean}|null;
