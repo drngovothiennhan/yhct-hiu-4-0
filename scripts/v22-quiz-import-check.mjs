@@ -70,15 +70,20 @@ test('pipeline v2 chunk planner is deterministic, bounded and preserves multi-ch
  assert.deepEqual(a,b);assert.ok(a.length>1&&a.length<=48);
  assert.ok(a.every((x,i)=>x.index===i&&x.text.length>0&&x.text.length<=12000&&x.start<x.end&&x.hash.length===16));
 });
-test('pipeline v2 persistence contract uses revision CAS and exposes real progress/retry in UI',()=>{
+test('pipeline v2 persistence contract uses revision CAS and shared resumable UI orchestration',()=>{
  const sql=fs.readFileSync('ops/sql/20260911_quiz_pipeline_v2_cas.sql','utf8');
  const api=fs.readFileSync('api/_lib/quiz-pipeline-v2.js','utf8');
  const route=fs.readFileSync('api/ai/drive-rag.js','utf8');
- const ui=fs.readFileSync('src/components/admin/LearningContentManagerPanel.tsx','utf8');
+ const service=fs.readFileSync('src/services/quizWorkspaceService.ts','utf8');
+ const learning=fs.readFileSync('src/components/admin/LearningContentManagerPanel.tsx','utf8');
+ const acc=fs.readFileSync('src/components/admin/QuizImportCenter.tsx','utf8');
  assert.ok(sql.includes("p_action='replace'")&&sql.includes("(p_payload->>'revision')::integer")&&sql.includes('revision=revision+1'));
  assert.ok(api.includes("state:'processing'")&&api.includes("state:'error'")&&api.includes("'quiz-process-chunk'")&&api.includes("'quiz-retry'"));
  assert.ok(route.includes('isQuizPipelineV2Action')&&route.includes('handleQuizPipelineV2'));
- assert.ok(ui.includes("'quiz-start'")&&ui.includes("'quiz-process-chunk'")&&ui.includes("'quiz-retry'")&&ui.includes('<progress'));
+ assert.ok(service.includes('continueQuizPipeline')&&service.includes('startQuizPipeline')&&service.includes('retryQuizPipeline')&&service.includes("'quiz-start'")&&service.includes("'quiz-process-chunk'")&&service.includes("'quiz-retry'"));
+ assert.ok(learning.includes('startQuizPipeline')&&learning.includes('retryQuizPipeline')&&learning.includes('<progress'));
+ assert.ok(acc.includes('startQuizPipeline')&&acc.includes('continueQuizPipeline')&&acc.includes('retryQuizPipeline')&&acc.includes('<progress')&&acc.includes('pipelineState')&&acc.includes('Bản nháp đã được giữ để tiếp tục/thử lại.'));
+ assert.ok(!acc.includes("quizWorkspace<QuizDraft>('quiz-preview'")&&!acc.includes("quizWorkspace<QuizDraft>(\"quiz-preview\""));
 });
 test('student UI delegates all imports to ACC and records flashcards',()=>{
  const student=fs.readFileSync('src/components/exam/DailyDrivePractice.tsx','utf8');
