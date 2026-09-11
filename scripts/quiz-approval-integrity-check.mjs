@@ -4,6 +4,7 @@ const read = (p) => fs.readFileSync(p, 'utf8');
 const fail = [];
 const migration = read('supabase/migrations/202609111805_quiz_approval_integrity_v4.sql');
 const versionState = read('supabase/migrations/202609111810_quiz_question_version_state_v4.sql');
+const reapproval = read('supabase/migrations/202609111815_quiz_reapproval_trigger_v4.sql');
 const deploy = read('.github/workflows/vercel-production.yml');
 
 const need = (body, tokens, label) => {
@@ -48,6 +49,15 @@ need(versionState, [
   'revoke all on function private.practice_invalidate_changed_question_state_v1() from authenticated',
 ], 'question-version state invalidation');
 
+need(reapproval, [
+  'create or replace function private.practice_promote_admin_confirmed_ai_v1()',
+  "new.review_status='expert_approved' and new.expert_verified_by is null",
+  'new.expert_verified_by:=coalesce(new.expert_verified_by,mid)',
+  'new.expert_verified_at:=coalesce(new.expert_verified_at,now())',
+  "'approvalGate','acc-explicit-confirm-v2'",
+  'revoke all on function private.practice_promote_admin_confirmed_ai_v1() from authenticated',
+], 'explicit reapproval verifier repair');
+
 if (deploy.includes('group: vercel-production\n')) {
   fail.push('production deployment concurrency must not let non-main Web CI completion cancel main deployment');
 }
@@ -63,4 +73,4 @@ if (fail.length) {
   process.exit(1);
 }
 
-console.log('Quiz approval integrity PASS: changed content invalidates stale approval and versioned answer state, daily sessions self-heal eligibility, and deploy concurrency is event/branch isolated.');
+console.log('Quiz approval integrity PASS: changed content invalidates stale approval and answer state, current explicit reapproval repairs verifier identity, daily sessions self-heal eligibility, and deploy concurrency is isolated.');
