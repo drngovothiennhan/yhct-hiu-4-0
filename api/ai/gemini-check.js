@@ -3,6 +3,7 @@ import {geminiAiConfigured,geminiAiModel} from '../_lib/gemini-provider.js';
 
 const TIMEOUT_MS=7000;
 const clean=(value,max=180)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
+// Admin-only probe validates server-side key/model reachability without exposing the secret.
 
 async function probeModel(model){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),TIMEOUT_MS);
