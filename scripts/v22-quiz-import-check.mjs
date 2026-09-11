@@ -57,3 +57,20 @@ test('student UI delegates all imports to ACC and records flashcards',()=>{
  assert.ok(!student.includes('syncDriveQuizBank'));assert.ok(student.includes('recordReview('));
  assert.ok(fs.readFileSync('src/components/admin/SystemAdminCenter.tsx','utf8').includes('<QuizImportCenter'));
 });
+
+test('clearing an answer in admin preview cannot silently import the old answer',async()=>{
+ const original=globalThis.fetch;
+ const q=parseMcqDocument(body+'\nĐáp án: A').questions[0];
+ let committed=false,status=200;
+ try{
+  globalThis.fetch=async(url,init)=>{
+   if(String(url).includes('current_member_access'))return new Response(JSON.stringify({approved:true,role:'admin'}));
+   const args=JSON.parse(init.body);
+   if(args.p_action==='commit')committed=true;
+   return new Response(JSON.stringify({revision:1,questions:[q],file:{id:'fixture',name:'test.docx',parentName:'Test'}}));
+  };
+  const res={status(n){status=n;return this},json(x){return x}};
+  await handleQuizWorkspace({headers:{authorization:'Bearer '+ 'a'.repeat(40)},body:{action:'quiz-commit',id:'test',revision:1,selection:[{id:q.id,correctIndex:null,confirmed:true}]}},res);
+  assert.equal(status,400);assert.equal(committed,false);
+ }finally{globalThis.fetch=original}
+});

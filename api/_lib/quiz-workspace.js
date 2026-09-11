@@ -28,7 +28,7 @@ export async function handleQuizWorkspace(req,res){
    for(const entry of body.selection){
     const original=draft.questions.find(q=>q.id===entry.id&&!q.imported);if(!original||ids.has(entry.id))throw new Error('Câu bị trùng, đã nhập hoặc không tồn tại.');ids.add(entry.id);
     if(entry.confirmed!==true)throw new Error('Admin phải xác nhận câu hỏi trước khi nhập.');
-    const question={...original,stem:entry.stem??original.stem,options:entry.options??original.options,correctIndex:entry.correctIndex??original.correctIndex,explanation:entry.explanation??original.explanation};
+    const question={...original,stem:entry.stem??original.stem,options:entry.options??original.options,correctIndex:entry.correctIndex===undefined?original.correctIndex:entry.correctIndex,explanation:entry.explanation??original.explanation};
     questions.push(normalizeImportQuestion(question,draft.file,true));
    }
    const result=await rpc('commit',body.id,{revision:body.revision,ids:[...ids],questions});return res.json(result);
