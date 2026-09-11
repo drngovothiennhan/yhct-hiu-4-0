@@ -3,6 +3,7 @@ import {geminiAiConfigured,geminiAiModel} from '../_lib/gemini-provider.js';
 
 const GEMINI_PROBE_TIMEOUT_MS=7000;
 const clean=(value,max=180)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
+// Reuse this existing function for the admin probe so Hobby deployments stay within the 12-function limit.
 
 async function probeGeminiModel(model){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),GEMINI_PROBE_TIMEOUT_MS);
