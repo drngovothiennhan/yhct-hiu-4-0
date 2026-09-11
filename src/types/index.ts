@@ -24,6 +24,6 @@ export interface ScheduleDraft { id?:string; kind:ScheduleKind; title:string; st
 // Must mirror private.role_level() in Supabase: leader is operationally equivalent to mod.
 export const ROLE_LEVEL:Record<SystemRole,number>={guest:0,member:1,mod:2,leader:2,super_mod:3,admin:4};
 export const roleAtLeast=(role:SystemRole|undefined,min:SystemRole)=>ROLE_LEVEL[role||'guest']>=ROLE_LEVEL[min];
-export const canManageLearningContent=(member:Pick<Member,'role'|'title'>|null|undefined)=>Boolean(member&&(member.role==='admin'||member.title===LEARNING_CONTENT_MANAGER_TITLE));
+export const canManageLearningContent=(member:Pick<Member,'role'|'title'|'status'|'loginEnabled'|'dataConflict'>|null|undefined)=>Boolean(member&&member.status==='approved'&&member.loginEnabled!==false&&!member.dataConflict&&(member.role==='admin'||member.title===LEARNING_CONTENT_MANAGER_TITLE));
 export const roleLabel:Record<SystemRole,string>={guest:'Khách',member:'Hội viên',mod:'Ban quản lý',super_mod:'Phó Chủ nhiệm',leader:'Ban Chủ nhiệm',admin:'Chủ nhiệm CLB'};
 export const BRANDING:Branding={owner:'Trường Đại Học Quốc Tế Hồng Bàng',faculty:'Khoa Y',platformName:'YHCT HIU 4.0',subtitle:'Hệ sinh thái học thuật all-in-one Y học Cổ truyền cho sinh viên HIU',logoUrl:'/yhct-system-mark.svg',defaultAdminTitle:'Chủ nhiệm CLB'};
