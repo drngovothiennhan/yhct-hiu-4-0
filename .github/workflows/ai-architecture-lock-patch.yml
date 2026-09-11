@@ -45,6 +45,14 @@ jobs:
           new="need(researchMini,['Dùng tài liệu nội bộ','Nguồn công khai','setUseInternal(false)','searchPubMed(text,6)','searchOpenAlex(text,6)','searchClinicalTrials(text,4)','searchDriveRag',\"searchKnowledge(text,'all',5)\",'translateAcademic'],'Research AI canonical retrieval and request-scoped privacy');"
           if old not in s: raise SystemExit('missing stale global acceptance assertion')
           p.write_text(s.replace(old,new,1),encoding='utf-8')
+
+          p=Path('scripts/role-ui-audit.mjs')
+          s=p.read_text(encoding='utf-8')
+          old="['OpenAlex remains research-only',has(files.research,'searchOpenAlex(query,12)','A.I OpenAlex tổng hợp')&&has(files.researchMini,'searchOpenAlex(text,6)')&&has(files.mini,'academicIntent')&&not(files.mini,'searchOpenAlex','searchDriveRag','searchKnowledge')],"
+          new="['Research retrieval remains research-only',has(files.research,'searchOpenAlex(query,12)','ragInternalConsent')&&has(files.researchMini,'searchPubMed(text,6)','searchOpenAlex(text,6)','searchClinicalTrials(text,4)')&&has(files.mini,'researchIntent')&&not(files.mini,'searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge')],"
+          if old not in s: raise SystemExit('missing stale role audit research assertion')
+          s=s.replace(old,new,1).replace('Gemini application assistant','application assistant')
+          p.write_text(s,encoding='utf-8')
           PY
       - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
