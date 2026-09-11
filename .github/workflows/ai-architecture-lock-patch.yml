@@ -38,6 +38,13 @@ jobs:
           new="requireText(researchMini,'Dùng tài liệu nội bộ','Research A.I visibly exposes explicit internal-context opt-in');\nrequireText(researchMini,'Nguồn công khai','Research A.I presents public evidence without exposing provider selection as product UX');\nrequireText(researchMini,'setUseInternal(false)','Research A.I consumes internal-context consent after each request');"
           if old not in s: raise SystemExit('missing stale RAG UI assertion')
           p.write_text(s.replace(old,new,1),encoding='utf-8')
+
+          p=Path('scripts/acceptance-check-v4.mjs')
+          s=p.read_text(encoding='utf-8')
+          old="need(researchMini,['Cloud + Drive RAG + Central RAG + OpenAlex','searchOpenAlex(text,6)','searchDriveRag',\"searchKnowledge(text,'all',5)\",'translateAcademic'],'Research AI shared retrieval');"
+          new="need(researchMini,['Dùng tài liệu nội bộ','Nguồn công khai','setUseInternal(false)','searchPubMed(text,6)','searchOpenAlex(text,6)','searchClinicalTrials(text,4)','searchDriveRag',\"searchKnowledge(text,'all',5)\",'translateAcademic'],'Research AI canonical retrieval and request-scoped privacy');"
+          if old not in s: raise SystemExit('missing stale global acceptance assertion')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
           PY
       - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
