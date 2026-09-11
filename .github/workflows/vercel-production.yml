@@ -8,8 +8,10 @@ on:
 permissions:
   contents: read
 
+# A completed PR Web CI also emits workflow_run. Keep its concurrency namespace
+# separate so a skipped PR deployment can never cancel an in-flight main deploy.
 concurrency:
-  group: vercel-production
+  group: vercel-production-${{ github.event.workflow_run.event }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: true
 
 jobs:

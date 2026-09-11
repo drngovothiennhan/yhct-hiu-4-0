@@ -28,13 +28,14 @@
     "audit:v20:acting": "node scripts/v20-1-yquan-character-acting-check.mjs",
     "audit:v20:runtime": "node scripts/v20-yquan-runtime-playthrough.mjs",
     "audit:yquan": "node scripts/v20-yquan-unified-contract-check.mjs && node scripts/v20-1-yquan-character-acting-check.mjs && node scripts/v20-yquan-runtime-playthrough.mjs",
-    "prebuild": "npm run audit:source && npm run audit:roles && npm run audit:modules && npm run audit:sim6h && npm run audit:account && npm run audit:ai && npm run audit:ai-roles && npm run audit:rag && npm run audit:quiz-pipeline && npm run audit:theme && npm run audit:feed && npm run audit:yquan",
+    "prebuild": "npm run audit:source && npm run audit:roles && npm run audit:modules && npm run audit:sim6h && npm run audit:account && npm run audit:ai && npm run audit:ai-roles && npm run audit:rag && npm run audit:quiz-pipeline && npm run audit:quiz-integrity && npm run audit:theme && npm run audit:feed && npm run audit:yquan",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "android:sync": "npm run build && npx cap sync android",
     "android:open": "npx cap open android",
     "android:assets": "npx capacitor-assets generate --android",
-    "audit:quiz-pipeline": "node scripts/quiz-learning-pipeline-check.mjs"
+    "audit:quiz-pipeline": "node scripts/quiz-learning-pipeline-check.mjs",
+    "audit:quiz-integrity": "node scripts/quiz-approval-integrity-check.mjs"
   },
   "dependencies": {
     "@capacitor/android": "7.4.3",

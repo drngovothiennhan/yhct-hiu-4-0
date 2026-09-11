@@ -1,0 +1,76 @@
+import fs from 'node:fs';
+
+const read = (p) => fs.readFileSync(p, 'utf8');
+const fail = [];
+const migration = read('supabase/migrations/202609111805_quiz_approval_integrity_v4.sql');
+const versionState = read('supabase/migrations/202609111810_quiz_question_version_state_v4.sql');
+const reapproval = read('supabase/migrations/202609111815_quiz_reapproval_trigger_v4.sql');
+const deploy = read('.github/workflows/vercel-production.yml');
+
+const need = (body, tokens, label) => {
+  for (const token of tokens) {
+    if (!body.includes(token)) fail.push(`${label} missing ${token}`);
+  }
+};
+
+need(migration, [
+  'create or replace function public.practice_drive_ingest_admin_v1',
+  "public.practice_questions.review_status='expert_approved'",
+  'content_hash is not distinct from excluded.content_hash',
+  'stem is not distinct from excluded.stem',
+  'options is not distinct from excluded.options',
+  'correct_index is not distinct from excluded.correct_index',
+  'explanation is not distinct from excluded.explanation',
+  'expert_verified_by=case',
+  'expert_verified_at=case',
+  "'approvalInvalidatedReason','content_changed'",
+], 'approval invalidation');
+
+need(migration, [
+  'create or replace function public.daily_practice_today_v1',
+  'for update;',
+  'on conflict(member_id,practice_date) do nothing',
+  "where q.review_status in('source_verified','expert_approved')",
+  'not (q.id=any(retained))',
+  'ids:=retained||refill',
+  "from jsonb_each(coalesce(s.answers,'{}'::jsonb))",
+  "'practice.daily.refresh'",
+], 'daily practice eligibility repair');
+
+need(versionState, [
+  'create or replace function private.practice_invalidate_changed_question_state_v1()',
+  'old.content_hash is distinct from new.content_hash',
+  'old.options is distinct from new.options',
+  'old.correct_index is distinct from new.correct_index',
+  'delete from public.daily_practice_question_stats',
+  'answers=answers-new.id::text',
+  "status='active'",
+  'after update of content_hash,subject,topic,stem,options,correct_index,explanation',
+  'revoke all on function private.practice_invalidate_changed_question_state_v1() from authenticated',
+], 'question-version state invalidation');
+
+need(reapproval, [
+  'create or replace function private.practice_promote_admin_confirmed_ai_v1()',
+  "new.review_status='expert_approved' and new.expert_verified_by is null",
+  'new.expert_verified_by:=coalesce(new.expert_verified_by,mid)',
+  'new.expert_verified_at:=coalesce(new.expert_verified_at,now())',
+  "'approvalGate','acc-explicit-confirm-v2'",
+  'revoke all on function private.practice_promote_admin_confirmed_ai_v1() from authenticated',
+], 'explicit reapproval verifier repair');
+
+if (deploy.includes('group: vercel-production\n')) {
+  fail.push('production deployment concurrency must not let non-main Web CI completion cancel main deployment');
+}
+need(deploy, [
+  'group: vercel-production-${{ github.event.workflow_run.event }}-${{ github.event.workflow_run.head_branch }}',
+  "github.event.workflow_run.event == 'push'",
+  "github.event.workflow_run.head_branch == 'main'",
+], 'production concurrency isolation');
+
+if (fail.length) {
+  console.error('QUIZ APPROVAL INTEGRITY CONTRACT FAILED');
+  fail.forEach((x) => console.error(`- ${x}`));
+  process.exit(1);
+}
+
+console.log('Quiz approval integrity PASS: changed content invalidates stale approval and answer state, current explicit reapproval repairs verifier identity, daily sessions self-heal eligibility, and deploy concurrency is isolated.');
