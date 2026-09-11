@@ -29,9 +29,11 @@ export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');
   res.setHeader('X-Content-Type-Options','nosniff');
   if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
+
   const access=await memberAccess(req,'admin');
   if(!access.ok)return res.status(access.status).json({error:access.error});
   if(!geminiAiConfigured('default'))return res.status(200).json({ok:false,configured:false,provider:'gemini',models:[],checkedAt:new Date().toISOString(),error:'Gemini configuration missing'});
+
   const fast=geminiAiModel('default'),research=geminiAiModel('research'),models=[...new Set([fast,research])];
   const checks=await Promise.all(models.map(probeModel));
   return res.status(200).json({
