@@ -1,9 +1,9 @@
 # HIU YHCT 4.0 — Execution State
 
 Updated: 2026-09-11
-Branch: `hiu-quiz-pipeline-phase2-20260911`
-Base: `main` @ `ca12e254220837f9d77a914bd507640061706978`
-Pull request: `#73`
+Branch: `hiu-quiz-pipeline-phase2-b2-20260911`
+Base production-verified main: `a5ced40920459bd94d2bcde54b7b26caff839f4b`
+Pull request: `#74`
 Production project: `yhct-hiu-final4-stage`
 Supabase production: `gzmpnsrwqjpsbklyflqr` — ACTIVE_HEALTHY
 
@@ -28,89 +28,97 @@ PHASE 2 — Document → Quiz pipeline hardening
 
 ## PHASE 1 — DONE / PRODUCTION VERIFIED
 
-### Batch 1 — compact ACC
-- ACC grouped into `Tổng quan`, `Học tập`, `A.I Center`, `Nội dung`, `Vận hành` with selected-section rendering.
-- PR `#70` merged at `fa545002ca7d52c27673014aedf6bcb06445a44e`; main CI and production smoke passed.
+- Compact ACC grouping shipped through PR `#70`.
+- Scoped `Ban Quản lý Học tập` capability shipped through PR `#71`; SystemRole enum unchanged.
+- Learning-only `/admin` operational surface and Admin appointment UI shipped through PR `#72` at `ca12e254220837f9d77a914bd507640061706978`.
+- `/acc` remains Admin-only; frozen 10-module contract preserved.
+- Main CI, Vercel production deployment, aliases and live Chrome production smoke passed for PHASE 1.
 
-### Batch 2A — scoped learning-content capability
-- `app_role` remains exactly `guest/member/mod/super_mod/leader/admin`.
-- `Ban Quản lý Học tập` capability requires approved membership, login enabled and no data conflict.
-- Scope is limited to document-to-quiz workspace, quiz ingestion and quiz review.
-- PR `#71` merged at `19cda6628d09765b3576a4acf8abc922c2c9238b`.
-- Production migration `learning_content_manager_capability` applied and verified.
-- Vercel deployment `dpl_BRG9U1tFLnYtTtPJB5kK99VZWqNS` READY; live production Chrome smoke passed.
+## PHASE 2 — bounded batch 1 — DONE / PRODUCTION VERIFIED
 
-### Batch 2B — appointment UI + learning-only surface
-- Appointment title `Ban Quản lý Học tập` added without changing the SystemRole enum.
-- Non-Admin learning managers stay at `member` SystemRole.
-- Frozen 10-module contract preserved; `/admin` is reused for the learning-only workspace while Moderator/Admin keep the existing Admin Control Center.
-- `/acc` remains strictly Admin-only.
-- PR `#72` merged to `main` at `ca12e254220837f9d77a914bd507640061706978`.
-- Main Web CI `#589`: PASS.
-- Vercel Production workflow `#472`: PASS including live Chrome production smoke.
-- Production deployment `dpl_3RsiMdkEhXBh6dKLF2NfhCfGDcc3`: READY; production aliases bound successfully.
+Goal: make long-document quiz conversion resumable, idempotent and observable without breaking the stable import/review path.
 
-## PHASE 2 — bounded batch 1 — CODE/DB QA DONE / MERGE PENDING
-
-Goal: make long-document quiz conversion resumable, idempotent and observable without replacing the stable legacy import path.
-
-Architecture:
-- Legacy `quiz-preview` remains intact for the existing Admin ACC workflow in this batch.
-- New pipeline is client-orchestrated and durable; it does not pretend to be a background worker.
-- `quiz-start` creates or resumes a deterministic draft/job using `file + sourceHash + subject + mode`.
-- `quiz-process-chunk` processes exactly one bounded source chunk per request.
-- `quiz-retry` resumes from the persisted failed chunk; final no-grounded-question failures can restart the generation sequence safely.
-- Source chunks are bounded to 12,000 characters with 450-character overlap and a hard maximum of 48 chunks.
-- Gemini can generate at most 10 draft questions per chunk and every accepted generated question must contain evidence text found in that chunk.
-- Generated question IDs and job IDs are deterministic; duplicate generated questions are suppressed.
-- Progress, attempts, failed chunk, last error and timestamps are persisted inside the existing draft payload.
-- Optimistic CAS on `revision` prevents stale clients from overwriting newer progress.
+Implemented:
+- Added `quiz-start`, one-chunk-per-request `quiz-process-chunk`, and `quiz-retry`.
+- Deterministic job IDs use file + source hash + subject + conversion mode.
+- Generation chunks are bounded to 12,000 characters with 450-character overlap and max 48 chunks.
+- Gemini generates at most 10 draft questions per chunk and every accepted generated question must contain evidence text found in that source chunk.
+- Persisted pipeline state includes progress, attempt, failed chunk, retryability, error and timestamps.
+- Existing `practice_import_drafts_v2` storage is reused.
+- Added revision-CAS `replace` action to `practice_import_workspace_v2`; no new table, enum, policy or index.
 - Existing human confirmation/import and review gates remain authoritative.
+- Legacy `quiz-preview` backend remains available for backward compatibility.
 
-Changed files:
-- `ops/sql/20260911_quiz_pipeline_v2_cas.sql`
-- `api/_lib/quiz-pipeline-v2.js`
-- `api/ai/drive-rag.js`
-- `src/services/quizWorkspaceService.ts`
-- `src/components/admin/LearningContentManagerPanel.tsx`
-- `scripts/v22-quiz-import-check.mjs`
-- `scripts/role-ui-audit.mjs`
-- `docs/HIU_EXECUTION_STATE.md`
+Database verification:
+- Production migration `quiz_pipeline_v2_cas` applied and verified.
+- RPC remains `SECURITY DEFINER`, empty `search_path`, with internal `private.is_learning_content_manager()` fail-closed authorization.
+- `anon` EXECUTE = false; `authenticated` = true; `service_role` = true.
+- Advisors showed existing project-wide findings only; this bounded migration introduced no new schema object/category.
 
-Database:
-- Production migration `quiz_pipeline_v2_cas` applied only after CI #592 passed.
-- Existing table `practice_import_drafts_v2` and RPC signature `practice_import_workspace_v2(text,text,jsonb)` are retained; no new table, enum, policy or index was introduced.
-- New `replace` action requires exact revision match, validates draft/question/payload bounds, increments revision and returns the persisted state.
-- Function remains `SECURITY DEFINER` with empty `search_path` and internal `private.is_learning_content_manager()` fail-closed authorization.
-- Direct privilege verification: `anon` EXECUTE = false; `authenticated` = true; `service_role` = true.
-- Migration is present in production history as `quiz_pipeline_v2_cas`.
-- Supabase advisors show existing project-wide security/performance findings; this migration did not introduce a new schema object or advisor category attributable to this bounded batch.
-
-Verification:
-- PR `#73` current head before this checkpoint: `afe5732a7090232e9e1340721dd286b16114887d`.
-- CI `#590`: baseline contracts passed; first new chunk-planner test exposed a final-chunk completion bookkeeping bug.
-- Fix `2b3cf39da30f42564a751ded3848e9ca9f257bf0` marks the final chunk as fully consumed without changing chunk limits or authorization.
-- CI `#591`: all 11 quiz tests passed; build then stopped because the static RBAC audit still expected legacy `quiz-preview` text on the Learning Manager surface.
-- Audit-only fix `afe5732a7090232e9e1340721dd286b16114887d` now checks `quiz-start/process/retry` while retaining negative ACC/system assertions.
-- CI `#592`: PASS.
+Release verification:
+- PR `#73` squash-merged to `main` at `a5ced40920459bd94d2bcde54b7b26caff839f4b`.
+- Main Web CI `#594`: PASS.
 - Quiz parser/DOCX/authorization/pipeline regression: 11/11 PASS.
 - Role/RBAC audits: PASS.
 - TypeScript + Vite production build: PASS.
-- Real Google Chrome mobile/desktop smoke: PASS.
+- Real Google Chrome responsive smoke: PASS.
 - Adaptive mobile/full-desktop-on-phone/Windows viewport matrix: PASS.
-- Build artifact integrity gate: PASS.
+- Vercel Production workflow `#478`: PASS.
+- Production deployment `dpl_8qSCVaSXuQXTAJxRDhT4bGxcacuF`: READY.
+- Production alias `yhct-hiu-final4-stage.vercel.app` bound with `aliasError=null`.
+- Deployment metadata Git SHA matched `a5ced40920459bd94d2bcde54b7b26caff839f4b`.
+- Live Google Chrome production smoke and evidence upload: PASS.
 
-## Remaining PHASE 2 batch 1 release gates
+## PHASE 2 — bounded batch 2 — CODE QA DONE / MERGE PENDING
+
+Goal: move the Admin ACC document workflow onto the production-proven resumable V2 contract and make persisted draft progress directly recoverable from ACC history.
+
+Implemented:
+- Added shared client orchestration in `quizWorkspaceService.ts`:
+  - `continueQuizPipeline`
+  - `startQuizPipeline`
+  - `retryQuizPipeline`
+- Both Learning Manager and Admin ACC now use the same resumable client runner rather than maintaining separate chunk loops.
+- ACC Drive file preview now starts pipeline V2 instead of invoking legacy `quiz-preview`.
+- ACC direct DOCX upload now starts pipeline V2.
+- ACC bulk Drive conversion now processes each file through the resumable pipeline and keeps the draft when an error occurs.
+- Active ACC draft displays persisted percent, chunk progress, attempt and last error.
+- Draft history uses persisted `pipelineState` / `pipelineProgress` and directly continues `processing` drafts or retries `error` drafts.
+- ACC edit and commit actions are blocked while a pipeline is `processing` or `error` to avoid revision races.
+- `Dừng sau tệp hiện tại` keeps already-persisted draft progress and stops before the next file.
+- Legacy backend `quiz-preview` remains intact for backward compatibility; ACC conversion paths no longer call it.
+- Human `quiz-commit` approval gate, Admin RBAC and Learning Manager capability scope are unchanged.
+- No database, RPC signature, role enum, backend route or migration changes in batch 2.
+
+Changed files:
+- `src/services/quizWorkspaceService.ts`
+- `src/components/admin/LearningContentManagerPanel.tsx`
+- `src/components/admin/QuizImportCenter.tsx`
+- `scripts/v22-quiz-import-check.mjs`
+- `docs/HIU_EXECUTION_STATE.md`
+
+Verification before checkpoint:
+- PR `#74`.
+- CI `#595` on pre-checkpoint head: PASS.
+- Quiz import/parser/DOCX/authorization + shared resumable UI regression: PASS.
+- Role/RBAC audits: PASS.
+- TypeScript + Vite production build: PASS.
+- Real Google Chrome responsive smoke: PASS.
+- Adaptive mobile/full-desktop-on-phone/Windows viewport matrix: PASS.
+- Build artifact integrity: PASS.
+- PR mergeability: true.
+
+## Remaining PHASE 2 batch 2 release gates
 
 1. Run CI on this checkpoint documentation commit.
-2. If green, squash-merge PR `#73`.
+2. If green, squash-merge PR `#74`.
 3. Verify Web CI on the resulting `main` commit.
-4. Verify fresh Vercel production deployment points to that exact main commit, reaches READY, binds production alias and passes live Chrome production smoke.
-5. Only then mark PHASE 2 batch 1 production verified.
+4. Verify fresh Vercel production deployment points to that exact main commit, reaches READY, binds the production alias and passes live Chrome production smoke.
+5. Only then mark PHASE 2 batch 2 production verified.
 
 ## Remaining high-level phases
 
-2. Continue Document → Quiz hardening after batch 1: migrate the Admin ACC bulk workflow to the resumable contract, improve draft resume/history UX, then add additional source formats only with parser/evidence coverage.
+2. Continue Document → Quiz hardening after batch 2: add additional direct-upload source formats only with parser/evidence coverage and without weakening review gates.
 3. Learning Hub restructuring.
 4. Home/news simplification and daily suggestion/weather header.
 5. Notification read-state correctness.
@@ -124,4 +132,4 @@ Verification:
 
 ## Next step
 
-Wait for CI on this checkpoint-only documentation commit. If green, merge PR `#73`, verify main CI and the fresh Vercel production/live Chrome release, then continue with the next bounded PHASE 2 quiz-pipeline batch.
+Wait for CI on this checkpoint commit. If green, merge PR `#74`, then verify main CI and the fresh Vercel production/live Chrome release before entering the next bounded PHASE 2 batch.
