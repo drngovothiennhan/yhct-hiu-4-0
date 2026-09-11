@@ -8,7 +8,7 @@ const serverOnlyMessage='Gemini của HIU YHCT 4.0 được cấu hình server-s
 
 export function maskGeminiKey(){return''}
 export function saveGeminiKey(_key:string){throw new GeminiFallbackError('not_configured',serverOnlyMessage)}
-export function clearGeminiKey(){return}
+export function clearGeminiKey(_legacyScope?:string){return}
 export async function discoverGeminiModel(){return SERVER_MANAGED_MODEL}
 
 export async function askGemini(prompt:string,systemContext='Bạn là trợ lý học thuật Y học cổ truyền. Chỉ hỗ trợ học tập, không chẩn đoán hay kê đơn. Khi dữ liệu không chắc chắn phải nói rõ giới hạn.'){
