@@ -1,9 +1,9 @@
 # HIU YHCT 4.0 — Execution State
 
 Updated: 2026-09-11
-Branch: `hiu-learning-manager-phase1-20260911`
-Base: `main` @ `fa545002ca7d52c27673014aedf6bcb06445a44e`
-Pull request: `#71`
+Branch: `hiu-learning-manager-ui-phase1-20260911`
+Base: `main` @ `19cda6628d09765b3576a4acf8abc922c2c9238b`
+Pull request: `#72`
 Production project: `yhct-hiu-final4-stage`
 Supabase production: `gzmpnsrwqjpsbklyflqr` — ACTIVE_HEALTHY
 
@@ -13,70 +13,72 @@ PHASE 1 — ACC / Admin Control Center
 
 ## PHASE 0 — DONE
 
-- Repository, `main`, Vite/React/TypeScript runtime, Vercel production, Supabase, auth, role hierarchy, AI integrations and major UI modules were baselined.
-- Stable auth/RLS, role contracts, approved quiz bank, AI role boundaries, HIU Y Quan game/score state and production deployment flow are `DO_NOT_BREAK`.
+- Repository, `main`, Vite/React/TypeScript runtime, Vercel production, Supabase, auth, role hierarchy, AI integrations and major UI modules baselined.
+- Auth/RLS, SystemRole contracts, approved quiz bank, AI role boundaries, HIU Y Quan game/score state and production deployment flow remain `DO_NOT_BREAK`.
 
 ## PHASE 1 — bounded batch 1 — DONE / PRODUCTION VERIFIED
 
-Goal: reduce ACC vertical overload without changing database or API contracts.
-
-Changed:
-- `src/components/admin/SystemAdminCenter.tsx`
-- `src/components/admin/acc-system-center.css`
-- `docs/HIU_EXECUTION_STATE.md`
-
-Result:
 - ACC grouped into `Tổng quan`, `Học tập`, `A.I Center`, `Nội dung`, `Vận hành`.
-- Only the selected operational section renders.
-- Quiz import and A.I Operations remain their canonical surfaces.
-- PR `#70` merged to `main` at `fa545002ca7d52c27673014aedf6bcb06445a44e`.
-- Main CI, TypeScript/Vite build, Chrome responsive smoke and viewport matrix passed.
-- Fresh Vercel production deployment from `fa545002...` reached READY and live production smoke passed.
+- Only selected operational section renders.
+- PR `#70` merged at `fa545002ca7d52c27673014aedf6bcb06445a44e`.
+- Main CI, production build, Chrome responsive smoke, viewport matrix and Vercel live production smoke passed.
 
-## PHASE 1 — bounded batch 2A — CODE QA DONE / MERGE PENDING
+## PHASE 1 — bounded batch 2A — DONE / PRODUCTION VERIFIED
 
-Goal: provide `Ban Quản lý Học tập` with narrowly scoped learning-content permissions without creating a new system role.
+Goal: scoped `Ban Quản lý Học tập` backend capability without adding a new SystemRole.
 
-Architecture decision:
 - `app_role` remains exactly `guest/member/mod/super_mod/leader/admin`.
-- `Ban Quản lý Học tập` is a scoped capability based on exact `position_title`, not a `SystemRole`.
-- Capability requires approved membership, login enabled and no data conflict.
-- Capability is restricted to document-to-quiz workspace, quiz ingestion and quiz review.
-- Research Drive administration, ACC system operations, user management and A.I diagnostics remain on existing Admin gates.
+- Learning capability is based on exact `position_title` and requires approved membership, login enabled and no data conflict.
+- Scope: document-to-quiz workspace, quiz ingestion and quiz review only.
+- Research Drive administration, user management, ACC system operations and A.I diagnostics remain on existing Admin gates.
+- Production migration `learning_content_manager_capability` applied and verified.
+- PR `#71` merged to `main` at `19cda6628d09765b3576a4acf8abc922c2c9238b`.
+- Main Web CI `#586`: PASS.
+- Vercel production workflow `#469`: PASS including alias binding and live Google Chrome production smoke.
+- Production deployment `dpl_BRG9U1tFLnYtTtPJB5kK99VZWqNS`: READY, commit `19cda662...`.
+
+## PHASE 1 — bounded batch 2B — CODE QA DONE / MERGE PENDING
+
+Goal: Admin appointment UI plus a learning-only operational surface for the scoped capability.
 
 Changed files:
-- `api/_lib/member-access.js`
-- `api/_lib/quiz-workspace.js`
-- `api/ai/drive-rag.js`
-- `ops/sql/20260911_learning_content_manager_capability.sql`
-- `scripts/v22-quiz-import-check.mjs`
+- `src/types/index.ts`
+- `src/components/admin/AdminControlCenter.tsx`
+- `src/components/admin/LearningContentManagerPanel.tsx`
+- `src/App.tsx`
+- `scripts/role-ui-audit.mjs`
 - `docs/HIU_EXECUTION_STATE.md`
 
-Database:
-- Production migration `learning_content_manager_capability` applied successfully.
-- `private.is_learning_content_manager()` added with fail-closed membership checks.
-- `current_member_access_v1()` extended backward-compatibly with `positionTitle` and `learningContentManager`.
-- Quiz workspace/ingest/review RPCs accept the scoped capability; existing admin/mod review access remains compatible where intended.
-- `app_role` enum rechecked after migration and remains unchanged.
-- Supabase security/performance advisor categories showed no new category introduced by this migration; existing baseline findings remain outside this bounded batch.
+Implemented:
+- Added appointment title `Ban Quản lý Học tập`; SystemRole enum remains unchanged.
+- Client capability mirrors backend fail-closed state: approved, login enabled, no data conflict, plus Admin or exact learning title.
+- When a non-Admin is appointed to the learning role, Admin UI keeps SystemRole at `member` and disables higher system-role selection for that appointment.
+- Frozen 10-module contract is preserved; no new module/route was created.
+- `/admin` is reused safely: Moderator/Admin receives existing `AdminControlCenter`; a learning-only member receives only `LearningContentManagerPanel`.
+- `/acc` remains gated by `canAcc=roleAtLeast(member?.role,'admin')` and is never rendered to the learning-only surface.
+- Learning panel supports DOCX → quiz draft → source review → explicit import and the quiz review queue.
+- New role audit asserts the learning-manager appointment boundary, `/admin` restricted rendering and `/acc` isolation.
 
 Verification:
-- PR `#71` head before this checkpoint: `594588f4869ff756360f42c9d307a3208cd52440`.
-- CI `#583`: failed only because the old authorization regression mocked the prior admin-only contract.
-- Regression test was corrected to model the scoped capability without weakening runtime authorization.
-- CI `#584` attempt 1: quiz authorization 8/8 PASS, TypeScript/Vite build PASS; Chrome process failed to expose CDP port 9222 within 16 seconds before any UI assertion.
-- CI `#584` attempt 2 on the same commit: all contracts PASS, quiz authorization 8/8 PASS, production build PASS, real Chrome mobile/desktop smoke PASS, adaptive viewport matrix PASS, artifact gate PASS.
-- The first Chrome failure is therefore classified as transient runner/browser startup, not an application regression. No production workaround was added.
+- PR `#72`, head before checkpoint `e1665290104bb66f28a846c922a670dc54367362`.
+- Web CI `#587`: PASS.
+- Platform/role audit: PASS.
+- Quiz parser/DOCX/authorization regression: PASS.
+- TypeScript + Vite production build: PASS.
+- Real Chrome mobile/desktop smoke: PASS.
+- Adaptive mobile/full-desktop-on-phone/Windows viewport matrix: PASS.
+- No database/schema changes in batch 2B.
 
 ## Remaining PHASE 1 work
 
-1. Merge PR `#71` only after this checkpoint commit passes CI.
-2. Verify main CI and a fresh Vercel production deployment/live smoke.
-3. Next bounded batch: Admin appointment UI for `Ban Quản lý Học tập` plus a restricted learning-content entry surface. Do not expose ACC system operations to this capability.
+1. Run CI for this checkpoint commit.
+2. If green, squash-merge PR `#72`.
+3. Verify main CI, Vercel READY deployment, production alias and live Chrome production smoke.
+4. Close PHASE 1 only after production verification.
 
 ## Remaining high-level phases
 
-2. Document → Quiz pipeline hardening: state/progress/retry/idempotency/large-document batching.
+2. Document → Quiz pipeline hardening: PDF/DOCX/TXT, states, progress, retry, idempotency and large-document batching.
 3. Learning Hub restructuring.
 4. Home/news simplification and daily suggestion/weather header.
 5. Notification read-state correctness.
@@ -90,4 +92,4 @@ Verification:
 
 ## Next step
 
-Wait for CI on this checkpoint-only documentation commit. If green, squash-merge PR `#71`, verify `main` CI, Vercel READY deployment and live production smoke, then start the bounded Admin appointment UI batch.
+Wait for checkpoint CI. If green, merge PR `#72` and verify the fresh production release before entering PHASE 2.
