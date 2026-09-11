@@ -1,3 +1,7 @@
+# DEPRECATED FOR AI ARCHITECTURE
+
+> A.I instructions in this file are historical and MUST NOT override `docs/AI_CANONICAL_ARCHITECTURE_2026-09-11.md`. In particular, A.I Mini is now the application assistant; deep academic/research flows belong to Trung tâm nghiên cứu.
+
 # FINAL 4.0 · Module Isolation Execution Prompt
 
 ## Vai trò
@@ -32,11 +36,7 @@ Bạn là Principal Full-Stack Architect, Release Engineer và QA Auditor của 
 - Không giả lập bằng việc chỉ tạo bookmark/lối tắt URL.
 
 ## OpenAlex + A.I
-- Trung tâm nghiên cứu tiếp tục tìm song song PubMed + OpenAlex + ClinicalTrials.gov.
-- Thành viên có nút A.I OpenAlex tổng hợp riêng; ưu tiên nguồn OpenAlex thật, Structured Outputs và citation whitelist hiện có; cloud lỗi thì fallback local có ghi rõ degraded.
-- Research A.I Mini phải truy vấn OpenAlex live theo câu hỏi, kể cả khi người dùng chưa bấm tìm y văn trước.
-- A.I Mini toàn hệ thống khi nhận câu hỏi có ý định học thuật phải dùng OpenAlex làm evidence source cho thành viên; khách không được dùng đường này để vượt quota tra cứu của Trung tâm nghiên cứu.
-- Không bịa DOI, PMID, tác giả, năm, kết quả hay khoảng trống nghiên cứu.
+- Historical section only. For current AI role boundaries, follow `docs/AI_CANONICAL_ARCHITECTURE_2026-09-11.md`.
 
 ## Release gate
 Trước khi merge production bắt buộc chạy: source acceptance, RBAC audit, module-isolation audit, simulation, account layout audit, AI audit, Central RAG audit, TypeScript, Vite build và Google Chrome smoke mobile + desktop. Chỉ merge khi toàn bộ PASS; sau đó chờ Vercel READY + production alias bind và chạy lại Chrome production smoke.
