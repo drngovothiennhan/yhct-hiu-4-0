@@ -1,4 +1,5 @@
 import {cloudAiEnabled,cloudAiModel,memberAccess} from './member-access.js';
+import {createGeminiWebSearch,geminiAiConfigured,geminiAiModel} from './gemini-provider.js';
 
 const TIMEOUT_MS=20000;
 const PUBLIC_TIMEOUT_MS=6500;
@@ -28,11 +29,20 @@ export async function handleXiaoZhiMini(req,res){
   const query=clean(req.body?.query,1600),pageContext=clean(req.body?.pageContext,1600),localContext=clean(req.body?.localContext,5000);
   if(query.length<2)return res.status(400).json({error:'Query is required'});
   if(academic.test(query))return res.status(200).json({answer:'Nội dung này thuộc nhóm học thuật/chuyên môn. Tôi đang chuyển câu hỏi sang gia sư học thuật có nguồn ngay trong hội thoại.',sources:[],provider:'policy-router',degraded:false,route:'research',latencyMs:Date.now()-started});
+  const instructions=['Bạn là A.I Mini của mạng xã hội HIU YHCT 4.0, lớp tương tác giọng nói và công cụ theo phong cách XiaoZhi.','Bạn được phép trả lời rộng về thông tin công khai ngoài hệ thống: tin tức, công nghệ, giáo dục, văn hóa, đời sống, giao thông, thời tiết, thể thao, sự kiện và kiến thức phổ thông khi phù hợp.','Khi câu hỏi phụ thuộc thông tin mới, đang thay đổi hoặc nguồn bên ngoài, phải ưu tiên web search; trả lời ngắn gọn và giữ các URL nguồn hợp lệ để giao diện hiển thị.','Vai trò nội bộ gồm lịch CLB, điểm hoạt động khi có context và hướng dẫn tính năng mạng xã hội.','KHÔNG trả lời nội dung học thuật/chuyên môn Y học cổ truyền, chẩn đoán, điều trị, kê đơn hoặc nghiên cứu y khoa; với nhóm này chỉ hướng người dùng sang Trung tâm nghiên cứu.','Không bịa dữ liệu cá nhân. Chỉ sử dụng dữ liệu nội bộ có trong LOCAL_CONTEXT.','Trả lời tiếng Việt tự nhiên, súc tích, phù hợp để đọc thành tiếng; không dùng markdown phức tạp.'].join(' ');
+  const input=`CÂU HỎI: ${query}\nTRANG HIỆN TẠI: ${pageContext||'không rõ'}\nLOCAL_CONTEXT: ${localContext||'không có'}\nHãy trả lời trực tiếp.`;
+  if(geminiAiConfigured('default')){
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),TIMEOUT_MS);
+    try{
+      const output=await createGeminiWebSearch({systemInstruction:instructions,prompt:input,signal:controller.signal,mode:'default'}),latencyMs=Date.now()-started;
+      res.setHeader('Server-Timing',`xiaozhi;dur=${latencyMs}`);res.setHeader('X-AI-Provider','gemini-web');res.setHeader('X-AI-Model',output.model||geminiAiModel());
+      return res.status(200).json({answer:clean(output.text,6500),sources:output.citations,provider:'gemini-web',degraded:false,route:null,latencyMs});
+    }catch(error){console.warn(JSON.stringify({event:'xiaozhi_mini',ok:false,provider:'gemini-web',model:geminiAiModel(),role:access.role,latencyMs:Date.now()-started,error:clean(error?.message,180),failover:'openai-web'}))}
+    finally{clearTimeout(timer)}
+  }
   const direct=await publicDirectReply(req,query);if(direct){const latencyMs=Date.now()-started;res.setHeader('Server-Timing',`xiaozhi;dur=${latencyMs}`);res.setHeader('X-AI-Provider',direct.provider);return res.status(200).json({...direct,route:null,latencyMs})}
   const key=process.env.OPENAI_API_KEY,model=cloudAiModel();
   if(!cloudAiEnabled()||!key||!model){const fallback=await publicFallbackReply(req,query);if(fallback)return res.status(200).json({...fallback,route:null,latencyMs:Date.now()-started});return res.status(200).json({answer:'Các nguồn trực tuyến chưa tìm được kết quả phù hợp cho câu hỏi này. Điểm hoạt động, lịch CLB và điều hướng hệ thống vẫn hoạt động bình thường.',sources:[],provider:'local',degraded:true,latencyMs:Date.now()-started})}
-  const instructions=['Bạn là A.I Mini của mạng xã hội HIU YHCT 4.0, lớp tương tác giọng nói và công cụ theo phong cách XiaoZhi.','Bạn được phép trả lời rộng về thông tin công khai ngoài hệ thống: tin tức, công nghệ, giáo dục, văn hóa, đời sống, giao thông, thời tiết, thể thao, sự kiện và kiến thức phổ thông khi phù hợp.','Khi câu hỏi phụ thuộc thông tin mới, đang thay đổi hoặc nguồn bên ngoài, phải ưu tiên web search; trả lời ngắn gọn và giữ các URL nguồn hợp lệ để giao diện hiển thị.','Vai trò nội bộ gồm lịch CLB, điểm hoạt động khi có context và hướng dẫn tính năng mạng xã hội.','KHÔNG trả lời nội dung học thuật/chuyên môn Y học cổ truyền, chẩn đoán, điều trị, kê đơn hoặc nghiên cứu y khoa; với nhóm này chỉ hướng người dùng sang Trung tâm nghiên cứu.','Không bịa dữ liệu cá nhân. Chỉ sử dụng dữ liệu nội bộ có trong LOCAL_CONTEXT.','Trả lời tiếng Việt tự nhiên, súc tích, phù hợp để đọc thành tiếng; không dùng markdown phức tạp.'].join(' ');
-  const input=`CÂU HỎI: ${query}\nTRANG HIỆN TẠI: ${pageContext||'không rõ'}\nLOCAL_CONTEXT: ${localContext||'không có'}\nHãy trả lời trực tiếp.`;
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),TIMEOUT_MS);
   try{
     const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:controller.signal,headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model,store:false,max_output_tokens:1100,instructions,input,tools:[{type:'web_search_preview',search_context_size:'low'}],tool_choice:'auto',include:['web_search_call.action.sources']})});
