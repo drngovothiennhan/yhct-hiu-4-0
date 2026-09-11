@@ -4,6 +4,7 @@ import {readCachedMember} from '../../services/authService';
 import {quizWorkspace,wordBase64,type QuizDriveItem,type QuizDraft,type QuizDraftSummary} from '../../services/quizWorkspaceService';
 import {getPracticeReviewQueue,reviewPracticeQuestion,type PracticeReviewQuestion} from '../../services/dailyPracticeService';
 import './quiz-import.css';
+import DriveCredentialGuide from './DriveCredentialGuide';
 type Listing={folder:QuizDriveItem;items:QuizDriveItem[];nextPageToken:string|null};
 type ConversionMode='auto'|'generate'|'extract';
 export default function QuizImportCenter(){
@@ -29,6 +30,7 @@ export default function QuizImportCenter(){
  <label className="qi-conversion"><span><b>Cách chuyển đổi</b><small>Không tự suy đoán đáp án và không bổ sung kiến thức ngoài tài liệu.</small></span><select disabled={busy} value={conversionMode} onChange={e=>setConversionMode(e.target.value as ConversionMode)}><option value="auto">Tự động — trích xuất nếu có, nếu không thì Gemini thiết kế</option><option value="generate">Gemini thiết kế trắc nghiệm từ tài liệu</option><option value="extract">Chỉ trích xuất câu trắc nghiệm có sẵn</option></select></label>
  <div className="qi-actions qi-root-actions">{roots.map(root=><button key={root.id} disabled={busy||driveConfigured===false} title={driveConfigured===false?'Drive server-side chưa cấu hình credential':'Mở kho Drive'} onClick={()=>void run(()=>browse(root,[root]))}><Cloud/>{root.name}</button>)}<button className="secondary" disabled={busy} onClick={()=>void run(refresh)}>Làm mới bản nháp</button></div>
  {driveConfigured===false&&<div className="qi-drive-warning" role="alert"><b>Drive tạm chưa khả dụng</b><span>Thiếu credential Google Drive phía server. Chức năng tải Word trực tiếp vẫn hoạt động và không cần Drive.</span></div>}
+ <DriveCredentialGuide visible={driveConfigured===false}/>
  {message&&<p className="qi-status" role="status">{message}</p>}
  {folder&&<><nav aria-label="Thư mục kiến thức">{trail.map((x,i)=><button key={x.id} disabled={busy} onClick={()=>void run(()=>browse(x,trail.slice(0,i+1)))}>{x.name} /</button>)}</nav><a href={folder.webViewLink} target="_blank" rel="noreferrer">Mở thư mục này trên Google Drive ↗</a>
  <div className="qi-files">{items.map(item=><div key={item.id}><label><input type="checkbox" disabled={busy||(!item.folder&&!item.supported)} checked={!!selected[item.id]} onChange={e=>setSelected(old=>{const next={...old};if(e.target.checked)next[item.id]=item;else delete next[item.id];return next})}/><span>{item.folder?'📁':'📄'} {item.name}</span></label>{item.folder?<button disabled={busy} onClick={()=>void run(()=>browse(item,[...trail,item]))}>Mở</button>:item.supported?<button disabled={busy} onClick={()=>void run(()=>previewFile(item.id))}>Xem trước</button>:<small>Chưa hỗ trợ định dạng này</small>}</div>)}</div>
