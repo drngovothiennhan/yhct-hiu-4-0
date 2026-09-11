@@ -1,4 +1,4 @@
-// Implementation registry only. Product UI must not make students choose providers.
+// Implementation registry only. Product UI must not make students choose providers; provider choice stays behind the shared gateway.
 export type AiProviderKind='cloud-llm'|'browser-local'|'knowledge'|'academic-search'|'translation';
 export type AiProviderState='active'|'optional';
 
