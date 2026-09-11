@@ -5,6 +5,15 @@ import {driveQuizMeta,generateMcqsFromStudyText,listQuizDocuments,parseExplicitM
 
 const clean=(v,max=1000)=>String(v??'').replace(/\s+/g,' ').trim().slice(0,max);
 
+async function handleDriveList(req,res){
+  const access=await memberAccess(req,'admin');if(!access.ok)return res.status(access.status).json({error:access.error});
+  try{
+    const index=await buildDriveRagIndex({force:req.query?.refresh==='1'});
+    if(!index.configured)return res.status(503).json({error:'Google Drive RAG chưa được cấu hình server-side.',reason:index.reason});
+    return res.status(200).json({folder:'HIU YHCT 4.0/Tài liệu nghiên cứu Y học cổ truyền',folderId:index.folderId,documents:index.documents});
+  }catch(error){console.error('research-drive',String(error));return res.status(502).json({error:'Không thể đọc Kho YHCT lúc này'})}
+}
+
 async function handleDriveRag(req,res){
   const access=await memberAccess(req,'member');if(!access.ok)return res.status(access.status).json({error:access.error});
   const query=clean(req.body?.query,500);if(query.length<2)return res.status(400).json({error:'Query is required'});
@@ -51,6 +60,7 @@ async function handleQuizSync(req,res){
 
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Vary','Authorization');
+  if(req.method==='GET')return handleDriveList(req,res);
   if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
   if(['quiz-roots','quiz-browse','quiz-preview','quiz-commit','quiz-drafts','quiz-draft'].includes(req.body?.action))return handleQuizWorkspace(req,res);
   return clean(req.body?.action,40)==='quiz-sync'?handleQuizSync(req,res):handleDriveRag(req,res);
