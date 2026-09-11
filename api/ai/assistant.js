@@ -83,14 +83,14 @@ function providerFailureClass(error){
   return'provider_error';
 }
 
-function geminiEligible(mode,sources){
-  if(mode==='fast'||!geminiAiConfigured(mode))return false;
+function geminiEligible(mode,sources,internalContextConsent=false){
+  if(!geminiAiConfigured(mode))return false;
   const containsPrivateDriveContext=sources.some(source=>source.id.startsWith('drive:'));
-  return !containsPrivateDriveContext||process.env.GEMINI_ALLOW_PRIVATE_CONTEXT==='true';
+  return !containsPrivateDriveContext||internalContextConsent||process.env.GEMINI_ALLOW_PRIVATE_CONTEXT==='true';
 }
 
 function preferGeminiAcademic(mode,canGemini){
-  if(!canGemini||mode==='fast')return false;
+  if(!canGemini)return false;
   return process.env.AI_ACADEMIC_PROVIDER!=='openai';
 }
 
@@ -140,9 +140,9 @@ export default async function handler(req,res){
   const access=await memberAccess(req,'member');
   if(!access.ok)return res.status(access.status).json({error:access.error});
 
-  const query=clean(req.body?.query,MAX_QUERY),mode=MODES.has(req.body?.mode)?req.body.mode:'fast',sources=normalizeSources(req.body?.sources);
+  const query=clean(req.body?.query,MAX_QUERY),mode=MODES.has(req.body?.mode)?req.body.mode:'fast',sources=normalizeSources(req.body?.sources),internalContextConsent=req.body?.internalContextConsent===true;
   if(query.length<2)return res.status(400).json({error:'Query is required'});
-  const baseFallback=fallback(sources),key=process.env.OPENAI_API_KEY,model=cloudAiModel(),openAiReady=Boolean(cloudAiEnabled()&&key&&model),canGemini=geminiEligible(mode,sources),geminiFirst=preferGeminiAcademic(mode,canGemini);
+  const baseFallback=fallback(sources),key=process.env.OPENAI_API_KEY,model=cloudAiModel(),openAiReady=Boolean(cloudAiEnabled()&&key&&model),canGemini=geminiEligible(mode,sources,internalContextConsent),geminiFirst=preferGeminiAcademic(mode,canGemini);
   if(!openAiReady&&!canGemini){res.setHeader('X-AI-Degraded','1');res.setHeader('X-AI-Failure-Class','configuration');return res.status(200).json(baseFallback)}
 
   const sourceBlock=sources.length?sources.map(s=>`[${s.id}] ${s.title}\n${s.text}`).join('\n\n'):'(không có nguồn đính kèm)';
