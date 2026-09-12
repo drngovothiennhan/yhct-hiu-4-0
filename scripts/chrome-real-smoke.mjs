@@ -120,9 +120,18 @@ async function runCase(name,width,height,port){
 
       await send('Page.navigate',{url:`${baseTarget}/exam`});await waitReady();
       const examBefore=await inspect();assertStableBoot(examBefore);
+      if(examBefore.pathname!=='/exam'||examBefore.activeModule!=='exam'||!examBefore.bodyText.includes('Learning Hub')||!examBefore.bodyText.includes('Ôn tập nhanh'))throw new Error(`mobile: Learning Hub default surface failed: ${JSON.stringify(examBefore)}`);
       await send('Page.reload',{ignoreCache:true});await waitReady();
-      const examAfter=await inspect();assertStableBoot(examAfter);examAudit={before:examBefore,after:examAfter};
-      if(examBefore.pathname!=='/exam'||examAfter.pathname!=='/exam'||examBefore.activeModule!=='exam'||examAfter.activeModule!=='exam'||!examAfter.bodyText.includes('National Exam Prep')||!examAfter.bodyText.includes('50 câu'))throw new Error(`mobile: exam v2 surface/refresh contract failed: ${JSON.stringify(examAudit)}`);
+      const examAfter=await inspect();assertStableBoot(examAfter);
+      if(examAfter.pathname!=='/exam'||examAfter.activeModule!=='exam'||!examAfter.bodyText.includes('Learning Hub')||!examAfter.bodyText.includes('Ôn tập nhanh'))throw new Error(`mobile: Learning Hub refresh contract failed: ${JSON.stringify({before:examBefore,after:examAfter})}`);
+      const clicked=await send('Runtime.evaluate',{expression:`(()=>{const el=document.getElementById('learning-tab-exam');if(!el)return false;el.click();return true})()`,returnByValue:true});
+      if(clicked?.result?.value!==true)throw new Error('mobile: Learning Hub Thi chuẩn tab was not found.');
+      await sleep(900);
+      const examStandard=await inspect();assertStableBoot(examStandard);
+      const tabStateResult=await send('Runtime.evaluate',{expression:`(()=>{const tab=document.getElementById('learning-tab-exam');const panel=document.getElementById('learning-panel-exam');return{selected:tab?.getAttribute('aria-selected')||'',hidden:panel?panel.hidden:true}})()`,returnByValue:true});
+      const tabState=tabStateResult.result.value;
+      examAudit={before:examBefore,after:examAfter,standard:examStandard,tabState};
+      if(tabState.selected!=='true'||tabState.hidden||!examStandard.bodyText.includes('National Exam Prep')||!examStandard.bodyText.includes('50 câu'))throw new Error(`mobile: Learning Hub Thi chuẩn surface contract failed: ${JSON.stringify(examAudit)}`);
       const examShot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile(path.join(outDir,'chrome-mobile-exam.png'),Buffer.from(examShot.data,'base64'));
       await send('Page.navigate',{url:`${baseTarget}/research`});await waitReady();
     }
