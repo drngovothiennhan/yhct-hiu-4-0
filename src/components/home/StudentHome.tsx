@@ -1,24 +1,41 @@
-import {useEffect,useMemo,useState} from 'react';
+import {lazy,Suspense,useEffect,useMemo,useState} from 'react';
 import {BookOpen,Brain,CalendarDays,ChevronRight,CloudSun,Flame,Gamepad2,GraduationCap,LogIn,Sparkles,Target,Trophy} from 'lucide-react';
 import type {Member} from '../../types';
 import type {ModuleId} from '../../modules/moduleContract';
 import {fetchSchedules} from '../../services/scheduleService';
 import {fetchApproxWeather,type WeatherSnapshot} from '../../services/weatherService';
 import {readStudentJourney,saveStudentPreferences,subscribeStudentJourney,type StudentPreferences,type StudentYear,type StudyGoal} from '../../services/studentJourneyService';
+import {studyOsV2CanaryEnabled} from '../../v2/study-os/canary';
 import '../../student-home.css';
+
+const StudyHubV2=lazy(()=>import('./StudyHubV2'));
 
 type Props={member:Member|null;onNavigate:(module:ModuleId)=>void;onLogin:()=>void};
 type NextSchedule={title:string;startsAt:string;location?:string};
 const SUBJECTS=['Lý luận cơ bản YHCT','Dược liệu & Phương tễ','Châm cứu - Dưỡng sinh','Nội - Ngoại - Phụ - Nhi YHCT','Giải phẫu & Sinh lý','Nghiên cứu khoa học'];
-const GOALS:Array<{value:StudyGoal;label:string}>=[{value:'daily',label:'Học đều mỗi ngày'},{value:'exam',label:'Ôn thi hiệu quả'},{value:'research',label:'Nghiên cứu khoa học'},{value:'clinical',label:'Tư duy lâm sàng'}];
+const GOALS:Array<{value:StudyGoal;label:string}>=[
+  {value:'daily',label:'Học đều mỗi ngày'},
+  {value:'exam',label:'Ôn thi hiệu quả'},
+  {value:'research',label:'Nghiên cứu khoa học'},
+  {value:'clinical',label:'Tư duy lâm sàng'}
+];
 const DAY_TARGET=5;
 const greeting=()=>{const hour=new Date().getHours();return hour<11?'Chào buổi sáng':hour<14?'Chào buổi trưa':hour<18?'Chào buổi chiều':'Chào buổi tối'};
 const goalLabel=(goal?:StudyGoal)=>GOALS.find(item=>item.value===goal)?.label||'Học đều mỗi ngày';
 const todayLabel=()=>new Intl.DateTimeFormat('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit'}).format(new Date());
 const rounded=(value:number|null)=>value===null?null:Math.round(value);
 
-export default function StudentHome({member,onNavigate,onLogin}:Props){
-  const identity=member?.id||null,[journey,setJourney]=useState(()=>readStudentJourney(identity)),[editing,setEditing]=useState(()=>!readStudentJourney(identity).preferences),[year,setYear]=useState<StudentYear>(()=>readStudentJourney(identity).preferences?.year||1),[focus,setFocus]=useState(()=>readStudentJourney(identity).preferences?.focus||SUBJECTS[0]),[goal,setGoal]=useState<StudyGoal>(()=>readStudentJourney(identity).preferences?.goal||'daily'),[dailyMinutes,setDailyMinutes]=useState<StudentPreferences['dailyMinutes']>(()=>readStudentJourney(identity).preferences?.dailyMinutes||20),[nextSchedule,setNextSchedule]=useState<NextSchedule|null>(null),[weather,setWeather]=useState<WeatherSnapshot|null>(null),[notice,setNotice]=useState('');
+function StudentHomeLegacy({member,onNavigate,onLogin}:Props){
+  const identity=member?.id||null;
+  const [journey,setJourney]=useState(()=>readStudentJourney(identity));
+  const [editing,setEditing]=useState(()=>!readStudentJourney(identity).preferences);
+  const [year,setYear]=useState<StudentYear>(()=>readStudentJourney(identity).preferences?.year||1);
+  const [focus,setFocus]=useState(()=>readStudentJourney(identity).preferences?.focus||SUBJECTS[0]);
+  const [goal,setGoal]=useState<StudyGoal>(()=>readStudentJourney(identity).preferences?.goal||'daily');
+  const [dailyMinutes,setDailyMinutes]=useState<StudentPreferences['dailyMinutes']>(()=>readStudentJourney(identity).preferences?.dailyMinutes||20);
+  const [nextSchedule,setNextSchedule]=useState<NextSchedule|null>(null);
+  const [weather,setWeather]=useState<WeatherSnapshot|null>(null);
+  const [notice,setNotice]=useState('');
   const profile=journey.preferences;
   const name=member?.herbalAlias||member?.fullName?.split(/\s+/).filter(Boolean).slice(-2).join(' ')||'bạn';
   const dailyProgress=Math.min(DAY_TARGET,journey.todayQuestions),dailyPercent=Math.round(dailyProgress/DAY_TARGET*100);
@@ -34,11 +51,34 @@ export default function StudentHome({member,onNavigate,onLogin}:Props){
     return`Đã đạt mục tiêu ${DAY_TARGET} câu hôm nay · tiếp tục ${profile.dailyMinutes} phút với ${profile.focus}.`;
   },[profile,dailyProgress,nextSchedule]);
 
-  useEffect(()=>{const next=readStudentJourney(identity);setJourney(next);setYear(next.preferences?.year||1);setFocus(next.preferences?.focus||SUBJECTS[0]);setGoal(next.preferences?.goal||'daily');setDailyMinutes(next.preferences?.dailyMinutes||20);setEditing(!next.preferences);return subscribeStudentJourney(identity,setJourney)},[identity]);
-  useEffect(()=>{let alive=true;void fetchSchedules().then(items=>{if(!alive)return;const now=Date.now(),upcoming=items.filter(item=>Date.parse(item.startsAt)>=now-3600000).sort((a,b)=>Date.parse(a.startsAt)-Date.parse(b.startsAt))[0];setNextSchedule(upcoming?{title:upcoming.title,startsAt:upcoming.startsAt,location:upcoming.location}:null)}).catch(()=>{if(alive)setNextSchedule(null)});return()=>{alive=false}},[member?.id]);
+  useEffect(()=>{
+    const next=readStudentJourney(identity);
+    setJourney(next);
+    setYear(next.preferences?.year||1);
+    setFocus(next.preferences?.focus||SUBJECTS[0]);
+    setGoal(next.preferences?.goal||'daily');
+    setDailyMinutes(next.preferences?.dailyMinutes||20);
+    setEditing(!next.preferences);
+    return subscribeStudentJourney(identity,setJourney);
+  },[identity]);
+  useEffect(()=>{
+    let alive=true;
+    void fetchSchedules().then(items=>{
+      if(!alive)return;
+      const now=Date.now(),upcoming=items.filter(item=>Date.parse(item.startsAt)>=now-3600000).sort((a,b)=>Date.parse(a.startsAt)-Date.parse(b.startsAt))[0];
+      setNextSchedule(upcoming?{title:upcoming.title,startsAt:upcoming.startsAt,location:upcoming.location}:null);
+    }).catch(()=>{if(alive)setNextSchedule(null)});
+    return()=>{alive=false};
+  },[member?.id]);
   useEffect(()=>{let alive=true;void fetchApproxWeather().then(value=>{if(alive)setWeather(value)});return()=>{alive=false}},[]);
 
-  const saveOnboarding=()=>{const preferences:StudentPreferences={year,focus,goal,dailyMinutes};setJourney(saveStudentPreferences(preferences,identity));setEditing(false);setNotice('Đã cá nhân hóa My HIU YHCT.');window.setTimeout(()=>setNotice(''),2200)};
+  const saveOnboarding=()=>{
+    const preferences:StudentPreferences={year,focus,goal,dailyMinutes};
+    setJourney(saveStudentPreferences(preferences,identity));
+    setEditing(false);
+    setNotice('Đã cá nhân hóa My HIU YHCT.');
+    window.setTimeout(()=>setNotice(''),2200);
+  };
   const openAi=()=>{if(!member){onLogin();return}window.dispatchEvent(new CustomEvent('yhct:ai:open',{detail:{context:'student-home'}}))};
   const weatherDetail=weather?[rounded(weather.apparentTemperature)!==null?`Cảm giác ${rounded(weather.apparentTemperature)}°`:null,rounded(weather.humidity)!==null?`ẩm ${rounded(weather.humidity)}%`:null,'ước tính theo khu vực mạng'].filter(Boolean).join(' · '):'';
 
@@ -72,4 +112,9 @@ export default function StudentHome({member,onNavigate,onLogin}:Props){
     {notice&&<div className="student-home-notice" role="status">{notice}</div>}
     <div className="student-community-heading"><div><Sparkles/><span><b>Cộng đồng học thuật</b><small>Bài viết, ca lâm sàng và nội dung mới từ HIU YHCT</small></span></div></div>
   </section>;
+}
+
+export default function StudentHome(props:Props){
+  if(studyOsV2CanaryEnabled())return <Suspense fallback={<section className="panel lazy-module-loading" role="status">Đang tải AI Study OS V2…</section>}><StudyHubV2 {...props}/></Suspense>;
+  return <StudentHomeLegacy {...props}/>;
 }
