@@ -1,6 +1,7 @@
 -- HIU YHCT 4.0 — AI Study OS V2 / Phase 13C
 -- One explicit human action promotes an already-previewed quiz draft to the approved bank.
 -- Supports both server-scoped Drive sources and bounded direct uploads registered by Knowledge Gateway.
+-- Publication is bound to the current content hash so stale questions from an older Drive revision are never promoted.
 
 create or replace function public.learning_quiz_publish_v1(
   p_resource_key text,
@@ -17,6 +18,7 @@ declare
   source_value text:=left(btrim(coalesce(p_source_file_id,'')),2048);
   resource_row private.learning_resources_v1%rowtype;
   source_row private.learning_resource_sources_v1%rowtype;
+  source_doc public.practice_source_documents%rowtype;
   approved_now integer:=0;
   eligible_total integer:=0;
 begin
@@ -42,17 +44,27 @@ begin
   for update;
   if source_row.id is null
      or source_row.provider not in('drive','upload')
-     or source_row.source_locator is distinct from source_value then
+     or source_row.source_locator is distinct from source_value
+     or btrim(source_row.content_hash)='' then
     raise exception 'Quiz source provenance mismatch';
   end if;
 
-  if not exists(select 1 from public.practice_source_documents d where d.drive_file_id=source_value) then
+  select * into source_doc
+  from public.practice_source_documents d
+  where d.drive_file_id=source_value
+  for update;
+  if source_doc.drive_file_id is null then
     raise exception 'Quiz source has not been imported';
+  end if;
+  if source_doc.source_hash is distinct from source_row.content_hash then
+    raise exception 'Quiz source revision changed. Rebuild preview before publication';
   end if;
 
   select count(*) into eligible_total
   from public.practice_questions q
-  where q.source_file_id=source_value and q.review_status<>'rejected';
+  where q.source_file_id=source_value
+    and q.source_hash=source_row.content_hash
+    and q.review_status<>'rejected';
   if eligible_total=0 then raise exception 'No reviewed quiz questions to publish'; end if;
 
   update public.practice_questions
@@ -62,15 +74,19 @@ begin
       provenance=provenance||jsonb_build_object(
         'documentApproval',true,
         'documentApprovalAt',now(),
-        'documentApprovalResourceKey',key_value
+        'documentApprovalResourceKey',key_value,
+        'documentApprovalSourceHash',source_row.content_hash
       ),
       updated_at=now()
-  where source_file_id=source_value and review_status='needs_review';
+  where source_file_id=source_value
+    and source_hash=source_row.content_hash
+    and review_status='needs_review';
   get diagnostics approved_now=row_count;
 
   if exists(
     select 1 from public.practice_questions q
     where q.source_file_id=source_value
+      and q.source_hash=source_row.content_hash
       and q.review_status not in('source_verified','expert_approved','rejected')
   ) then raise exception 'Quiz review state is incomplete'; end if;
 
@@ -79,7 +95,7 @@ begin
       sync_message='Đã được Ban Quản lý Học tập duyệt và phát hành.',
       last_synced_at=now(),
       updated_at=now()
-  where drive_file_id=source_value;
+  where drive_file_id=source_value and source_hash=source_row.content_hash;
 
   update private.learning_resources_v1
   set status='published',
@@ -94,7 +110,7 @@ begin
     'learning_resource',
     resource_row.resource_key,
     'info',
-    jsonb_build_object('approved_now',approved_now,'eligible_total',eligible_total,'provider',source_row.provider)
+    jsonb_build_object('approved_now',approved_now,'eligible_total',eligible_total,'provider',source_row.provider,'source_hash',source_row.content_hash)
   );
 
   return jsonb_build_object(
