@@ -1,15 +1,15 @@
 # HIU YHCT 4.0 — Execution State
 
 Updated: 2026-09-12
-Active branch: `hiu-performance-phase11-b2-css-20260912`
-Base production-verified runtime main: `d0380e4e087d71db511940e9ecbe0da1bba35fd6`
+Active branch: `hiu-phase12-final-qa-20260912`
+Base production-verified runtime main: `cfebcb84b85db629660b482cf524896dbd7fbb9c`
 Production project: `yhct-hiu-final4-stage`
 Primary production alias: `yhct-hiu-final4-stage.vercel.app`
 Supabase production: `gzmpnsrwqjpsbklyflqr` — ACTIVE_HEALTHY
 
 ## Current phase
 
-PHASE 11 B2 — CSS critical-path reduction. Branch-only until full PR/main/Vercel gates pass.
+PHASE 12 — final multi-viewport QA and production verification. Phase 11 performance work is closed after measured B1/B2/B3 releases; do not reopen it without a new measured bottleneck with clear ownership and a bounded safe batch.
 
 ## DO_NOT_BREAK
 
@@ -90,23 +90,79 @@ Release:
 - Deployment `dpl_BR8Bhebd3RsyQ1svaksZoDpyCz1b`: READY, exact SHA, primary alias, `aliasError=null`, live Chrome/evidence PASS.
 - Direct production HTML check confirms exactly three initial modulepreloads: vendor React, Supabase and icons.
 
-## PHASE 11 B2 — CSS CRITICAL PATH — ACTIVE
+## PHASE 11 B2 — GARDEN / HIU Y QUÁN CSS CRITICAL PATH — DONE / PRODUCTION VERIFIED
 
-Current branch work:
+Shipped behavior:
 - Removed eight Garden/HIU Y Quán module-specific stylesheets from `src/main.tsx` global entry.
 - Attached the same stylesheets, in preserved cascade order, to lazy `HerbGardenGame.tsx`.
 - No game logic, data, RPC, scoring, progression, RBAC or module contract change.
-- Performance regression now requires Garden/Y Quán selectors to be absent from initial CSS and present in non-initial lazy CSS assets.
+- Performance regression requires Garden/Y Quán selectors to remain absent from initial CSS and present in non-initial lazy CSS assets.
 
-B2 release gate:
-1. Require full PR Web CI including build/performance regression/game contracts/real Chrome/viewport matrix.
-2. Measure actual initial CSS raw + gzip after build; do not infer savings from source bytes.
-3. Squash-merge with exact expected head only after full PASS.
-4. Require full main Web CI on exact merge SHA.
-5. Require Vercel Production exact SHA READY, primary alias, `aliasError=null`, live Chrome/evidence PASS.
-6. Verify primary alias HTML and CSS graph directly before declaring B2 production verified.
+Measured production result:
+- Initial CSS: `202,932` raw / `34,292` gzip bytes.
+- Initial HTML modulepreloads remain React + Supabase + icons only.
+- Garden / HIU Y Quán visual CSS is lazy-loaded and off the initial critical path.
+
+Release:
+- PR `#89`: merged.
+- Production main `f3532166b5760fef069f9839d0dfe9beaf5b71f0`; main Web CI `#647`: FULL PASS.
+- Vercel Production `#532`: PASS.
+- Deployment `dpl_C81RnpKfYDvJu4EkgFZ3r6DJCtNt`: READY, exact SHA, primary alias, `aliasError=null`, live Chrome/viewport gates PASS.
+
+## PHASE 11 B3 — RESEARCH CSS CRITICAL PATH — DONE / PRODUCTION VERIFIED
+
+Evidence before change:
+- `src/research-ai-upgrade.css` carried ~17.2 kB of Research-only visual payload while being imported from the application entry.
+- `ResearchCenter` was already a `React.lazy()` route, so the CSS ownership boundary was measurable and isolated.
+
+Shipped behavior:
+- Kept the legacy entry marker payload-free for compatibility.
+- Moved the existing Research visual rules behind the lazy Research stylesheet boundary as `research-route-upgrade.css`.
+- Added source/dist performance contracts proving moved Research signatures are absent from initial CSS and retained in lazy CSS.
+- No Research logic, providers, Gemini/RAG behavior, RBAC, data or user-flow change.
+
+Measured production result:
+- Initial CSS reduced from B2 `202.93 kB / 34.29 kB gzip` to `185.97 kB / 31.60 kB gzip`.
+- Research lazy CSS is `20.31 kB / 4.20 kB gzip`.
+- Initial JS remains stable: app entry `56.73 / 20.27 kB`, icons `52.45 / 10.87 kB`, Supabase `124.40 / 34.35 kB`, React `142.94 / 45.89 kB` raw/gzip.
+- Initial HTML remains `4.33 / 1.80 kB` raw/gzip and directly preloads only React + Supabase + icons.
+- Approximate initial directly referenced payload after B3 is ~`144.78 kB gzip` including HTML, CSS and initial/preloaded JS.
+
+Release:
+- PR `#90`, PR Web CI `#649`: FULL PASS.
+- Production main `cfebcb84b85db629660b482cf524896dbd7fbb9c`; main Web CI `#650`: FULL PASS.
+- Vercel Production `#535`: PASS.
+- Deployment `dpl_DJqwnhuiihEcTGXkLLtSWQWa6hKT`: READY, exact SHA, primary alias, `aliasError=null`.
+- Live Google Chrome production smoke passed on `390x844` mobile and `1440x1000` desktop.
+- Direct primary-alias HTML verification confirms exactly three initial modulepreloads: React, Supabase and icons, with `index-JQfc_xaH.css` as the sole initial stylesheet.
+
+## PHASE 11 CLOSURE — MEASURED AUDIT
+
+- B1 removed the document vendor family from the initial preload graph.
+- B2 removed the largest proven module-specific CSS family (Garden / HIU Y Quán) from initial CSS.
+- B3 removed the next clear, safely owned Research-only visual payload from initial CSS.
+- Remaining entry CSS is predominantly default-feed, shell, theme, viewport and shared compatibility styling used on first render or across modules.
+- The default `/feed` route intentionally mounts both `StudentHome` and `AcademicFeed`, so feed/community CSS is not an off-route payload at boot.
+- Remaining clearly route-specific entry styles are either small (for example `exam-v2.css` is ~1.38 kB source) or mixed/shared; no further Phase 11 batch is justified without new measured evidence.
+- PHASE 11 is therefore CLOSED. Do not optimize further by filename or intuition alone.
+
+## PHASE 12 — FINAL MULTI-VIEWPORT QA + PRODUCTION VERIFICATION — ACTIVE
+
+Release objective:
+- No feature/refactor scope. This phase verifies the production state and records the final checkpoint.
+- Existing Web CI remains authoritative for build, contracts, real Chrome regression and viewport matrix.
+- Existing Vercel Production workflow remains authoritative for exact-CI-SHA deployment, READY state, primary alias binding and live Chrome production smoke.
+
+Final gates:
+1. Full PR Web CI PASS on the Phase 12 checkpoint branch.
+2. Merge only after PR PASS; record exact merge SHA.
+3. Full main Web CI PASS on that exact merge SHA.
+4. Vercel Production must deploy that exact SHA, reach READY, bind `yhct-hiu-final4-stage.vercel.app`, and report `aliasError=null`.
+5. Live Google Chrome production smoke must pass on mobile `390x844` and desktop `1440x1000`.
+6. Confirm initial modulepreload remains React + Supabase + icons and no performance boundary regresses.
+7. No business logic, RBAC, data, quiz approval, AI contracts or game progression changes are permitted in Phase 12.
 
 ## Remaining
 
-- Continue Phase 11 only with measured bottlenecks and bounded batches.
-- PHASE 12: final multi-viewport QA and production verification.
+- Complete the Phase 12 checkpoint PR through all release gates above.
+- After exact-SHA production and live Chrome verification, mark PHASE 12 DONE / PRODUCTION VERIFIED and use that main SHA as the next execution baseline.

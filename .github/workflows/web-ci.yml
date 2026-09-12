@@ -37,6 +37,8 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Phase 12 final release QA contract
+        run: node scripts/phase12-final-qa-check.mjs
       - run: node scripts/acceptance-check.mjs
       - run: node scripts/platform-upgrade-check.mjs
       - run: node scripts/feed-ai-contract-check.mjs
