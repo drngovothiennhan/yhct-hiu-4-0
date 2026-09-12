@@ -52,7 +52,7 @@ const documentMeta=(file,sourceHash,questionCount)=>({driveFileId:String(file.id
 async function importTrusted(req,file,buffer){
   const sourceHash=sha256(buffer),parsed=parseTrustedMarkedDocx(buffer,file,sourceHash);
   if(!parsed.trusted)return{ok:false,status:'invalid',fileName:file.name,total:parsed.total,valid:parsed.valid,invalid:parsed.invalid,message:'Tài liệu chưa đạt chuẩn trusted: mỗi câu phải có đúng 4 lựa chọn và đúng một đáp án tô đỏ.'};
-  const meta=documentMeta(file,sourceHash,parsed.questions.length),result=await memberRpc(req,'practice_drive_ingest_admin_v1',{p_document:meta,p_questions:parsed.questions});
+  const meta=documentMeta(file,sourceHash,parsed.questions.length),result=await memberRpc(req,'practice_trusted_quiz_ingest_v1',{p_document:meta,p_questions:parsed.questions});
   return{ok:true,status:'imported',fileName:file.name,total:parsed.total,inserted:Number(result?.inserted||0),updated:Number(result?.updated||0),sourceHash,marker:parsed.marker};
 }
 
