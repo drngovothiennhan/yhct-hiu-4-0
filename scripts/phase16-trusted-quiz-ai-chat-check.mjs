@@ -11,7 +11,10 @@ const ingest=read('api/_lib/trusted-quiz-ingest.js');
 const route=read('api/ai/drive-rag.js');
 const migration=read('supabase/migrations/202609122055_phase16_quiz_answer_review_v1.sql');
 const panel=read('src/components/admin/LearningContentManagerPanel.tsx');
+const answerQueue=read('src/components/admin/AnswerReviewQueue.tsx');
+const themeControl=read('src/components/admin/AdminThemeControl.tsx');
 const bank=read('src/components/exam/PracticeBankQuiz.tsx');
+const workspaceService=read('src/services/quizWorkspaceService.ts');
 const service=read('src/services/dailyPracticeService.ts');
 const app=read('src/App.tsx');
 const modules=read('src/modules/moduleContract.ts');
@@ -20,8 +23,10 @@ const aiMiniCss=read('src/app-assistant-ai.css');
 
 for(const pattern of [/FF0000/,/word-font-color-red-v1/,/uniqueMarked\.length!==1/,/trustedApprovedSource:true/,/reviewStatus='source_verified'/])need(parser,pattern,`DOCX parser missing ${pattern}`);
 forbid(parser,/gemini|openai|createGemini|fetch\(/i,'trusted DOCX parser must not use AI or network inference');
-need(ingest,/YHCT_DRIVE_APPROVED_OUTLINE_FOLDER_ID/,'approved Drive folder must be configurable');
-need(ingest,/createdTime desc/,'approved Drive sync must order by createdTime');
+need(ingest,/YHCT_DRIVE_QUIZ_BANK_FOLDER_ID/,'quiz bank Drive folder must be configurable');
+need(ingest,/DEFAULT_QUIZ_BANK_FOLDER='1_VvupTkvHvWKLLehVQt_JNA15qfKnIvO'/,'canonical NGAN HANG TRAC NGHIEM folder must be the safe default');
+need(ingest,/NGÂN HÀNG TRẮC NGHIỆM/,'quiz bank sync response must identify the canonical folder');
+need(ingest,/createdTime desc/,'quiz bank sync must order by createdTime');
 need(ingest,/practice_source_sync_state_v1/,'sync must consult server-side source registry');
 need(ingest,/practice_trusted_quiz_ingest_v1/,'trusted ingest must use capability-scoped RPC');
 forbid(ingest,/practice_drive_ingest_admin_v1/,'trusted ingest must not depend on admin-only generic ingest');
@@ -44,9 +49,19 @@ need(migration,/practice_answer_review_resolve_v1/,'manager answer-review resolv
 const requestBody=migration.match(/create or replace function public\.practice_answer_review_request_v1[\s\S]*?\$\$;/i)?.[0]||'';
 forbid(requestBody,/update\s+public\.practice_questions/i,'student answer-check request must not mutate canonical questions');
 
-need(panel,/Cập nhật đề cương đã duyệt/,'admin approved-outline update action missing');
+need(workspaceService,/syncQuizBank/,'canonical quiz bank update service missing');
+need(panel,/syncQuizBank/,'ACC must use canonical quiz bank update action');
+need(panel,/NGÂN HÀNG TRẮC NGHIỆM/,'ACC must expose the canonical quiz bank');
+need(panel,/>Cập nhật<|:'Cập nhật'/,'ACC primary update button missing');
+need(panel,/AnswerReviewQueue/,'admin answer review inbox missing');
+forbid(panel,/Làm mới bản nháp|Chọn một kho Drive ở trên|Admin có thể duyệt thư mục|bản nháp/i,'obsolete draft / Drive instructional UX must stay removed');
+need(answerQueue,/Báo đáp án sai/,'wrong-answer inbox title missing');
+need(answerQueue,/chờ xử lý/,'wrong-answer inbox count missing');
+forbid(answerQueue,/<details/,'wrong-answer inbox must be visible as a compact box, not hidden in details');
+need(themeControl,/Giao diện hệ thống/,'system appearance control missing');
+need(themeControl,/module khác chỉ nhận theme đồng bộ/,'theme isolation marker must remain in source');
+forbid(themeControl,/option\.description|<p[^>]*>[^<]*(?:Chỉ ACC\/Admin thay đổi|module khác chỉ nhận theme)/,'system appearance control must stay compact without rendered explanatory copy');
 need(panel,/tryTrustedQuizUpload/,'admin direct trusted upload missing');
-need(panel,/AnswerReviewQueue/,'admin answer review queue missing');
 need(bank,/Yêu cầu kiểm tra đáp án/,'student answer verification action missing');
 need(service,/practice_answer_review_request_v1/,'student answer-check service missing');
 need(bank,/submitPracticeQuiz/,'server-authoritative grading path must remain in quiz UI');
@@ -71,4 +86,4 @@ const bad=Buffer.from('UEsDBBQAAAAIAKpxLF3yhyFZ6QAAAMYBAAARAAAAd29yZC9kb2N1bWVud
 const badResult=parseTrustedMarkedDocx(bad,{id:'fixture-bad',name:'fixture.docx',parentName:'Thuốc YHCT'},'fixture-hash');
 if(badResult.trusted||badResult.invalid[0]?.reason!=='multiple_red_answers')fail('ambiguous multiple-red DOCX fixture must be rejected without inference');
 
-console.log('Phase 16 trusted quiz ingestion + answer review + AI Center contract: PASS');
+console.log('Phase 16 trusted quiz bank update + answer review + AI Center contract: PASS');

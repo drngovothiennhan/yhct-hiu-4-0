@@ -4,11 +4,12 @@ import {parseTrustedMarkedDocx} from './docx-marked-quiz.js';
 
 const DOCX_MIME='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const FOLDER_MIME='application/vnd.google-apps.folder';
-const DEFAULT_APPROVED_FOLDER='1-515jyKjGXz9bLxYVHcbtS2zJlDeZe5B';
+const DEFAULT_QUIZ_BANK_FOLDER='1_VvupTkvHvWKLLehVQt_JNA15qfKnIvO';
+const QUIZ_BANK_ARCHIVE_FOLDERS=new Set(['01_ĐÃ_TRÍCH_XUẤT_CÂU_HỎI','02_TÀI_LIỆU_ĐÃ_XỬ_LÝ','99_CẦN_DUYỆT_THỦ_CÔNG']);
 const MAX_UPLOAD_BYTES=2_000_000,MAX_DRIVE_BYTES=5_000_000,HTTP_MS=9000;
 const clean=(value,max=1000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 const sha256=value=>createHash('sha256').update(value).digest('hex');
-const approvedFolderId=()=>String(process.env.YHCT_DRIVE_APPROVED_OUTLINE_FOLDER_ID||process.env.YHCT_DRIVE_QUIZ_FOLDER_ID||DEFAULT_APPROVED_FOLDER).trim();
+const quizBankFolderId=()=>String(process.env.YHCT_DRIVE_QUIZ_BANK_FOLDER_ID||DEFAULT_QUIZ_BANK_FOLDER).trim();
 const apiKey=()=>String(process.env.GOOGLE_DRIVE_API_KEY||'').trim();
 let tokenCache={token:'',expiresAt:0};
 
@@ -34,13 +35,13 @@ async function listChildren(parent,pageSize=100){
   const response=await driveFetch(url,{headers:{accept:'application/json'}});if(!response.ok)throw new Error(`Google Drive list ${response.status}`);const payload=await response.json();return Array.isArray(payload?.files)?payload.files:[];
 }
 
-async function listApprovedDocxCandidates(){
-  const folder=approvedFolderId();if(!driveConfigured())return{configured:false,folder,files:[],reason:'missing_google_drive_credential'};
+async function listQuizBankDocxCandidates(){
+  const folder=quizBankFolderId();if(!driveConfigured())return{configured:false,folder,files:[],reason:'missing_google_drive_credential'};
   const root=await listChildren(folder,100),files=root.filter(isDocx).map(file=>({...file,parentName:''}));
-  const folders=root.filter(x=>x.mimeType===FOLDER_MIME).slice(0,40);
+  const folders=root.filter(x=>x.mimeType===FOLDER_MIME&&!QUIZ_BANK_ARCHIVE_FOLDERS.has(String(x.name||'').trim())).slice(0,40);
   for(const child of folders){const rows=await listChildren(child.id,100).catch(()=>[]);for(const file of rows.filter(isDocx))files.push({...file,parentName:child.name})}
   const dedup=[...new Map(files.map(file=>[file.id,file])).values()];dedup.sort((a,b)=>Date.parse(b.createdTime||0)-Date.parse(a.createdTime||0));
-  return{configured:true,folder,files:dedup.slice(0,200)};
+  return{configured:true,folder,files:dedup.slice(0,400)};
 }
 
 async function downloadDocx(file){
@@ -51,7 +52,7 @@ const documentMeta=(file,sourceHash,questionCount)=>({driveFileId:String(file.id
 
 async function importTrusted(req,file,buffer){
   const sourceHash=sha256(buffer),parsed=parseTrustedMarkedDocx(buffer,file,sourceHash);
-  if(!parsed.trusted)return{ok:false,status:'invalid',fileName:file.name,total:parsed.total,valid:parsed.valid,invalid:parsed.invalid,message:'Tài liệu chưa đạt chuẩn trusted: mỗi câu phải có đúng 4 lựa chọn và đúng một đáp án tô đỏ.'};
+  if(!parsed.trusted)return{ok:false,status:'invalid',fileName:file.name,total:parsed.total,valid:parsed.valid,invalid:parsed.invalid,message:'Tài liệu chưa đạt chuẩn: mỗi câu phải có đúng 4 lựa chọn và đúng một đáp án tô đỏ.'};
   const meta=documentMeta(file,sourceHash,parsed.questions.length),result=await memberRpc(req,'practice_trusted_quiz_ingest_v1',{p_document:meta,p_questions:parsed.questions});
   return{ok:true,status:'imported',fileName:file.name,total:parsed.total,inserted:Number(result?.inserted||0),updated:Number(result?.updated||0),sourceHash,marker:parsed.marker};
 }
@@ -68,11 +69,11 @@ export async function handleTrustedQuizIngest(req,res){
       const {file,buffer}=uploadedDocx(req.body||{}),result=await importTrusted(req,file,buffer);return res.status(result.ok?200:422).json(result);
     }
     if(action==='trusted-quiz-sync'){
-      const listing=await listApprovedDocxCandidates();if(!listing.configured)return res.status(200).json({ok:false,degraded:true,reason:listing.reason,folderId:listing.folder,processed:[]});
+      const listing=await listQuizBankDocxCandidates();if(!listing.configured)return res.status(200).json({ok:false,degraded:true,reason:listing.reason,folderId:listing.folder,folderName:'NGÂN HÀNG TRẮC NGHIỆM',processed:[]});
       const ids=listing.files.map(file=>String(file.id)),known=ids.length?await memberRpc(req,'practice_source_sync_state_v1',{p_file_ids:ids}):[],knownIds=new Set((Array.isArray(known)?known:[]).map(row=>String(row?.fileId||'')));
       const pending=listing.files.filter(file=>!knownIds.has(String(file.id))),maxFiles=Math.max(1,Math.min(10,Number(req.body?.maxFiles)||5)),selected=pending.slice(0,maxFiles).reverse(),processed=[];
       for(const file of selected){try{processed.push(await importTrusted(req,file,await downloadDocx(file)))}catch(error){processed.push({ok:false,status:'error',fileName:file.name,message:clean(error?.message||'Không xử lý được DOCX',300)})}}
-      return res.status(200).json({ok:true,folderId:listing.folder,filesSeen:listing.files.length,alreadySynced:knownIds.size,pending:pending.length,processed});
+      return res.status(200).json({ok:true,folderId:listing.folder,folderName:'NGÂN HÀNG TRẮC NGHIỆM',filesSeen:listing.files.length,alreadySynced:knownIds.size,pending:pending.length,processed});
     }
     return res.status(400).json({error:'Unsupported trusted quiz action'});
   }catch(error){return res.status(400).json({error:clean(error?.message||'Trusted quiz ingest failed',400)})}

@@ -6,7 +6,7 @@ export type QuizBrowseResult={folder:QuizDriveItem;roots:QuizDriveRoot[];items:Q
 export type QuizRootsResult={roots:QuizDriveRoot[];driveConfigured:boolean;credentialMode:string};
 export type QuizPublishResult={ok:boolean;resourceKey:string;status:string;audience:string;approvedNow:number;questionCount:number;publishedAt:string;title:string};
 export type TrustedQuizImportResult={ok:boolean;status:string;fileName:string;total?:number;valid?:number;inserted?:number;updated?:number;message?:string;marker?:string};
-export type TrustedQuizSyncResult={ok:boolean;folderId?:string;filesSeen?:number;alreadySynced?:number;pending?:number;processed:TrustedQuizImportResult[]};
+export type TrustedQuizSyncResult={ok:boolean;folderId?:string;folderName?:string;filesSeen?:number;alreadySynced?:number;pending?:number;processed:TrustedQuizImportResult[]};
 export type QuizCandidate={id:string;number:string;stem:string;options:string[];correctIndex:number|null;explanation:string;issues:string[];raw:string;answerEvidence:string;importedSnapshot?:Partial<QuizCandidate>;imported?:boolean};
 export type QuizPipelineState='processing'|'needs_review'|'ready'|'error';
 export type QuizPipeline={version:number;state:QuizPipelineState;strategy:'generate_chunks'|'extract';totalChunks:number;completedChunks:number;nextChunk:number;failedChunk:number|null;attempt:number;percent:number;retryable:boolean;sourceChars:number;chunkSize:number;startedAt:string;updatedAt:string;completedAt?:string|null;lastError?:string|null};
@@ -45,7 +45,8 @@ export async function retryQuizPipeline(draft:QuizDraft,onUpdate?:QuizPipelineUp
 export const getQuizDriveRoots=()=>quizWorkspace<QuizRootsResult>('quiz-roots');
 export const browseQuizDrive=(folderId:string)=>quizWorkspace<QuizBrowseResult>('quiz-browse',{folderId});
 export const publishQuizDraft=(id:string)=>quizWorkspace<QuizPublishResult>('quiz-publish',{id});
-export const syncTrustedApprovedDrive=(maxFiles=5)=>quizWorkspace<TrustedQuizSyncResult>('trusted-quiz-sync',{maxFiles:Math.max(1,Math.min(10,Math.trunc(maxFiles)||5))});
+export const syncQuizBank=(maxFiles=10)=>quizWorkspace<TrustedQuizSyncResult>('trusted-quiz-sync',{maxFiles:Math.max(1,Math.min(10,Math.trunc(maxFiles)||10))});
+export const syncTrustedApprovedDrive=syncQuizBank;
 export const tryTrustedQuizUpload=async(fileName:string,base64:string,subjectName:string):Promise<TrustedQuizImportResult|null>=>{try{return await quizWorkspace<TrustedQuizImportResult>('trusted-quiz-upload',{fileName,base64,subjectName})}catch(error){const status=(error as QuizWorkspaceError).status;if(status===400||status===422)return null;throw error}};
 
 export async function sourceFileBase64(file:File){
