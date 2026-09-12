@@ -23,12 +23,21 @@ forbid(parser,/gemini|openai|createGemini|fetch\(/i,'trusted DOCX parser must no
 need(ingest,/YHCT_DRIVE_APPROVED_OUTLINE_FOLDER_ID/,'approved Drive folder must be configurable');
 need(ingest,/createdTime desc/,'approved Drive sync must order by createdTime');
 need(ingest,/practice_source_sync_state_v1/,'sync must consult server-side source registry');
+need(ingest,/practice_trusted_quiz_ingest_v1/,'trusted ingest must use capability-scoped RPC');
+forbid(ingest,/practice_drive_ingest_admin_v1/,'trusted ingest must not depend on admin-only generic ingest');
 need(ingest,/pending\.slice\(0,maxFiles\)/,'sync must process a bounded batch');
 need(ingest,/parseTrustedMarkedDocx/,'trusted ingest must use deterministic marker parser');
 need(route,/trusted-quiz-upload/,'trusted upload route missing');
 need(route,/trusted-quiz-sync/,'trusted Drive sync route missing');
 
 for(const pattern of [/security definer/gi,/set search_path=''/gi,/private\.is_learning_content_manager\(\)/,/private\.is_approved\(\)/,/revoke all on table public\.practice_answer_review_requests from public,anon,authenticated/])need(migration,pattern,`secure migration contract missing ${pattern}`);
+need(migration,/practice_trusted_quiz_ingest_v1/,'trusted quiz ingest RPC missing');
+need(migration,/sourceMark','word-font-color-red-v1/,'trusted RPC must validate deterministic source marker');
+need(migration,/sourceMarkColor/,'trusted RPC must validate marker color');
+need(migration,/trustedApprovedSource/,'trusted RPC must require approved-source provenance');
+need(migration,/extensions\.digest/,'answer correction hash must use schema-qualified digest');
+need(migration,/where question_id=row_request\.question_id and status='open'/,'resolving one answer review must close all open reports for that question');
+need(migration,/group by r\.question_id/,'answer review queue must group duplicate reports by question');
 need(migration,/practice_answer_review_request_v1/,'member answer-check RPC missing');
 need(migration,/practice_answer_review_queue_v1/,'manager answer-review queue missing');
 need(migration,/practice_answer_review_resolve_v1/,'manager answer-review resolve RPC missing');
