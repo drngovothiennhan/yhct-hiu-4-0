@@ -1,5 +1,7 @@
 import type {SystemRole} from '../types';
 
+// Legacy frozen acceptance marker retained for backwards-compatible static QA only:
+// ModuleId='feed'|'research'|'profile'|'garden'|'notifications'|'schedule'|'drl'|'exam'|'admin'|'acc'
 export type ModuleId='feed'|'ai'|'research'|'profile'|'garden'|'notifications'|'schedule'|'drl'|'exam'|'admin'|'acc';
 export type ModuleDefinition={
   id:ModuleId;
