@@ -20,6 +20,8 @@
   box-shadow:var(--ds-shadow-1);
 }
 
+.root > :global(.profile-achievements-card){grid-column:1/-1;min-width:0}
+
 .card h2,.card h3{margin:0;color:var(--ds-color-text)}
 .card p{overflow-wrap:anywhere}
 
@@ -132,8 +134,11 @@
 .passwordToastOk{background:color-mix(in srgb,var(--ds-color-success) 10%,var(--ds-color-surface));color:var(--ds-color-success)}
 .passwordToastBad{background:color-mix(in srgb,var(--ds-color-danger) 10%,var(--ds-color-surface));color:var(--ds-color-danger)}
 
-@container account (min-width:46rem){
+@media(min-width:46rem){
   .root{grid-template-columns:repeat(12,minmax(0,1fr));gap:var(--ds-space-5)}
+}
+
+@container account (min-width:46rem){
   .overviewCard{grid-column:1/-1}
   .wallCard{grid-column:span 8}
   .drlCard{grid-column:span 4}
