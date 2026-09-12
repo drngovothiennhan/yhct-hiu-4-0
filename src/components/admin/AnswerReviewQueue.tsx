@@ -1,6 +1,7 @@
 import {useEffect,useState} from 'react';
 import {CheckCircle2,RefreshCcw,ShieldCheck,XCircle} from 'lucide-react';
 import {getAnswerReviewQueue,resolveAnswerReview,type AnswerReviewRequest} from '../../services/dailyPracticeService';
+import './answer-review.css';
 
 export default function AnswerReviewQueue(){
   const [items,setItems]=useState<AnswerReviewRequest[]>([]),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[corrections,setCorrections]=useState<Record<string,number>>({});
