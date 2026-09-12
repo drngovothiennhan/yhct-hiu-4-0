@@ -1,0 +1,4 @@
+/* PHASE 4: Home/feed simplification. Keep the dormant TCM-news backend rollback-safe while removing its visual row. */
+.news-rail{display:none!important}
+html[data-viewport-mode="desktop"] .feed-layout{grid-template-areas:"main side"!important}
+@media (min-width:1600px){html[data-viewport-mode="desktop"] .feed-layout.has-desktop-widgets{grid-template-areas:"widgets main side"!important}}

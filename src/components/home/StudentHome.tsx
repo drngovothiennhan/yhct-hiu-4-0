@@ -15,6 +15,7 @@ const GOALS:Array<{value:StudyGoal;label:string}>=[{value:'daily',label:'Học �
 const DAY_TARGET=5;
 const greeting=()=>{const hour=new Date().getHours();return hour<11?'Chào buổi sáng':hour<14?'Chào buổi trưa':hour<18?'Chào buổi chiều':'Chào buổi tối'};
 const goalLabel=(goal?:StudyGoal)=>GOALS.find(item=>item.value===goal)?.label||'Học đều mỗi ngày';
+const todayLabel=()=>new Intl.DateTimeFormat('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit'}).format(new Date());
 
 export default function StudentHome({member,onNavigate,onLogin}:Props){
   const identity=member?.id||null,[journey,setJourney]=useState(()=>readStudentJourney(identity)),[editing,setEditing]=useState(()=>!readStudentJourney(identity).preferences),[year,setYear]=useState<StudentYear>(()=>readStudentJourney(identity).preferences?.year||1),[focus,setFocus]=useState(()=>readStudentJourney(identity).preferences?.focus||SUBJECTS[0]),[goal,setGoal]=useState<StudyGoal>(()=>readStudentJourney(identity).preferences?.goal||'daily'),[dailyMinutes,setDailyMinutes]=useState<StudentPreferences['dailyMinutes']>(()=>readStudentJourney(identity).preferences?.dailyMinutes||20),[nextSchedule,setNextSchedule]=useState<NextSchedule|null>(null),[installStatus,setInstallStatus]=useState<PwaInstallStatus>(()=>getPwaInstallStatus()),[ask,setAsk]=useState(''),[notice,setNotice]=useState('');
@@ -24,6 +25,15 @@ export default function StudentHome({member,onNavigate,onLogin}:Props){
   const dailyProgress=Math.min(DAY_TARGET,journey.todayQuestions),dailyPercent=Math.round(dailyProgress/DAY_TARGET*100);
   const continueLabel=profile?.focus||'Khám phá kiến thức YHCT';
   const statusLine=useMemo(()=>profile?`SV năm ${profile.year} · ${goalLabel(profile.goal)} · ${profile.dailyMinutes} phút/ngày`:'Thiết lập 30 giây để cá nhân hóa lộ trình học.',[profile]);
+  const dayLabel=useMemo(()=>todayLabel(),[]);
+  const dailySuggestion=useMemo(()=>{
+    if(!profile)return'Thiết lập lộ trình để nhận gợi ý học phù hợp hôm nay.';
+    const remaining=Math.max(0,DAY_TARGET-dailyProgress);
+    const untilSchedule=nextSchedule?Date.parse(nextSchedule.startsAt)-Date.now():Number.POSITIVE_INFINITY;
+    if(nextSchedule&&untilSchedule>=-3600000&&untilSchedule<=24*60*60*1000)return`Có ${nextSchedule.title} sắp tới · dành ${Math.min(profile.dailyMinutes,20)} phút xem lại ${profile.focus} trước lịch.`;
+    if(remaining>0)return`Hoàn thành ${remaining} câu ôn nhanh còn lại, sau đó dành ${profile.dailyMinutes} phút cho ${profile.focus}.`;
+    return`Đã đạt mục tiêu ${DAY_TARGET} câu hôm nay · tiếp tục ${profile.dailyMinutes} phút với ${profile.focus}.`;
+  },[profile,dailyProgress,nextSchedule]);
 
   useEffect(()=>{const next=readStudentJourney(identity);setJourney(next);setYear(next.preferences?.year||1);setFocus(next.preferences?.focus||SUBJECTS[0]);setGoal(next.preferences?.goal||'daily');setDailyMinutes(next.preferences?.dailyMinutes||20);setEditing(!next.preferences);return subscribeStudentJourney(identity,setJourney)},[identity]);
   useEffect(()=>subscribePwaInstall(()=>setInstallStatus(getPwaInstallStatus())),[]);
@@ -40,12 +50,17 @@ export default function StudentHome({member,onNavigate,onLogin}:Props){
       <div className="student-home-stats"><span><Flame/><b>{journey.streak}</b><small>ngày liên tiếp</small></span><span><Trophy/><b>{journey.xp}</b><small>XP học tập</small></span><button onClick={()=>setEditing(true)}>{profile?'Chỉnh lộ trình':'Cá nhân hóa'}</button></div>
     </div>
 
+    <div className="student-daily-context" aria-label="Bối cảnh học hôm nay">
+      <div className="student-daily-date"><CalendarDays/><span><small>HÔM NAY</small><b>{dayLabel}</b></span></div>
+      <div className="student-daily-suggestion"><Sparkles/><span><small>GỢI Ý HỌC</small><b>{dailySuggestion}</b>{nextSchedule&&<em>{new Date(nextSchedule.startsAt).toLocaleString('vi-VN')}{nextSchedule.location?` · ${nextSchedule.location}`:''}</em>}</span></div>
+      <button className="student-link-btn" onClick={()=>onNavigate('schedule')}>Xem lịch <ChevronRight/></button>
+    </div>
+
     {editing&&<div className="student-onboarding" role="region" aria-label="Cá nhân hóa lộ trình"><div className="student-onboarding-head"><div><b>Lộ trình học của bạn</b><small>4 lựa chọn · lưu trên thiết bị · có thể đổi bất cứ lúc nào</small></div>{profile&&<button className="student-link-btn" onClick={()=>setEditing(false)}>Đóng</button>}</div><div className="student-onboarding-grid"><label>Năm học<select value={year} onChange={e=>setYear(Number(e.target.value) as StudentYear)}>{[1,2,3,4,5,6].map(value=><option key={value} value={value}>Năm {value}</option>)}</select></label><label>Môn/chủ đề ưu tiên<select value={focus} onChange={e=>setFocus(e.target.value)}>{SUBJECTS.map(value=><option key={value}>{value}</option>)}</select></label><label>Mục tiêu<select value={goal} onChange={e=>setGoal(e.target.value as StudyGoal)}>{GOALS.map(item=><option key={item.value} value={item.value}>{item.label}</option>)}</select></label><label>Thời gian/ngày<select value={dailyMinutes} onChange={e=>setDailyMinutes(Number(e.target.value) as StudentPreferences['dailyMinutes'])}>{[10,20,30,45].map(value=><option key={value} value={value}>{value} phút</option>)}</select></label></div><button className="student-primary" onClick={saveOnboarding}><Target/> Bắt đầu lộ trình của tôi</button></div>}
 
     <div className="student-today-grid">
       <article className="student-action-card student-action-primary"><div className="student-action-icon"><BookOpen/></div><div><small>HỌC TIẾP</small><b>{continueLabel}</b><p>{profile?`Mục tiêu hôm nay: ${profile.dailyMinutes} phút tập trung.`:'Chọn lộ trình để Home ưu tiên đúng môn bạn đang học.'}</p></div><button onClick={()=>onNavigate('research')}>Mở học liệu <ChevronRight/></button></article>
       <article className="student-action-card"><div className="student-action-icon"><GraduationCap/></div><div><small>ÔN NHANH HÔM NAY</small><b>{dailyProgress}/{DAY_TARGET} câu</b><div className="student-progress" aria-label={`${dailyPercent}%`}><i style={{width:`${dailyPercent}%`}}/></div><p>Hoàn thành 5 câu để duy trì nhịp học mỗi ngày.</p></div><button onClick={()=>onNavigate('exam')}>Luyện ngay <ChevronRight/></button></article>
-      <article className="student-action-card"><div className="student-action-icon"><CalendarDays/></div><div><small>LỊCH SẮP TỚI</small><b>{nextSchedule?.title||'Chưa có lịch được công bố'}</b>{nextSchedule?<p>{new Date(nextSchedule.startsAt).toLocaleString('vi-VN')}{nextSchedule.location?` · ${nextSchedule.location}`:''}</p>:<p>Mở lịch để xem hoạt động CLB và phân công.</p>}</div><button onClick={()=>onNavigate('schedule')}>Xem lịch <ChevronRight/></button></article>
     </div>
 
     <div className="student-ai-strip"><div className="student-ai-copy"><span><Brain/></span><div><b>HIU YHCT AI</b><small>Một trợ lý xuyên suốt: học tập · y văn · luyện thi · lịch · cách dùng ứng dụng</small></div></div><div className="student-ai-ask"><input value={ask} onChange={e=>setAsk(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')openAi()}} placeholder={`Hỏi nhanh về ${continueLabel}…`} maxLength={500}/><button onClick={openAi}>{member?<><Sparkles/> Hỏi AI</>:<><LogIn/> Đăng nhập để hỏi</>}</button></div></div>
