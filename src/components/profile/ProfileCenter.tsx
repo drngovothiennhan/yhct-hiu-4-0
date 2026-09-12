@@ -4,6 +4,7 @@ import type {Member} from '../../types';
 import {supabase} from '../../services/authService';
 import {changeMemberPassword} from '../../services/authRuntimeService';
 import ProfileInbox from './ProfileInbox';
+import ProfileAchievements from './ProfileAchievements';
 import styles from './ProfileCenter.module.css';
 
 type DrlSemester={semester_code:string;semester_title:string;total_points:number};
@@ -43,6 +44,8 @@ export default function ProfileCenter({member}:{member:Member}){
       <div className={styles.kpis}><article><b>{drlTotal}</b><small>Tổng DRL đã công bố</small></article><article><b>{display.community_credits}</b><small>Tín dụng cộng đồng trọn đời</small></article><article><b>{display.drl_semesters.length}</b><small>Học kỳ đã chốt</small></article></div>
       <div className={styles.actions}><ProfileInbox member={member}/><button className={styles.secondaryButton} disabled={loading} onClick={()=>void load()}><RefreshCw/>Làm mới</button><button className={styles.secondaryButton} onClick={()=>window.print()}><Printer/>In hồ sơ</button><button className={styles.primaryButton} onClick={()=>setPasswordOpen(open=>!open)}><KeyRound/>{passwordOpen?'Đóng đổi mật khẩu':'Đổi mật khẩu'}</button></div>
     </article>
+
+    <ProfileAchievements member={member}/>
 
     <article className={`${styles.card} ${styles.wallCard}`}>
       <div className={styles.between}><div className={styles.row}><Palette/><div><h3>Tường cá nhân · {alias}</h3><p className={styles.muted}>Trang trí, status tối đa 500 ký tự và ảnh. Chỉ hiển thị 3 bài mới nhất. Inbox riêng nằm trong khu vực cá nhân.</p></div></div></div>
