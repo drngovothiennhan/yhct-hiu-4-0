@@ -27,9 +27,13 @@ const forbiddenRuntimeImports=[
   'yquan-scale-harmony.css','yquan-display-fix.css','yquan-v18-visual-coherence.css',
   'yquan-v18-final-character-scene.css','yquan-v19-reference-art-direction.css'
 ];
-for(const file of forbiddenRuntimeImports)check(!main.includes(file),`legacy runtime stylesheet still loaded: ${file}`);
-check(main.includes("./yquan-v20-game-engine.css")&&main.includes("./yquan-v20-1-character-acting.css")&&main.includes("./yquan-v20-unified.css"),'V20 stylesheet stack incomplete');
-check(main.indexOf("yquan-v20-unified.css")>main.indexOf("yquan-v20-1-character-acting.css"),'V20 unified stylesheet must load last');
+for(const file of forbiddenRuntimeImports){
+  check(!main.includes(file),`legacy runtime stylesheet still globally loaded: ${file}`);
+  check(!hub.includes(file),`legacy runtime stylesheet still loaded by lazy hub: ${file}`);
+}
+check(hub.includes("../../yquan-v20-game-engine.css")&&hub.includes("../../yquan-v20-1-character-acting.css")&&hub.includes("../../yquan-v20-unified.css"),'V20 stylesheet stack incomplete in lazy hub');
+check(hub.indexOf("yquan-v20-unified.css")>hub.indexOf("yquan-v20-1-character-acting.css"),'V20 unified stylesheet must load last in lazy hub');
+check(!main.includes('yquan-v20-game-engine.css')&&!main.includes('yquan-v20-1-character-acting.css')&&!main.includes('yquan-v20-unified.css'),'V20 module styles must stay off the global entry');
 
 check(game.includes('const bedsFull=wardCases.length>=3'),'ward fullness must be derived from exactly three active ward cases');
 check(game.includes("if(action==='observe'&&bedsFull)"),'only observe/transfer action must be guarded by full ward');
@@ -63,4 +67,4 @@ if(failures.length){
   process.exit(1);
 }
 console.log('HIU Y Quan V20 unified contract: PASS');
-console.log('Single runtime · refresh persistence · 3-bed transfer-only capacity · pharmacy actor sequence · bedside orientation · effects · DB V20 contracts verified.');
+console.log('Single runtime · lazy V20 stylesheet stack · refresh persistence · 3-bed transfer-only capacity · pharmacy actor sequence · bedside orientation · effects · DB V20 contracts verified.');
