@@ -8,7 +8,7 @@ const graph=read('src/components/game/yquan-v20/sceneGraph.ts');
 const story=read('src/components/game/yquan-v20/YQuanStoryController.ts');
 const world=read('src/components/game/yquan-v20/V20World.tsx');
 const css=read('src/yquan-v20-1-character-acting.css');
-const main=read('src/main.tsx');
+const gardenHub=read('src/components/game/HerbGardenGame.tsx');
 
 const checks=[];
 const check=(label,ok)=>checks.push({label,ok:Boolean(ok)});
@@ -39,7 +39,10 @@ check('old persisted overlap is repaired',story.includes('repairLegacyWardOverla
 check('lying patient remains lying while speaking in follow-up',css.includes('[data-state="FOLLOW_UP"][data-animation="talk"] .hyq-v20-patient-svg'));
 check('active patient avoids duplicate generic bed occupant',world.includes('item&&!active')&&world.includes("data-active={active?'true':'false'}"));
 check('active bed styling suppresses placeholder occupant',css.includes('.hyq-v20-bed[data-active="true"] .bed-occupant{display:none}'));
-check('V20.1 CSS is loaded after V20 CSS',main.indexOf("'./yquan-v20-1-character-acting.css'")>main.indexOf("'./yquan-v20-game-engine.css'"));
+const engineImport="import '../../yquan-v20-game-engine.css'";
+const actingImport="import '../../yquan-v20-1-character-acting.css'";
+check('V20.1 acting CSS is owned by lazy Garden/Y Quan hub',gardenHub.includes(actingImport));
+check('V20.1 CSS is loaded after V20 CSS',gardenHub.includes(engineImport)&&gardenHub.indexOf(actingImport)>gardenHub.indexOf(engineImport));
 check('reduced-motion fallback keeps a stable closed mouth',css.includes('@media(prefers-reduced-motion:reduce)')&&css.includes('mouth-closed'));
 check('acting layer avoids viewport-height hacks',!/(?:^|[;:{\s])(?:min-|max-)?height\s*:\s*\d+(?:d?vh|svh|lvh)/i.test(css));
 

@@ -7,7 +7,6 @@ const migrationPath='supabase/migrations/202609091930_garden_care_engine_v7_and_
 const migration=read(migrationPath);
 const facade=read('src/components/game/HerbGardenGame.tsx');
 const game=read('src/components/game/HerbGardenGameV7.tsx');
-const main=read('src/main.tsx');
 
 const checks=[
   ['canonical care engine exists',migration.includes('private.herb_garden_apply_care_v7')],
@@ -27,7 +26,7 @@ const checks=[
   ['UI uses structured fertilizer v4',game.includes("fertilize:'herb_garden_fertilize_v4'")],
   ['UI presents one 72-hour care timeline',game.includes('Lịch chăm 72 giờ')&&game.includes('Chăm chung cùng tiến độ')],
   ['UI shows twelve water and three fertilizer markers',game.includes('total={12}')&&game.includes('total={3}')],
-  ['professional game stylesheet is loaded',main.includes("import './garden-professional-v7.css';")],
+  ['professional game stylesheet is loaded by lazy Garden facade',facade.includes("import '../../garden-professional-v7.css';")],
 ];
 
 const failed=checks.filter(([,ok])=>!ok);
