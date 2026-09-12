@@ -7,6 +7,7 @@
   "rewrites": [
     {"source": "/manifest.webmanifest", "destination": "/api/manifest"},
     {"source": "/api/research/drive", "destination": "/api/ai/drive-rag"},
+    {"source": "/ai", "destination": "/"},
     {"source": "/research", "destination": "/"},
     {"source": "/profile", "destination": "/"},
     {"source": "/schedule", "destination": "/"},

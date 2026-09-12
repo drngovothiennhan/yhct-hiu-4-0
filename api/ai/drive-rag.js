@@ -1,6 +1,7 @@
 import {handleQuizWorkspace} from '../_lib/quiz-workspace.js';
 import {handleQuizPipelineV2,isQuizPipelineV2Action} from '../_lib/quiz-pipeline-v2.js';
 import {handleQuizPublish} from '../_lib/quiz-publish.js';
+import {handleTrustedQuizIngest} from '../_lib/trusted-quiz-ingest.js';
 import {learningContentAccess,memberAccess,memberRpc} from '../_lib/member-access.js';
 import {registerDriveLearningResource} from '../_lib/knowledge-gateway.js';
 import {buildDriveRagIndex,retrieveDriveRag} from '../_lib/drive-rag.js';
@@ -68,6 +69,7 @@ export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Vary','Authorization');
   if(req.method==='GET')return handleDriveList(req,res);
   if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
+  if(['trusted-quiz-upload','trusted-quiz-sync'].includes(String(req.body?.action||'')))return handleTrustedQuizIngest(req,res);
   if(isQuizPipelineV2Action(req.body?.action))return handleQuizPipelineV2(req,res);
   if(req.body?.action==='quiz-publish')return handleQuizPublish(req,res);
   if(['quiz-roots','quiz-browse','quiz-preview','quiz-commit','quiz-drafts','quiz-draft'].includes(req.body?.action))return handleQuizWorkspace(req,res);
