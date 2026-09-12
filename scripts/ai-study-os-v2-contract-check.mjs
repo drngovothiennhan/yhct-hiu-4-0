@@ -12,13 +12,14 @@ const studyHub=read('src/components/home/StudyHubV2.tsx');
 const v2Css=read('src/components/home/study-hub-v2.css');
 const main=read('src/main.tsx');
 
-requireText(canary,/CANARY_PARAM\s*=\s*['"]studyos['"]/,'canary query parameter must remain explicit');
-requireText(canary,/CANARY_VALUE\s*=\s*['"]v2['"]/,'canary value must remain explicit');
-requireText(canary,/if\(!raw\)return false/,'Study OS V2 must remain default-off in Phase 13A');
+requireText(canary,/STUDY_OS_PARAM\s*=\s*['"]studyos['"]/,'Study OS query parameter must remain explicit');
+requireText(canary,/LEGACY_VALUE\s*=\s*['"]legacy['"]/,'legacy visual rollback value must remain explicit');
+requireText(canary,/if\(!raw\)return true/,'Study OS V2 must be default-on after Phase 14 cutover');
+requireText(canary,/!==LEGACY_VALUE/,'legacy rollback must be opt-in only');
 
 requireText(home,/lazy\(\(\)=>import\(['"]\.\/StudyHubV2['"]\)\)/,'StudyHubV2 must remain lazy-loaded');
-requireText(home,/studyOsV2CanaryEnabled\(\)/,'StudentHome must gate V2 behind explicit canary');
-requireText(home,/return <StudentHomeLegacy/,'legacy Home must remain the default fallback');
+requireText(home,/studyOsV2CanaryEnabled\(\)/,'StudentHome must preserve the visual rollback gate');
+requireText(home,/return <StudentHomeLegacy/,'legacy Home must remain available only as rollback surface');
 forbidText(main,/study-hub-v2\.css/,'V2 CSS must not be imported from the application entry');
 forbidText(home,/study-hub-v2\.css/,'V2 CSS must stay owned by the lazy StudyHubV2 chunk');
 requireText(v2Css,/\.study-os-v2/,'V2 styles must remain isolated under the study-os-v2 namespace');
@@ -29,6 +30,8 @@ requireText(router,/destination:'assistant'/,'router must preserve single App As
 forbidText(router,/fetch\s*\(/,'intent routing must remain deterministic and must not call an LLM/provider');
 forbidText(router,/gemini|openai/i,'intent routing must remain provider-agnostic');
 
+requireText(studyHub,/MY HIU YHCT · AI STUDY OS/,'production Home must identify the unified Study OS surface');
+forbidText(studyHub,/CANARY/,'production Home must not show canary labeling');
 requireText(studyHub,/yhct:ai:open/,'ordinary study requests must reuse the canonical App Assistant launcher');
 requireText(studyHub,/yhct-research-pending-query-v1/,'research requests must reuse the existing Research handoff contract');
 requireText(studyHub,/onNavigate\(['"]research['"]\)/,'research intent must route to the existing Research module');

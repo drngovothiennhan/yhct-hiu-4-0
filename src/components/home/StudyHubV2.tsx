@@ -9,7 +9,6 @@ import './study-hub-v2.css';
 const RESEARCH_PENDING_KEY='yhct-research-pending-query-v1';
 
 type Props={member:Member|null;onNavigate:(module:ModuleId)=>void;onLogin:()=>void};
-
 type QuickAction={label:string;seed:string;icon:'learn'|'quiz'|'research'};
 const QUICK_ACTIONS:QuickAction[]=[
   {label:'Ôn phần tôi còn yếu',seed:'Ôn tập phần kiến thức tôi còn yếu hôm nay',icon:'learn'},
@@ -48,9 +47,9 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
 
   return <section className="study-os-v2" aria-label="HIU YHCT AI Study OS">
     <header className="study-os-v2__hero">
-      <div className="study-os-v2__eyebrow"><Sparkles/> AI STUDY OS · CANARY</div>
-      <h2>Chào {name}. Hôm nay bạn muốn học hoặc làm gì?</h2>
-      <p>Một điểm vào cho học tập, ôn luyện và nghiên cứu. Hệ thống tự chuyển yêu cầu đến đúng năng lực hiện có.</p>
+      <div className="study-os-v2__eyebrow"><Sparkles/> MY HIU YHCT · AI STUDY OS</div>
+      <h2>Chào {name}. Hôm nay bạn muốn học gì?</h2>
+      <p>Một điểm vào cho học tập, ôn luyện, trợ lý riêng và nghiên cứu Y học cổ truyền. Bạn chỉ cần nói mục tiêu; hệ thống tự chuyển đến đúng công cụ.</p>
       <form className="study-os-v2__command" onSubmit={submit}>
         <label className="sr-only" htmlFor="study-os-command">Yêu cầu học tập hoặc nghiên cứu</label>
         <textarea id="study-os-command" rows={2} value={query} onChange={event=>setQuery(event.target.value)} placeholder="Ví dụ: Tôi có 30 phút, giúp tôi ôn Sinh lý nội tiết…"/>
@@ -64,28 +63,26 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
     <div className="study-os-v2__grid">
       <article className="study-os-v2__card study-os-v2__card--focus">
         <div className="study-os-v2__card-icon"><Target/></div>
-        <div><small>TIẾP TỤC HỌC</small><h3>{focus}</h3><p>Mục tiêu cá nhân hiện tại: {dailyMinutes} phút tập trung.</p></div>
+        <div><small>HỌC TIẾP</small><h3>{focus}</h3><p>Mục tiêu cá nhân hiện tại: {dailyMinutes} phút tập trung.</p></div>
         <button onClick={()=>execute(`Giúp tôi học tiếp ${focus} trong ${dailyMinutes} phút`)}>Học cùng trợ lý <ArrowRight/></button>
       </article>
 
       <article className="study-os-v2__card">
         <div className="study-os-v2__card-icon"><GraduationCap/></div>
-        <div><small>ÔN LUYỆN</small><h3>{journey.todayQuestions||0} câu hôm nay</h3><p>Vào Learning Hub để làm quiz, ôn sai và tiếp tục lộ trình luyện tập.</p></div>
-        <button onClick={()=>onNavigate('exam')}>Mở luyện tập <ArrowRight/></button>
+        <div><small>QUIZ & ÔN LUYỆN</small><h3>{journey.todayQuestions||0} câu hôm nay</h3><p>Chọn nội dung, số lượng câu và bắt đầu luyện từ ngân hàng đã duyệt.</p></div>
+        <button onClick={()=>onNavigate('exam')}>Mở Learning Hub <ArrowRight/></button>
       </article>
 
       <article className="study-os-v2__card">
         <div className="study-os-v2__card-icon"><FlaskConical/></div>
-        <div><small>NGHIÊN CỨU</small><h3>Research A.I có nguồn</h3><p>PubMed, OpenAlex, ClinicalTrials và tài liệu nội bộ khi bạn chủ động cho phép.</p></div>
+        <div><small>NGHIÊN CỨU</small><h3>Research A.I có nguồn</h3><p>Tìm bằng chứng, đọc nguồn và dùng tài liệu nội bộ khi bạn chủ động lựa chọn.</p></div>
         <button onClick={()=>onNavigate('research')}>Mở Research <ArrowRight/></button>
       </article>
     </div>
 
     <section className="study-os-v2__assistant">
-      <div><BookOpen/><span><b>Trợ lý riêng HIU YHCT</b><small>Hỏi kiến thức thường quy, học cùng A.I hoặc điều hướng ứng dụng trong một luồng thống nhất.</small></span></div>
+      <div><BookOpen/><span><b>Trợ lý riêng HIU YHCT</b><small>Một trợ lý thống nhất cho học tập, câu hỏi thường quy, điều hướng ứng dụng và kế hoạch cá nhân.</small></span></div>
       <button onClick={()=>execute(`Giúp tôi lập kế hoạch học ${focus} hôm nay`)}>{member?'Mở trợ lý':'Đăng nhập để dùng'} <ArrowRight/></button>
     </section>
-
-    <footer className="study-os-v2__canary-note">Bản V2 đang chạy ở chế độ canary. Quiz, Research, xác thực và dữ liệu vẫn dùng các contract production hiện hữu.</footer>
   </section>;
 }
