@@ -33,17 +33,20 @@ requireText(handler,/upsertLearningResource/,'publish API must register a stable
 requireText(handler,/learning_quiz_publish_v1/,'publish API must call the atomic reviewed publication RPC');
 requireText(route,/action==='quiz-publish'/,'quiz publish must be an explicit server action');
 
-requireText(manager,/TRUNG TÂM PHÁT HÀNH HỌC TẬP/,'admin UI must expose Publish Center V2');
-requireText(manager,/Tài liệu → Quiz → Phát hành/,'admin UI must present the simplified workflow');
-requireText(manager,/conversionMode:'auto'/,'Gemini conversion settings must stay automatic on the main path');
-requireText(manager,/Duyệt & phát hành/,'admin must explicitly approve before publication');
+requireText(manager,/QUẢN LÝ HỌC TẬP/,'admin UI must expose scoped learning management');
+requireText(manager,/Ngân hàng câu hỏi/,'admin UI must expose the quiz bank manager');
+requireText(manager,/NGÂN HÀNG TRẮC NGHIỆM/,'admin UI must identify the canonical Drive quiz bank');
+requireText(manager,/syncQuizBank/,'primary update action must scan the canonical quiz bank');
+requireText(manager,/conversionMode:'auto'/,'Gemini conversion settings must stay automatic on manual fallback paths');
+requireText(manager,/Duyệt & phát hành/,'non-standard material must still require explicit approval before publication');
 requireText(manager,/publishQuizDraft/,'admin final action must use server publication flow');
-requireText(manager,/getQuizDriveRoots|browseQuizDrive/,'Publish Center must support system Drive selection');
-requireText(manager,/DOCX, TXT hoặc PDF/,'Publish Center must preserve bounded direct document upload');
+requireText(manager,/getQuizDriveRoots|browseQuizDrive/,'manual Drive browsing must remain available as a secondary tool');
+requireText(manager,/DOCX, TXT hoặc PDF/,'bounded direct document upload must remain available as a secondary tool');
 forbidText(manager,/driveFileId.*<|webViewLink.*</,'raw Drive identity must not be rendered in the Publish Center UI');
+forbidText(manager,/Chọn một kho Drive ở trên|Làm mới bản nháp/,'obsolete Drive/draft guidance must stay removed');
 
-requireText(admin,/LearningContentManagerPanel/,'system admins must receive the same Publish Center surface');
-requireText(admin,/canBulk&&<LearningContentManagerPanel\/>/,'Publish Center must remain admin-only inside AdminControlCenter');
+requireText(admin,/LearningContentManagerPanel/,'system admins must receive the same learning-management surface');
+requireText(admin,/canBulk&&<LearningContentManagerPanel\/>/,'learning-management surface must remain admin-only inside AdminControlCenter');
 
 requireText(student,/QUESTION_COUNTS=\[10,20,30,50\]/,'student must choose a bounded quiz question count');
 requireText(student,/Chọn nội dung → số câu → bắt đầu/,'student workflow must be content → count → start');
