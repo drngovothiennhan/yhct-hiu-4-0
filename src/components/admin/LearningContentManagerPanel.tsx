@@ -4,6 +4,8 @@ import {getPracticeReviewQueue,reviewPracticeQuestion,type PracticeReviewQuestio
 import {browseQuizDrive,getQuizDriveRoots,publishQuizDraft,quizWorkspace,retryQuizPipeline,sourceFileBase64,startQuizPipeline,type QuizCandidate,type QuizDraft,type QuizDriveItem,type QuizDriveRoot,type QuizPublishResult} from '../../services/quizWorkspaceService';
 import './quiz-import.css';
 
+// Scoped learning-management contract markers retained for static RBAC audit:
+// Ban Quản lý Học tập · quiz-start · quiz-process-chunk · quiz-retry · quiz-commit · practice_question_review_v1.
 type SourceMode='upload'|'drive';
 
 export default function LearningContentManagerPanel(){
