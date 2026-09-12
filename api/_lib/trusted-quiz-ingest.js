@@ -5,6 +5,7 @@ import {parseTrustedMarkedDocx} from './docx-marked-quiz.js';
 const DOCX_MIME='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const FOLDER_MIME='application/vnd.google-apps.folder';
 const DEFAULT_QUIZ_BANK_FOLDER='1_VvupTkvHvWKLLehVQt_JNA15qfKnIvO';
+const QUIZ_BANK_ARCHIVE_FOLDERS=new Set(['01_ĐÃ_TRÍCH_XUẤT_CÂU_HỎI','02_TÀI_LIỆU_ĐÃ_XỬ_LÝ','99_CẦN_DUYỆT_THỦ_CÔNG']);
 const MAX_UPLOAD_BYTES=2_000_000,MAX_DRIVE_BYTES=5_000_000,HTTP_MS=9000;
 const clean=(value,max=1000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 const sha256=value=>createHash('sha256').update(value).digest('hex');
@@ -37,7 +38,7 @@ async function listChildren(parent,pageSize=100){
 async function listQuizBankDocxCandidates(){
   const folder=quizBankFolderId();if(!driveConfigured())return{configured:false,folder,files:[],reason:'missing_google_drive_credential'};
   const root=await listChildren(folder,100),files=root.filter(isDocx).map(file=>({...file,parentName:''}));
-  const folders=root.filter(x=>x.mimeType===FOLDER_MIME).slice(0,40);
+  const folders=root.filter(x=>x.mimeType===FOLDER_MIME&&!QUIZ_BANK_ARCHIVE_FOLDERS.has(String(x.name||'').trim())).slice(0,40);
   for(const child of folders){const rows=await listChildren(child.id,100).catch(()=>[]);for(const file of rows.filter(isDocx))files.push({...file,parentName:child.name})}
   const dedup=[...new Map(files.map(file=>[file.id,file])).values()];dedup.sort((a,b)=>Date.parse(b.createdTime||0)-Date.parse(a.createdTime||0));
   return{configured:true,folder,files:dedup.slice(0,400)};
