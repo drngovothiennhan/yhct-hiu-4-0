@@ -39,6 +39,7 @@ import './yquan-v20-1-character-acting.css';
 import './yquan-v20-mobile-typography.css';
 import './yquan-v20-unified.css';
 import './home-feed-phase4.css';
+import './responsive-phase7.css';
 
 bootstrapThemeState();
 
