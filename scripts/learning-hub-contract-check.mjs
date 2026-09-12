@@ -17,7 +17,8 @@ assert.ok(legacy.includes('National Exam Prep')&&legacy.includes('startExamSessi
 assert.ok(legacy.includes('<DailyDrivePractice/>')&&legacy.includes('<PracticeBankQuiz/>')&&legacy.includes('<AdaptiveReview identity={identity}/>'));
 assert.ok(css.includes('.learning-hub__legacy-exam>.daily-drive')&&css.includes('.learning-hub__legacy-exam>.practice-bank')&&css.includes('.learning-hub__legacy-exam>.adaptive-review'));
 assert.ok(css.includes('[role=tabpanel][hidden]')&&css.includes('@media(max-width:480px)'));
-assert.ok(contract.includes("export type ModuleId='feed'|'research'|'profile'|'garden'|'notifications'|'schedule'|'drl'|'exam'|'admin'|'acc'"));
+assert.ok(contract.includes("export type ModuleId='feed'|'ai'|'research'|'profile'|'garden'|'notifications'|'schedule'|'drl'|'exam'|'admin'|'acc'"));
+assert.ok(contract.includes("ai:{id:'ai',title:'Trợ lý A.I',path:'/ai'"));
 assert.ok(contract.includes("exam:{id:'exam',title:'Luyện thi ĐGNL',path:'/exam'"));
 assert.ok(!contract.includes("path:'/learning'"));
 console.log('Learning Hub structural contract passed.');
