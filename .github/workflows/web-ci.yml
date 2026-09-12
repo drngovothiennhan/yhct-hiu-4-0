@@ -44,6 +44,8 @@ jobs:
         run: node scripts/weather-contract-check.mjs
       - name: Notification authoritative unread regression
         run: node scripts/notification-read-state-check.mjs
+      - name: Profile learning achievement and game title regression
+        run: node scripts/profile-achievement-check.mjs
       - run: node scripts/research-provider-contract-check.mjs
       - run: node scripts/garden-water-contract-check.mjs
       - run: node scripts/garden-fertilizer-contract-check.mjs
