@@ -1,6 +1,6 @@
 import type {SystemRole} from '../types';
 
-export type ModuleId='feed'|'research'|'profile'|'garden'|'notifications'|'schedule'|'drl'|'exam'|'admin'|'acc';
+export type ModuleId='feed'|'ai'|'research'|'profile'|'garden'|'notifications'|'schedule'|'drl'|'exam'|'admin'|'acc';
 export type ModuleDefinition={
   id:ModuleId;
   title:string;
@@ -15,6 +15,7 @@ export const MODULE_ISOLATION_VERSION='final4-modular-v1';
 
 export const MODULES:Record<ModuleId,ModuleDefinition>={
   feed:{id:'feed',title:'My HIU YHCT',path:'/',label:'Trang chủ',memberOnly:false,featureScope:'student-home-academic-feed'},
+  ai:{id:'ai',title:'Trợ lý A.I',path:'/ai',label:'A.I',memberOnly:true,featureScope:'ai-chat-center'},
   research:{id:'research',title:'Trung tâm nghiên cứu',path:'/research',label:'Trung tâm nghiên cứu',memberOnly:false,featureScope:'research-center'},
   profile:{id:'profile',title:'Tường cá nhân',path:'/profile',label:'Tường cá nhân',memberOnly:true,featureScope:'personal-wall-inbox'},
   garden:{id:'garden',title:'Gia Viên Dược Thảo',path:'/garden',label:'Gia Viên Dược Thảo',memberOnly:true,featureScope:'herb-garden'},
@@ -26,7 +27,7 @@ export const MODULES:Record<ModuleId,ModuleDefinition>={
   acc:{id:'acc',title:'ACC hệ thống',path:'/acc',label:'ACC Hệ thống',memberOnly:true,minRole:'admin',featureScope:'system-operations'}
 };
 
-export const MODULE_ORDER:ModuleId[]=['feed','research','profile','garden','notifications','schedule','drl','exam','admin','acc'];
+export const MODULE_ORDER:ModuleId[]=['feed','ai','research','profile','garden','notifications','schedule','drl','exam','admin','acc'];
 export const PUBLIC_MODULES=new Set<ModuleId>(MODULE_ORDER.filter(id=>!MODULES[id].memberOnly));
 export const PATH_TO_MODULE=new Map<string,ModuleId>(MODULE_ORDER.map(id=>[MODULES[id].path,id]));
 
