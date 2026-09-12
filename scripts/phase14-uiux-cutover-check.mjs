@@ -23,6 +23,8 @@ need(app,/openAssistant/,'shell must route AI through the canonical assistant la
 need(app,/Công cụ khác/,'secondary functions must remain reachable outside primary navigation');
 need(app,/Cộng đồng học thuật/,'community must remain reachable as a secondary surface');
 need(app,/communityOpen&&<AcademicFeed/,'academic feed must lazy-render only when the secondary community surface is opened');
+need(app,/requestNotifications/,'notifications must remain reachable from secondary tools');
+need(app,/notificationBadge/,'secondary notification UI must keep canonical unread state');
 need(app,/Game YHCT/,'game must remain reachable in secondary tools');
 need(app,/Lịch hoạt động/,'schedule must remain reachable in secondary tools');
 need(app,/Điểm hoạt động/,'DRL must remain reachable in secondary tools');
