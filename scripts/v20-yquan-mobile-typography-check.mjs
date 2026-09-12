@@ -3,7 +3,7 @@ import path from 'node:path';
 
 const root=process.cwd();
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
-const main=read('src/main.tsx');
+const gardenHub=read('src/components/game/HerbGardenGame.tsx');
 const css=read('src/yquan-v20-mobile-typography.css');
 const world=read('src/components/game/yquan-v20/V20World.tsx');
 const sprites=read('src/components/game/yquan-v20/ActorSprites.tsx');
@@ -11,8 +11,11 @@ const sprites=read('src/components/game/yquan-v20/ActorSprites.tsx');
 const failures=[];
 const check=(ok,message)=>{if(!ok)failures.push(message)};
 
-check(main.includes("import './yquan-v20-mobile-typography.css'"),'mobile typography layer must be imported');
-check(main.indexOf("yquan-v20-mobile-typography.css")<main.indexOf("yquan-v20-unified.css"),'canonical unified CSS must remain last');
+const mobileImport="import '../../yquan-v20-mobile-typography.css'";
+const unifiedImport="import '../../yquan-v20-unified.css'";
+check(gardenHub.includes(mobileImport),'mobile typography layer must be imported by the lazy Garden/Y Quan hub');
+check(gardenHub.includes(unifiedImport),'canonical unified CSS must be imported by the lazy Garden/Y Quan hub');
+check(gardenHub.indexOf(mobileImport)<gardenHub.indexOf(unifiedImport),'canonical unified CSS must remain last in the lazy V20 stylesheet stack');
 check(css.includes('.hyq-v20-host .hyq-v15-tabs>button'),'engagement buttons need scoped anti-card sizing');
 check(css.includes('min-height:52px!important')&&css.includes('max-height:66px!important'),'engagement buttons need bounded height');
 check(css.includes('grid-auto-flow:column!important')&&css.includes('overflow-x:auto!important'),'mobile engagement navigation must stay one compact scroll row');
@@ -31,4 +34,4 @@ if(failures.length){
   process.exit(1);
 }
 console.log('HIU Y Quan V20 mobile typography/patient visual gate PASS');
-console.log('Compact mobile engagement tabs · bounded Vietnamese typography · V20 patient visual language verified.');
+console.log('Lazy V20 stylesheet stack · compact mobile engagement tabs · bounded Vietnamese typography · V20 patient visual language verified.');
