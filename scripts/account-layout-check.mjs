@@ -31,13 +31,20 @@ for(const token of forbiddenStructural)if(profile.includes(token))errors.push(`P
 const requiredCss=[
   'container:account/inline-size',
   'grid-template-columns:repeat(4,minmax(0,1fr))',
+  '@media(min-width:46rem)',
   '@container account (min-width:46rem)',
   'grid-template-columns:repeat(12,minmax(0,1fr))',
+  '.root > :global(.profile-achievements-card){grid-column:1/-1;min-width:0}',
+  '.wallCard{grid-column:span 8}',
+  '.drlCard{grid-column:span 4}',
   'overflow:clip',
   "[data-wall-theme='bamboo']",
   '@media(max-width:680px)'
 ];
 for(const token of requiredCss)if(!css.includes(token))errors.push(`Profile CSS missing ${token}`);
+
+const selfQuery=/@container account \(min-width:46rem\)\s*\{\s*\.root\s*\{/m;
+if(selfQuery.test(css))errors.push('Profile root must not try to resize its own grid from its container query');
 
 const requiredTokens=['--ds-space-1:4px','--ds-space-2:8px','--ds-color-surface:var(--surface','--ds-color-primary:var(--primary','--ds-radius-lg:18px'];
 for(const token of requiredTokens)if(!tokens.includes(token))errors.push(`design tokens missing ${token}`);
@@ -49,4 +56,4 @@ if(errors.length){
   process.exit(1);
 }
 
-console.log('account-layout-ok: ProfileCenter uses scoped CSS Modules, semantic tokens, 4-column mobile and 12-column container-query desktop layout');
+console.log('account-layout-ok: ProfileCenter uses a 4-column compact grid, a viewport-synchronized 12-column wide grid, descendant-only container queries, and full-width achievements without implicit columns');
