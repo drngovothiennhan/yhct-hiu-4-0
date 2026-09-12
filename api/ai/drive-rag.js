@@ -1,6 +1,7 @@
 import {handleQuizWorkspace} from '../_lib/quiz-workspace.js';
 import {handleQuizPipelineV2,isQuizPipelineV2Action} from '../_lib/quiz-pipeline-v2.js';
 import {learningContentAccess,memberAccess,memberRpc} from '../_lib/member-access.js';
+import {registerDriveLearningResource} from '../_lib/knowledge-gateway.js';
 import {buildDriveRagIndex,retrieveDriveRag} from '../_lib/drive-rag.js';
 import {driveQuizMeta,generateMcqsFromStudyText,listQuizDocuments,parseExplicitMcqs,readQuizDocument} from '../_lib/drive-quiz.js';
 
@@ -33,7 +34,7 @@ async function handleQuizSync(req,res){
     const listing=await listQuizDocuments(maxFiles);if(!listing.configured)return res.status(200).json({ok:false,degraded:true,reason:listing.reason,folderId:listing.folder,processed:[]});
     const processed=[];
     for(const file of listing.files){
-      const row={driveFileId:String(file.id||''),fileName:clean(file.name,300),status:'error',parsed:0,generated:0,inserted:0,updated:0,message:''};
+      const row={driveFileId:String(file.id||''),resourceKey:'',fileName:clean(file.name,300),status:'error',parsed:0,generated:0,inserted:0,updated:0,message:''};
       try{
         const source=await readQuizDocument(file),parsed=parseExplicitMcqs(source.text,file);let questions=parsed,status='ready',message='Đã nhận diện câu hỏi và đáp án trực tiếp từ DOCX.';
         if(!parsed.length){
@@ -45,6 +46,9 @@ async function handleQuizSync(req,res){
         const meta=driveQuizMeta(file,source.sourceHash,questions[0]?.subject||row.fileName.replace(/\.docx$/i,''),status,message);
         const result=await memberRpc(req,'practice_drive_ingest_admin_v1',{p_document:meta,p_questions:questions});
         row.status=status;row.inserted=Number(result?.inserted||0);row.updated=Number(result?.updated||0);row.message=message;
+        const registered=await registerDriveLearningResource(req,{driveFileId:meta.driveFileId,fileName:meta.fileName,mimeType:meta.mimeType,sourceHash:meta.sourceHash,sourceVersion:String(file.modifiedTime||''),resourceType:'quiz_source'});
+        if(registered.ok)row.resourceKey=String(registered.data?.resourceKey||'');
+        else console.warn(JSON.stringify({event:'learning_resource_register',ok:false,fileName:row.fileName,error:clean(registered.error,180)}));
       }catch(error){
         row.status='error';row.message=clean(error?.message||'Không xử lý được tài liệu.',300);
         try{await memberRpc(req,'practice_drive_ingest_admin_v1',{p_document:{driveFileId:row.driveFileId,fileName:row.fileName||'DOCX không xác định',mimeType:String(file.mimeType||''),modifiedTime:file.modifiedTime||null,sourceHash:`error-${row.driveFileId}`,subjectHint:row.fileName.replace(/\.docx$/i,''),syncStatus:'error',syncMessage:row.message},p_questions:[]})}catch{}
