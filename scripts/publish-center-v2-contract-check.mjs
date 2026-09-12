@@ -16,6 +16,9 @@ requireText(migration,/learning_quiz_publish_v1/,'atomic reviewed quiz publicati
 requireText(migration,/private\.is_learning_content_manager\(\)/,'publication must preserve scoped learning-content capability');
 requireText(migration,/source_row\.provider not in\('drive','upload'\)/,'publication must bind to approved source providers');
 requireText(migration,/source_row\.source_locator is distinct from source_value/,'publication must verify exact source provenance');
+requireText(migration,/source_doc\.source_hash is distinct from source_row\.content_hash/,'publication must reject a changed source revision');
+requireText(migration,/q\.source_hash=source_row\.content_hash/,'question promotion must be bound to the exact current source hash');
+requireText(migration,/documentApprovalSourceHash/,'approval provenance must retain the exact source hash');
 requireText(migration,/public\.practice_questions/,'publication must operate on canonical practice question bank');
 requireText(migration,/review_status='expert_approved'/,'document approval must create expert-approved questions');
 requireText(migration,/expert_verified_by=mid/,'document approval must record the approving member');
