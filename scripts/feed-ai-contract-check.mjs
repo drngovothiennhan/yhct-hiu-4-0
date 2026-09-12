@@ -3,6 +3,8 @@ import fs from 'node:fs';
 const read=path=>fs.readFileSync(path,'utf8');
 const feed=read('src/components/feed/AcademicFeed.tsx');
 const home=read('src/components/home/StudentHome.tsx');
+const homeCss=read('src/student-home.css');
+const settings=read('src/components/system/AppSettingsDialog.tsx');
 const homeFeedCss=read('src/home-feed-phase4.css');
 const main=read('src/main.tsx');
 const post=read('src/components/feed/AcademicPostCard.tsx');
@@ -22,6 +24,10 @@ const checks=[
   ['Home daily context uses journey progress and real schedule data',home.includes('student-daily-context')&&home.includes('dailySuggestion')&&home.includes('nextSchedule')&&home.includes('todayQuestions')],
   ['Home avoids implicit location or fabricated weather context',!home.includes('geolocation')&&!home.match(/weather|thời tiết|nhiệt độ/i)],
   ['Home primary action grid is reduced to two cards',actionCardCount===2&&home.includes('HỌC TIẾP')&&home.includes('ÔN NHANH HÔM NAY')],
+  ['Home delegates assistant interaction to the unified AI Mini',home.includes("yhct:ai:open")&&home.includes('student-ai-open')&&!home.includes('student-ai-ask')&&!home.includes('placeholder={`Hỏi nhanh')],
+  ['Home no longer owns install, sharing or performance controls',!home.includes('getPwaInstallStatus')&&!home.includes('requestPwaInstall')&&!home.includes('getPerformancePreference')&&!home.includes('setPerformancePreference')&&!home.includes('<b>Chia sẻ</b>')&&!home.includes('<b>Cài ứng dụng</b>')],
+  ['Settings owns PWA install, sharing and performance preferences',settings.includes('requestPwaInstall')&&settings.includes('Chia sẻ ứng dụng')&&settings.includes('getPerformancePreference')&&settings.includes('setPerformancePreference')&&settings.includes('performance-mode-settings')],
+  ['Home keeps exactly the three core learning shortcut labels',home.includes('<b>Nghiên cứu</b>')&&home.includes('<b>Game YHCT</b>')&&home.includes('<b>Luyện thi</b>')&&homeCss.includes('.student-shortcuts{display:grid;grid-template-columns:repeat(3')],
   ['academic feed caps system AI cards to latest three',feed.includes('.filter(isSystemAiPost).sort((a,b)=>postTime(b)-postTime(a)).slice(0,3)')],
   ['academic center renders maximum three posts per page',feed.includes('const PAGE_SIZE=3')&&feed.includes('filtered.slice(page*PAGE_SIZE,page*PAGE_SIZE+PAGE_SIZE)')&&feed.includes('Bài cũ hơn')],
   ['image posts receive bounded recency preference',feed.includes('MEDIA_PRIORITY_WINDOW_MS')&&feed.includes('hasMedia(a)!==hasMedia(b)')],
@@ -41,5 +47,5 @@ const checks=[
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks)console.log(`${ok?'PASS':'FAIL'} ${name}`);
-if(failed.length){console.error(`Home/Feed/ACC/Garden contract failed: ${failed.map(([name])=>name).join(', ')}`);process.exit(1)}
-console.log('Home daily context + compact feed + ACC AI Operations + garden watering contract passed.');
+if(failed.length){console.error(`Home/Feed/Settings/ACC/Garden contract failed: ${failed.map(([name])=>name).join(', ')}`);process.exit(1)}
+console.log('Compact Home + centralized Settings + unified assistant + feed/ACC/garden contract passed.');
