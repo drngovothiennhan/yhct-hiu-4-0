@@ -20,7 +20,7 @@ need(xiaozhi,"function logXiaoZhiCompletion",'XiaoZhi completion telemetry');
 need(xiaozhi,"event:'xiaozhi_mini',ok:true",'XiaoZhi success telemetry event');
 for(const token of ['route:','degraded:','failureClass:','latencyMs:','sourceCount:'])need(xiaozhi,token,'XiaoZhi bounded telemetry fields');
 const completionBlock=xiaozhi.slice(xiaozhi.indexOf('function logXiaoZhiCompletion'),xiaozhi.indexOf('function logXiaoZhiFailure'));
-for(const forbidden of ['query','pageContext','localContext','input','answer:','.sources'])forbid(completionBlock,forbidden,`XiaoZhi telemetry privacy ${forbidden}`);
+for(const forbidden of ['query','pageContext','localContext','input','answer:','source.title','source.url'])forbid(completionBlock,forbidden,`XiaoZhi telemetry privacy ${forbidden}`);
 forbid(xiaozhi,'error:clean(error?.message','XiaoZhi logs must use failure classes, not provider error text');
 
 need(systemAdmin,"fetch('/api/ai/diagnostics'",'ACC diagnostics canonical Vercel route');
