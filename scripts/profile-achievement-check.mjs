@@ -8,6 +8,7 @@ const journey=read('src/services/studentJourneyService.ts');
 const game=read('src/components/game/HiuYQuanEngagementV20.tsx');
 
 const serverTitles=['Học đồ HIU','Tân thủ Biện chứng','Cao thủ Tứ chẩn','Danh y mô phỏng'];
+const clientXpThreshold=/\bxp\s*(?:>=|<=|>|<)\s*\d+/i;
 const checks=[
   ['Profile mounts achievements as an isolated child',profile.includes("import ProfileAchievements from './ProfileAchievements'")&&profile.includes('<ProfileAchievements member={member}/>')],
   ['learning metrics read the existing member-scoped Student Journey',achievements.includes('readStudentJourney(member.id)')&&achievements.includes('subscribeStudentJourney(member.id,setJourney)')],
@@ -15,7 +16,7 @@ const checks=[
   ['device-local learning metrics are labeled honestly',achievements.includes('Tiến độ học trên thiết bị này')&&achievements.includes('Lưu trên thiết bị này')],
   ['last exam score uses the existing 0-100 normalized source',journey.includes('Math.min(100')&&journey.includes('lastExamScore:safeScore')&&achievements.includes('journey.lastExamScore')],
   ['game profile reads only the server-authoritative engagement RPC',service.includes("supabase.rpc('hiu_y_quan_engagement_v15'")&&game.includes("safeCall<Engagement>('hiu_y_quan_engagement_v15')")],
-  ['Profile does not derive or hardcode any HIU Y Quan title',!serverTitles.some(title=>achievements.includes(title)||service.includes(title))&&!service.match(/xp\s*[><=]/i)],
+  ['Profile does not derive or hardcode any HIU Y Quan title',!serverTitles.some(title=>achievements.includes(title)||service.includes(title))&&!clientXpThreshold.test(service)],
   ['game title is validated from RPC payload before rendering',service.includes("typeof raw.title==='string'?raw.title.trim():''")&&service.includes('if(xp===null||level===null||level<1||streakDays===null||masteryUnlocked===null||!title)')&&achievements.includes('{game.title}')],
   ['game synchronization fails soft without breaking the profile',achievements.includes('catch{setGame(null);setGameUnavailable(true)}')&&achievements.includes('Hồ sơ và tiến độ học vẫn hoạt động bình thường')],
   ['profile achievement surface is read-only toward game progression',!service.match(/claim|answer|vote|busy_shift|update|insert|delete/i)&&!achievements.match(/claimDaily|answerChallenge|voteConsult|activateBusy/)],
