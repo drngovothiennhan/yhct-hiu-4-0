@@ -1,15 +1,15 @@
 # HIU YHCT 4.0 — Execution State
 
 Updated: 2026-09-12
-Active branch: `hiu-responsive-phase7-b1-20260912`
-Base production-verified main: `62a3c75d70d7c934407e813c7ed243cf0fb09f27`
+Active branch: `hiu-version-cleanup-phase8-b1-20260912`
+Base production-verified main: `1a15f824ff285afd5cde6a8a233a4a19bb66a40f`
 Production project: `yhct-hiu-final4-stage`
 Primary production alias: `yhct-hiu-final4-stage.vercel.app`
 Supabase production: `gzmpnsrwqjpsbklyflqr` — ACTIVE_HEALTHY
 
 ## Current phase
 
-PHASE 7 — Responsive UI/UX cleanup, Batch 1 mobile shell safety.
+PHASE 8 — Version cleanup by reference/dependency evidence only, Batch 1.
 
 ## DO_NOT_BREAK
 
@@ -23,6 +23,7 @@ PHASE 7 — Responsive UI/UX cleanup, Batch 1 mobile shell safety.
 - National Exam server-authoritative session/scoring contracts.
 - HIU Y Quán game state, score/progression and existing game contract tests.
 - Full-desktop-on-phone viewport contract and current production aliases/Vercel Git integration.
+- Never delete a versioned file solely because its filename looks old; deletion requires zero active runtime/build/test reference or a verified current replacement.
 
 ## PHASE 1 — DONE / PRODUCTION VERIFIED
 
@@ -49,37 +50,36 @@ PHASE 7 — Responsive UI/UX cleanup, Batch 1 mobile shell safety.
 
 ## PHASE 6 — DONE / PRODUCTION VERIFIED
 
-- Profile now surfaces existing member-scoped Student Journey metrics explicitly as progress stored on the current device.
-- HIU Y Quán title, level, XP, streak and mastery are read only from `hiu_y_quan_engagement_v15()`; the client does not hardcode server titles or reimplement XP title thresholds.
-- Game synchronization is read-only and fail-soft; base Profile/wall/DRL/password remain independent.
-- No DB migration, role/module/navigation change or game mutation was introduced.
-- PR `#83` exact code head `431ff4e71cb02df444e59acf641a6567524df3c4`; PR Web CI `#625`: FULL PASS.
-- Production main `62a3c75d70d7c934407e813c7ed243cf0fb09f27`; main Web CI `#626`: FULL PASS.
-- Vercel Production `#511`: PASS.
-- Deployment `dpl_6tGZz3PvNRckgSpvGgou9B4Se4tT`: READY, exact SHA, primary alias, live Chrome/evidence PASS.
+- Profile surfaces existing member-scoped Student Journey metrics explicitly as progress stored on the current device.
+- HIU Y Quán title, level, XP, streak and mastery are read only from `hiu_y_quan_engagement_v15()`; client does not hardcode server titles or reimplement XP title thresholds.
+- Production main `62a3c75d70d7c934407e813c7ed243cf0fb09f27`; Web CI `#626`, Vercel Production `#511`, deployment `dpl_6tGZz3PvNRckgSpvGgou9B4Se4tT`: PASS/READY/live Chrome.
 
-## PHASE 7 — Batch 1 ACTIVE
+## PHASE 7 — DONE / PRODUCTION VERIFIED
 
-Goal: improve the mobile application shell without changing module data or behavior.
+- Mobile shell hardening uses one bottom-nav height contract to drive content clearance and Unified AI Mini offset.
+- Header “Thêm” and shell controls retain at least 44px touch targets; Unified AI Mini maintains measured clearance above bottom navigation.
+- Real-Chrome `mobile-shell-responsive-check.mjs` is enforced before the existing smoke/rendered-content/adaptive viewport matrix.
+- PR `#84` exact head `8937c30...`: FULL PASS before merge.
+- Production main `1a15f824ff285afd5cde6a8a233a4a19bb66a40f`; main Web CI `#630`: FULL PASS.
+- Vercel Production `#515`: PASS.
+- Deployment `dpl_Fx5qpUbns7cPWKVbdkQatBhQdmCA`: READY, exact SHA, primary alias, live Chrome/evidence PASS.
 
-Audit findings:
-- Existing viewport matrix strongly checks horizontal overflow and mobile/desktop mode, but does not assert shell touch-target size or fixed-element overlap.
-- A late mobile override reduced the header “Thêm” control to `40x40`, below the Batch 1 44px shell target.
-- Unified AI Mini used a fixed `bottom:78px`, leaving no real gap above the 78px mobile bottom navigation when safe-area is zero.
-- Main already reserves bottom space, but the nav height/AI offset were maintained as independent constants and could drift.
+## PHASE 8 — Batch 1 ACTIVE
 
-Implemented in active branch:
-- `responsive-phase7.css` is loaded last and is scoped only to `html[data-viewport-mode="mobile"][data-mobile-ui="social"]`.
-- One mobile-nav height variable now drives bottom-nav height, main clearance and AI Mini offset, including `env(safe-area-inset-bottom)`.
-- Header “Thêm” is restored to `44x44`; bottom-nav and sheet shell controls retain at least 44px touch height.
-- AI Mini keeps a 10px measured gap above the bottom navigation.
-- Forced desktop-on-phone and ordinary desktop selectors are untouched.
-- New real-Chrome `mobile-shell-responsive-check.mjs` runs at 390x844 DPR3 after production build and fails on horizontal overflow, mobile-mode mismatch, <44px shell targets, inadequate main bottom clearance or AI Mini/bottom-nav overlap. It stores screenshot/JSON evidence in `browser-artifacts/`.
-- Web CI runs this gate before the existing Chrome smoke/rendered-content/adaptive viewport matrix.
+Goal: remove only proven-dead release/CI artifacts without touching active runtime, data, migrations, version contracts or historical documentation.
+
+Evidence locked before deletion:
+- `scripts/acceptance-check-v4.mjs` is active through `package.json#audit:source` and `prebuild`; retained.
+- `public/version.json` is freshness-critical in `public/service-worker.js`; retained.
+- `scripts/adaptive-viewport-check-v2.mjs` is the active viewport matrix; legacy `scripts/adaptive-viewport-check.mjs` has zero active references and is removed.
+- `public/v12-release.txt` through `public/v17-release.txt` have zero active references and are not part of the service-worker/version contract; removed.
+- Seven temporary CI/branch marker files under `docs/` have zero active references; removed.
+- No migrations, game runtime/CSS, National Exam legacy implementation, active acceptance contracts or version metadata are removed in Batch 1.
+
+Batch 1 commit before checkpoint docs: `d6f707bf1363ebc4328def78788f111c01c688ea`.
 
 ## Remaining high-level phases
 
-8. Version cleanup by reference/dependency evidence only.
 9. Top-5 AI health issues by Impact × Frequency × Risk.
 10. ACC AI/System Health safe-fix workflow.
 11. Performance bottlenecks.
@@ -87,4 +87,4 @@ Implemented in active branch:
 
 ## Next gate
 
-Open the PHASE 7 Batch 1 PR and require full Web CI, including the new mobile-shell real-Chrome gate plus existing Chrome/viewport matrix. Only then squash-merge with expected-head guard and require full main CI + exact Vercel READY/primary-alias/live-Chrome production verification.
+Open the PHASE 8 Batch 1 PR and require full Web CI. Only after exact-head PR CI passes, squash-merge with expected-head guard, then require full main CI and exact-SHA Vercel READY/primary-alias/live-Chrome production verification before declaring Phase 8 complete.
