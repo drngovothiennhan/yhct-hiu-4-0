@@ -59,6 +59,8 @@ jobs:
       - name: Learning Hub structural regression
         run: node scripts/learning-hub-contract-check.mjs
       - run: npm run build
+      - name: Original character rig browser QA
+        run: node scripts/v20-yquan-master-browser-check.mjs
       - name: Real Google Chrome responsive smoke
         run: node scripts/chrome-real-smoke.mjs
       - name: Chrome rendered-content contract

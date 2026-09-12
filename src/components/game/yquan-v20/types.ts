@@ -69,6 +69,18 @@ export interface HerbVisual{
   indications?:string;
 }
 
+export interface AnimationSnapshot{
+  current:ActorAnimation;frame:number;elapsed:number;finished:boolean;loopCycles:number;playbackSpeed:number;
+}
+
+export type StoryStep=
+  |{kind:'move';actor:'doctor'|'patient';waypoint:string;started?:boolean}
+  |{kind:'switch';actor:'doctor'|'patient';scene:SceneId;waypoint?:string}
+  |{kind:'action';actor:'doctor'|'patient';state:DoctorState|PatientState;animation:ActorAnimation;started?:boolean}
+  |{kind:'wait';ms:number;remaining?:number}
+  |{kind:'hide';actor:'doctor'|'patient';hidden:boolean}
+  |{kind:'emit';event:'PATIENT_DISCHARGED'|'TREATMENT_COMPLETED';caseKey:string;bedSlot?:number|null};
+
 export interface ActorSnapshot<S extends string=string>{
   scene:SceneId;
   position:WorldPoint;
@@ -77,6 +89,9 @@ export interface ActorSnapshot<S extends string=string>{
   state:S;
   animation:ActorAnimation;
   visible:boolean;
+  path?:Array<WorldPoint & {id:string}>;
+  targetWaypoint?:string|null;
+  animationProgress?:AnimationSnapshot;
 }
 
 export interface PersistedStoryState{
@@ -87,6 +102,10 @@ export interface PersistedStoryState{
   doctor:ActorSnapshot<DoctorState>;
   patient:ActorSnapshot<PatientState>;
   bedAssignment:number|null;
+  execution?:{
+    queue:StoryStep[];activeStep:StoryStep|null;cameraHint:SceneId;
+    careStatus:VisualCase['care_status'];completed:boolean;
+  };
 }
 
 export interface GameEventMap{

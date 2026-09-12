@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "requirement": "Exact user-provided character identity; no substitution or palette redesign.",
+  "characters": {
+    "male": {
+      "path": "public/assets/hiu-y-quan/characters/master/doctor-male-original.jpg",
+      "sha256": "ad114edc159823330d9c4c1016fe180d1b26c8183a15b08eb3c5eab29f46fdd4",
+      "sourceUpload": "01-27253.jpg",
+      "approvedView": "front",
+      "derivedAnimationApproved": false
+    },
+    "female": {
+      "path": "public/assets/hiu-y-quan/characters/master/doctor-female-original.jpg",
+      "sha256": "22009a0f5fa80b05516705b8acf297f4d77dcfe531a2429bcf7c519d6379d42f",
+      "sourceUpload": "02-27255.jpg",
+      "approvedView": "front",
+      "derivedAnimationApproved": false
+    }
+  }
+}

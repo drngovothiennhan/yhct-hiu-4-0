@@ -1,3 +1,4 @@
+import {renderDoctorMaster} from './DoctorMasterRig';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {HeartPulse,LibraryBig,Stethoscope,X} from 'lucide-react';
 import {DoctorSprite,PatientSprite} from './ActorSprites';
@@ -116,12 +117,16 @@ export default function V20World(){
   useEffect(()=>{
     let frame=0;
     const renderActor=(node:HTMLDivElement|null,actor:typeof controller.doctor|typeof controller.patient,isDoctor:boolean)=>{
-      if(!node)return;const snapshot=actor.snapshot();
+      if(!node)return;const snapshot=actor.snapshot();if(isDoctor)renderDoctorMaster(node,snapshot.animation,actor.animation.frame);
       node.style.display=snapshot.visible&&snapshot.scene===focusScene?'block':'none';node.style.transform=`translate3d(${snapshot.position.x-(isDoctor?105:95)}px,${snapshot.position.y-(isDoctor?286:266)}px,0)`;node.style.zIndex=String(100+Math.round(snapshot.position.y));
       if(node.dataset.animation!==snapshot.animation)node.dataset.animation=snapshot.animation;if(node.dataset.direction!==snapshot.direction)node.dataset.direction=snapshot.direction;node.dataset.state=String(snapshot.state);node.dataset.scene=snapshot.scene;node.dataset.frame=String(actor.animation.frame);
     };
     const tick=(time:number)=>{const delta=lastFrame.current?time-lastFrame.current:16;lastFrame.current=time;controller.update(delta);renderActor(doctorRef.current,controller.doctor,true);renderActor(patientRef.current,controller.patient,false);frame=requestAnimationFrame(tick)};
-    frame=requestAnimationFrame(tick);return()=>{cancelAnimationFrame(frame);lastFrame.current=0;controller.dispose()};
+    const checkpoint=()=>controller.dispose();
+    const visibilityCheckpoint=()=>{if(document.hidden)checkpoint()};
+    window.addEventListener('pagehide',checkpoint);
+    document.addEventListener('visibilitychange',visibilityCheckpoint);
+    frame=requestAnimationFrame(tick);return()=>{cancelAnimationFrame(frame);lastFrame.current=0;window.removeEventListener('pagehide',checkpoint);document.removeEventListener('visibilitychange',visibilityCheckpoint);checkpoint()};
   },[controller,focusScene]);
 
   const chooseScene=(scene:SceneId)=>{manualFocusUntil.current=Date.now()+9000;setFocusScene(scene)};
