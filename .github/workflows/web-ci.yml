@@ -40,6 +40,8 @@ jobs:
       - run: node scripts/acceptance-check.mjs
       - run: node scripts/platform-upgrade-check.mjs
       - run: node scripts/feed-ai-contract-check.mjs
+      - name: Weather privacy and coordinate regression
+        run: node scripts/weather-contract-check.mjs
       - run: node scripts/research-provider-contract-check.mjs
       - run: node scripts/garden-water-contract-check.mjs
       - run: node scripts/garden-fertilizer-contract-check.mjs

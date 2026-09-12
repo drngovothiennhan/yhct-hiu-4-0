@@ -22,7 +22,7 @@ const checks=[
   ['TCM news surface is no longer mounted in academic feed',!feed.includes("TcmNewsRotator")&&!feed.includes('news-rail')&&feed.includes('data-news-surface="hidden"')],
   ['desktop feed collapses the removed news row',homeFeedCss.includes('grid-template-areas:"main side"')&&homeFeedCss.includes('grid-template-areas:"widgets main side"')&&main.includes("import './home-feed-phase4.css'" )],
   ['Home daily context uses journey progress and real schedule data',home.includes('student-daily-context')&&home.includes('dailySuggestion')&&home.includes('nextSchedule')&&home.includes('todayQuestions')],
-  ['Home avoids implicit location or fabricated weather context',!home.includes('geolocation')&&!home.match(/weather|thời tiết|nhiệt độ/i)],
+  ['Home weather is regional, sourced and does not request device geolocation',home.includes('fetchApproxWeather')&&home.includes('ước tính theo khu vực mạng')&&home.includes('Open-Meteo')&&!home.includes('navigator.geolocation')],
   ['Home primary action grid is reduced to two cards',actionCardCount===2&&home.includes('HỌC TIẾP')&&home.includes('ÔN NHANH HÔM NAY')],
   ['Home delegates assistant interaction to the unified AI Mini',home.includes("yhct:ai:open")&&home.includes('student-ai-open')&&!home.includes('student-ai-ask')&&!home.includes('placeholder={`Hỏi nhanh')],
   ['Home no longer owns install, sharing or performance controls',!home.includes('getPwaInstallStatus')&&!home.includes('requestPwaInstall')&&!home.includes('getPerformancePreference')&&!home.includes('setPerformancePreference')&&!home.includes('<b>Chia sẻ</b>')&&!home.includes('<b>Cài ứng dụng</b>')],
@@ -48,4 +48,4 @@ const checks=[
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks)console.log(`${ok?'PASS':'FAIL'} ${name}`);
 if(failed.length){console.error(`Home/Feed/Settings/ACC/Garden contract failed: ${failed.map(([name])=>name).join(', ')}`);process.exit(1)}
-console.log('Compact Home + centralized Settings + unified assistant + feed/ACC/garden contract passed.');
+console.log('Compact Home + regional weather + centralized Settings + unified assistant + feed/ACC/garden contract passed.');
