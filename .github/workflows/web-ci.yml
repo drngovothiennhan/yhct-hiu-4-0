@@ -66,6 +66,8 @@ jobs:
         run: node scripts/v22-quiz-import-check.mjs && node scripts/pdf-quiz-source-check.mjs
       - name: Learning Hub structural regression
         run: node scripts/learning-hub-contract-check.mjs
+      - name: Phase 16 trusted quiz and AI chat regression
+        run: npm run audit:phase16
       - run: npm run build
       - name: Initial preload graph and CSS payload regression
         run: npm run audit:performance:dist
