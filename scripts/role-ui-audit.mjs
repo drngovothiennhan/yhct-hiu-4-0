@@ -51,7 +51,7 @@ const checks=[
   ['installable PWA settings',has(files.settings,'Cài ứng dụng mạng xã hội','requestPwaInstall')&&has(files.pwa,'beforeinstallprompt','appinstalled','display-mode: standalone')],
   ['profile/password preserved',has(files.profile,'Đổi mật khẩu','Mật khẩu hiện tại','Xác nhận mật khẩu mới')&&has(files.authRuntime,'member-change-password','AbortController')],
   ['portable static hosting',has(files.vite,'GITHUB_PAGES',"'/yhct-hiu-4-0/'")&&has(files.main,'import.meta.env.BASE_URL')],
-  ['module build chunks',has(files.vite,'module-feed','module-research','module-profile','module-garden','module-admin','module-acc')],
+  ['Vite-native lazy application chunks',has(files.vite,"return 'vendor-react'","return 'vendor-supabase'","return 'vendor-icons'","return 'vendor-documents'",'return undefined')&&not(files.vite,"normalized.includes('/src/components/")&&has(files.app,"lazy(()=>import('./components/feed/AcademicFeed'))","lazy(()=>import('./components/research/ResearchCenter'))","lazy(()=>import('./components/game/HerbGardenGame'))")],
   ['DRL exact publication status',has(files.drl,'drl_public_lookup_v2','Đã chốt điểm','Đang tổng hợp / Chờ duyệt','total_points')]
  ]]
 ];

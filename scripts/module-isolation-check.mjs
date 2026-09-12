@@ -18,10 +18,11 @@ need(researchMini,['searchPubMed(text,6)','searchOpenAlex(text,6)','searchClinic
 need(mini,['researchIntent','askXiaoZhiMini','VOICE_KEY','startListening','Trung tâm nghiên cứu','openResearch(text)'],'global XiaoZhi app-assistant text/voice routing');
 forbid(mini,['searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge','centralKnowledgeService','askAcademicUnified','feedback_submit_v1'],'global XiaoZhi AI mini academic separation');
 need(miniService,["fetch('/api/ai/assistant'","mode:'xiaozhi-mini'",'Authorization:`Bearer ${token}`','hiu.vn'],'global XiaoZhi shared gateway client');
-need(vite,['module-feed','module-research','module-profile','module-profile-inbox','module-garden','module-notifications','module-schedule','module-drl','module-exam','module-admin','module-acc'],'module chunks');
+need(vite,['manualChunks:productionChunk','vendor-react','vendor-supabase','vendor-icons','vendor-documents'],'vendor chunk boundaries');
+forbid(vite,['module-feed','module-research','module-profile','module-profile-inbox','module-garden','module-notifications','module-schedule','module-drl','module-exam','module-admin','module-acc'],'manual application chunks');
 need(manifest,["id:'/'","start_url:'/'","scope:'/'","display:'standalone'","prefer_related_applications:false","shortcuts:",'Trung tâm nghiên cứu','Tường cá nhân'],'root PWA manifest');
 need(pwa,['beforeinstallprompt','appinstalled','requestPwaInstall','display-mode: standalone'],'PWA install controller');
 need(settings,['Cài ứng dụng mạng xã hội','PWA độc lập của Chrome','requestPwaInstall'],'app settings');
 
 if(errors.length){console.error('MODULE ISOLATION CHECK FAILED');for(const error of errors)console.error(`- ${error}`);process.exit(1)}
-console.log('module-isolation-ok: 10 final areas frozen, inbox embedded in profile, admin/ACC separation, root PWA install, Research A.I with request-scoped internal consent, and application-assistant XiaoZhi separation present');
+console.log('module-isolation-ok: 10 final areas frozen, native lazy route boundaries, vendor-only manual chunks, inbox embedded in profile, admin/ACC separation, root PWA install, Research A.I with request-scoped internal consent, and application-assistant XiaoZhi separation present');

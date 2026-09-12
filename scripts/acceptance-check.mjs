@@ -87,7 +87,8 @@ need(settings,['Cài ứng dụng mạng xã hội','PWA độc lập của Chro
 need(manifest,['"id":"/"','"start_url":"/"','"scope":"/"','"display":"standalone"','/pwa-icon-192.png','/pwa-icon-512.png','maskable'],'root static fallback manifest');
 need(manifestApi,['system_theme_get_v1','theme_color','Cache-Control','no-store','X-YHCT-System-Theme',"display:'standalone'","id:'/'","start_url:'/'","scope:'/'",'shortcuts','prefer_related_applications:false','/pwa-icon-192.png','/pwa-maskable-512.png'],'dynamic installable production manifest');
 need(sw,['navigationResponse','staticResponse','self.registration.scope'],'offline service worker');
-need(vite,['GITHUB_PAGES',"'/yhct-hiu-4-0/'",'base:githubPages','module-feed','module-research','module-profile','module-garden','module-admin','module-acc'],'portable modular Vite base');
+need(vite,['GITHUB_PAGES',"'/yhct-hiu-4-0/'",'base:githubPages',"return 'vendor-react'","return 'vendor-supabase'","return 'vendor-icons'","return 'vendor-documents'",'return undefined'],'portable Vite base + vendor-only chunk boundaries');
+if(vite.includes("normalized.includes('/src/components/"))errors.push('portable Vite config must not force application component chunks');
 for(const route of ['/research','/profile','/schedule','/exam','/drl','/notifications','/garden','/messages','/admin','/acc'])if(!vercel.includes(`"source": "${route}"`))errors.push(`Vercel rewrite missing ${route}`);
 
 const social=read('src/services/socialService.ts'),profile=read('src/components/profile/ProfileCenter.tsx'),profileInbox=read('src/components/profile/ProfileInbox.tsx'),messages=read('src/components/messages/MessagesCenter.tsx'),drl=read('src/components/drl/DrlCenter.tsx'),worker=read('src/workers/drlParseWorker.ts');
@@ -102,6 +103,7 @@ const pkg=JSON.parse(read('package.json'));
 if(String(pkg.dependencies?.xlsx||'').includes('0.18.5'))errors.push('vulnerable xlsx 0.18.5 is forbidden');
 if(!String(pkg.scripts?.prebuild||'').includes('audit:roles'))errors.push('prebuild must run independent role audit');
 if(!String(pkg.scripts?.prebuild||'').includes('audit:modules'))errors.push('prebuild must run module isolation audit');
+if(!String(pkg.scripts?.prebuild||'').includes('audit:performance'))errors.push('prebuild must run performance source boundary audit');
 
 if(errors.length){console.error('ACCEPTANCE CHECK FAILED');errors.forEach(e=>console.error(`- ${e}`));process.exit(1)}
 console.log(`acceptance-ok: ${sourceFiles.length} application source files scanned; modular shell + Gemini-first application assistant + explicit Research handoff + opt-in internal research AI + garden v8/HIU Y Quan + exam integrity + root PWA + anti-flash boot gates clean`);
