@@ -82,7 +82,7 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
     </div>
 
     <section className="study-os-v2__assistant">
-      <div><BookOpen/><span><b>Trợ lý riêng HIU YHCT</b><small>Hỏi kiến thức thường quy, học cùng A.I hoặc điều hướng ứng dụng mà không cần chọn provider.</small></span></div>
+      <div><BookOpen/><span><b>Trợ lý riêng HIU YHCT</b><small>Hỏi kiến thức thường quy, học cùng A.I hoặc điều hướng ứng dụng trong một luồng thống nhất.</small></span></div>
       <button onClick={()=>execute(`Giúp tôi lập kế hoạch học ${focus} hôm nay`)}>{member?'Mở trợ lý':'Đăng nhập để dùng'} <ArrowRight/></button>
     </section>
 
