@@ -81,15 +81,17 @@ try{
   if(!ready)throw new Error('Mobile app did not become ready.');
 
   let shellReady=false;
+  let mountState=null;
   for(let i=0;i<80;i++){
-    const result=await send('Runtime.evaluate',{expression:`Boolean(document.querySelector('.mobile-bottom-nav')&&document.querySelector('.mobile-more-button')&&document.querySelector('.ai-mini-fab'))`,returnByValue:true});
-    if(result.result?.value===true){shellReady=true;break}
+    const result=await send('Runtime.evaluate',{expression:`(()=>({nav:Boolean(document.querySelector('.mobile-bottom-nav')),more:Boolean(document.querySelector('.mobile-more-button')),aiRoot:Boolean(document.querySelector('.xz-mini')),aiOrb:Boolean(document.querySelector('.xz-orb'))}))()`,returnByValue:true});
+    mountState=result.result?.value||null;
+    if(mountState?.nav&&mountState?.more&&mountState?.aiRoot&&mountState?.aiOrb){shellReady=true;break}
     await sleep(125);
   }
-  if(!shellReady)throw new Error('Mobile shell controls did not mount.');
+  if(!shellReady)throw new Error(`Mobile shell controls did not mount: ${JSON.stringify(mountState)}`);
   await sleep(500);
 
-  const result=await send('Runtime.evaluate',{expression:`(()=>{const rect=element=>{const value=element?.getBoundingClientRect();return value?{left:value.left,right:value.right,top:value.top,bottom:value.bottom,width:value.width,height:value.height}:null};const visible=element=>Boolean(element&&getComputedStyle(element).display!=='none'&&getComputedStyle(element).visibility!=='hidden');const html=document.documentElement,main=document.querySelector('main'),nav=document.querySelector('.mobile-bottom-nav'),more=document.querySelector('.mobile-more-button'),fab=document.querySelector('.ai-mini-fab'),buttons=[...document.querySelectorAll('.mobile-bottom-nav>button')];return{mode:html.dataset.viewportMode||'',mobileUi:html.dataset.mobileUi||'',innerWidth,docScrollWidth:html.scrollWidth,bodyScrollWidth:document.body.scrollWidth,mainPaddingBottom:main?parseFloat(getComputedStyle(main).paddingBottom)||0:0,nav:rect(nav),navVisible:visible(nav),navButtonRects:buttons.map(rect),more:rect(more),moreVisible:visible(more),fab:rect(fab),fabVisible:visible(fab)}})()`,returnByValue:true});
+  const result=await send('Runtime.evaluate',{expression:`(()=>{const rect=element=>{const value=element?.getBoundingClientRect();return value?{left:value.left,right:value.right,top:value.top,bottom:value.bottom,width:value.width,height:value.height}:null};const visible=element=>Boolean(element&&getComputedStyle(element).display!=='none'&&getComputedStyle(element).visibility!=='hidden');const html=document.documentElement,main=document.querySelector('main'),nav=document.querySelector('.mobile-bottom-nav'),more=document.querySelector('.mobile-more-button'),fab=document.querySelector('.xz-orb'),aiRoot=document.querySelector('.xz-mini'),buttons=[...document.querySelectorAll('.mobile-bottom-nav>button')];return{mode:html.dataset.viewportMode||'',mobileUi:html.dataset.mobileUi||'',innerWidth,docScrollWidth:html.scrollWidth,bodyScrollWidth:document.body.scrollWidth,mainPaddingBottom:main?parseFloat(getComputedStyle(main).paddingBottom)||0:0,nav:rect(nav),navVisible:visible(nav),navButtonRects:buttons.map(rect),more:rect(more),moreVisible:visible(more),fab:rect(fab),fabVisible:visible(fab),aiRootBottom:aiRoot?getComputedStyle(aiRoot).bottom:null}})()`,returnByValue:true});
   const state=result.result.value;
 
   if(state.mode!=='mobile'||state.mobileUi!=='social')throw new Error(`Unexpected mobile shell mode: ${JSON.stringify(state)}`);
@@ -98,8 +100,8 @@ try{
   if(state.navButtonRects.length!==5||state.navButtonRects.some(item=>!item||item.height<44||item.width<44))throw new Error(`Bottom navigation touch target below 44px: ${JSON.stringify(state)}`);
   if(!state.moreVisible||!state.more||state.more.width<44||state.more.height<44)throw new Error(`More button touch target below 44px: ${JSON.stringify(state)}`);
   if(state.mainPaddingBottom<state.nav.height+20)throw new Error(`Main content lacks bottom-navigation clearance: ${JSON.stringify(state)}`);
-  if(!state.fabVisible||!state.fab)throw new Error(`AI Mini FAB missing: ${JSON.stringify(state)}`);
-  if(state.fab.bottom>state.nav.top-6)throw new Error(`AI Mini FAB overlaps/touches bottom navigation: ${JSON.stringify(state)}`);
+  if(!state.fabVisible||!state.fab)throw new Error(`Unified AI Mini orb missing: ${JSON.stringify(state)}`);
+  if(state.fab.bottom>state.nav.top-6)throw new Error(`Unified AI Mini orb overlaps/touches bottom navigation: ${JSON.stringify(state)}`);
 
   const screenshot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
   await writeFile(path.join(outDir,'phase7-mobile-shell.png'),Buffer.from(screenshot.data,'base64'));
