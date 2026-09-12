@@ -6,6 +6,7 @@ const DOCX_MIME='application/vnd.openxmlformats-officedocument.wordprocessingml.
 const FOLDER_MIME='application/vnd.google-apps.folder';
 const DEFAULT_QUIZ_BANK_FOLDER='1_VvupTkvHvWKLLehVQt_JNA15qfKnIvO';
 const QUIZ_BANK_ARCHIVE_FOLDERS=new Set(['01_ĐÃ_TRÍCH_XUẤT_CÂU_HỎI','02_TÀI_LIỆU_ĐÃ_XỬ_LÝ','99_CẦN_DUYỆT_THỦ_CÔNG']);
+const QUIZ_BANK_INTAKE_FOLDERS=new Set(['00_DOCX_MỚI_CHỜ_XỬ_LÝ','Thêm thủ công']);
 const MAX_UPLOAD_BYTES=2_000_000,MAX_DRIVE_BYTES=5_000_000,HTTP_MS=9000;
 const clean=(value,max=1000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 const sha256=value=>createHash('sha256').update(value).digest('hex');
@@ -29,6 +30,7 @@ async function driveFetch(url,init={},ms=HTTP_MS){
 const driveConfigured=()=>Boolean(serviceAccount()||apiKey());
 const isDocx=file=>String(file?.mimeType||'')===DOCX_MIME||/\.docx$/i.test(String(file?.name||''));
 const subjectFromName=name=>clean(String(name||'').replace(/\.docx$/i,'').replace(/^\s*\d+[._ -]*/,'').replace(/[_-]+/g,' '),160)||'Chưa phân loại';
+const subjectForFile=file=>{const parent=clean(file?.parentName,160);return !parent||QUIZ_BANK_INTAKE_FOLDERS.has(parent)?subjectFromName(file?.name):parent};
 
 async function listChildren(parent,pageSize=100){
   const url=new URL('https://www.googleapis.com/drive/v3/files');url.searchParams.set('q',`'${parent}' in parents and trashed=false`);url.searchParams.set('fields','files(id,name,mimeType,createdTime,modifiedTime,size,parents)');url.searchParams.set('pageSize',String(Math.max(1,Math.min(100,pageSize))));url.searchParams.set('orderBy','createdTime desc');url.searchParams.set('supportsAllDrives','true');url.searchParams.set('includeItemsFromAllDrives','true');
@@ -48,12 +50,12 @@ async function downloadDocx(file){
   const url=new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}`);url.searchParams.set('alt','media');const response=await driveFetch(url,{},12000);if(!response.ok)throw new Error(`Google Drive download ${response.status}`);const len=Number(response.headers.get('content-length')||file.size||0);if(len>MAX_DRIVE_BYTES)throw new Error('DOCX exceeds 5 MB ingestion limit');const buffer=Buffer.from(await response.arrayBuffer());if(!buffer.length||buffer.length>MAX_DRIVE_BYTES)throw new Error('DOCX exceeds 5 MB ingestion limit');return buffer;
 }
 
-const documentMeta=(file,sourceHash,questionCount)=>({driveFileId:String(file.id),fileName:clean(file.name,300),mimeType:DOCX_MIME,modifiedTime:file.modifiedTime||null,sourceHash,subjectHint:clean(file.parentName||subjectFromName(file.name),160),syncStatus:'ready',syncMessage:`Trusted DOCX: ${questionCount} câu có đúng một đáp án tô đỏ.`});
+const documentMeta=(file,sourceHash,questionCount,subjectHint=subjectForFile(file))=>({driveFileId:String(file.id),fileName:clean(file.name,300),mimeType:DOCX_MIME,modifiedTime:file.modifiedTime||null,sourceHash,subjectHint, syncStatus:'ready',syncMessage:`Trusted DOCX: ${questionCount} câu có đúng một đáp án tô đỏ.`});
 
 async function importTrusted(req,file,buffer){
-  const sourceHash=sha256(buffer),parsed=parseTrustedMarkedDocx(buffer,file,sourceHash);
+  const sourceHash=sha256(buffer),subjectHint=subjectForFile(file),sourceFile={...file,parentName:subjectHint},parsed=parseTrustedMarkedDocx(buffer,sourceFile,sourceHash);
   if(!parsed.trusted)return{ok:false,status:'invalid',fileName:file.name,total:parsed.total,valid:parsed.valid,invalid:parsed.invalid,message:'Tài liệu chưa đạt chuẩn: mỗi câu phải có đúng 4 lựa chọn và đúng một đáp án tô đỏ.'};
-  const meta=documentMeta(file,sourceHash,parsed.questions.length),result=await memberRpc(req,'practice_trusted_quiz_ingest_v1',{p_document:meta,p_questions:parsed.questions});
+  const meta=documentMeta(file,sourceHash,parsed.questions.length,subjectHint),result=await memberRpc(req,'practice_trusted_quiz_ingest_v1',{p_document:meta,p_questions:parsed.questions});
   return{ok:true,status:'imported',fileName:file.name,total:parsed.total,inserted:Number(result?.inserted||0),updated:Number(result?.updated||0),sourceHash,marker:parsed.marker};
 }
 
