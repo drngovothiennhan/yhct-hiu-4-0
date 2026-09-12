@@ -25,8 +25,9 @@ need(sql,['least(coalesce(p_limit,25),50)','jsonb_array_length(p_answers)>500'],
 
 for(const count of ['5','10','20'])need(daily,[count],`Quick Review ${count}-question choice`);
 need(daily,['selectedCount','Ôn tập nhanh','const openToday=async(count=selectedCount)','getTodayDailyPractice(count)','openToday(selectedCount)'],'Quick Review user-selectable daily set and stable server session');
-need(practice,['Google Quiz','Tải thêm','Nộp bài','hasMore','practice-bank__options'],'continuous Google-style Practice Quiz');
-need(service,['practice_quiz_page_v1','practice_quiz_submit_v1','for(let at=0;at<questions.length;at+=500)'],'continuous client submit is chunked without a 50-question product cap');
+need(practice,['QUIZ HỌC TẬP','Chọn nội dung → số câu → bắt đầu','QUESTION_COUNTS=[10,20,30,50]','getPracticeQuizPage(subject,0,seed.current,count)','Nộp bài','practice-bank__options'],'one-step approved-bank Practice Quiz');
+forbid(practice,['Tải thêm','hasMore'],'primary Practice Quiz must not expose pagination controls');
+need(service,['practice_quiz_page_v1','practice_quiz_submit_v1','for(let at=0;at<questions.length;at+=500)'],'client submit remains chunked and server-authoritative');
 need(exam,["import PracticeBankQuiz from './PracticeBankQuiz'",'<PracticeBankQuiz/>'],'approved bank Practice Quiz is integrated in Exam Center');
 
 need(mini,['AssistantMascot','guideOpen','avatarStyle','Hỏi nhanh, tìm tin hoặc mở tính năng.','app-assistant-guide-toggle'],'A.I Mini compact/collapsible guide and avatar preference');
@@ -34,4 +35,4 @@ need(mascot,["'default'|'eagle'|'viet'|'minimal'",'assistant-mascot__beak'],'sel
 forbid(mascot,['fetch(','askServerAi','askXiaoZhiMini'],'mascot must remain presentation-only');
 
 if(fail.length){console.error('QUIZ LEARNING PIPELINE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('Quiz learning pipeline contract PASS: SOURCE-backed ACC review -> approved bank -> 5/10/20 quick review -> continuous Practice Quiz -> compact selectable A.I Mini presentation.');
+console.log('Quiz learning pipeline contract PASS: SOURCE-backed human review -> approved bank -> 5/10/20 quick review -> content/count/start Practice Quiz -> compact selectable A.I Mini presentation.');

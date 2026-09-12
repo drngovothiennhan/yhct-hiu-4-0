@@ -1,10 +1,14 @@
 import {supabase} from './authService';
 
-export type QuizDriveItem={id:string;name:string;mimeType?:string;webViewLink?:string;folder?:boolean;supported?:boolean};
+export type QuizDriveItem={id:string;name:string;mimeType?:string;webViewLink?:string;modifiedTime?:string;folder?:boolean;supported?:boolean};
+export type QuizDriveRoot={id:string;name:string};
+export type QuizBrowseResult={folder:QuizDriveItem;roots:QuizDriveRoot[];items:QuizDriveItem[];nextPageToken?:string|null};
+export type QuizRootsResult={roots:QuizDriveRoot[];driveConfigured:boolean;credentialMode:string};
+export type QuizPublishResult={ok:boolean;resourceKey:string;status:string;audience:string;approvedNow:number;questionCount:number;publishedAt:string;title:string};
 export type QuizCandidate={id:string;number:string;stem:string;options:string[];correctIndex:number|null;explanation:string;issues:string[];raw:string;answerEvidence:string;importedSnapshot?:Partial<QuizCandidate>;imported?:boolean};
 export type QuizPipelineState='processing'|'needs_review'|'ready'|'error';
 export type QuizPipeline={version:number;state:QuizPipelineState;strategy:'generate_chunks'|'extract';totalChunks:number;completedChunks:number;nextChunk:number;failedChunk:number|null;attempt:number;percent:number;retryable:boolean;sourceChars:number;chunkSize:number;startedAt:string;updatedAt:string;completedAt?:string|null;lastError?:string|null};
-export type QuizDraft={id:string;revision:number;questions:QuizCandidate[];total:number;ready:number;needsReview:number;warnings:string[];unassigned:string[];sourceText:string;document:{fileName:string;subjectHint:string;syncStatus?:string;syncMessage?:string};file:{id:string;name:string;parentName:string};pipeline?:QuizPipeline};
+export type QuizDraft={id:string;revision:number;questions:QuizCandidate[];total:number;ready:number;needsReview:number;warnings:string[];unassigned:string[];sourceText:string;document:{fileName:string;subjectHint:string;driveFileId?:string;mimeType?:string;modifiedTime?:string;sourceHash?:string;syncStatus?:string;syncMessage?:string};file:{id:string;name:string;parentName:string;mimeType?:string;subjectFolderId?:string};pipeline?:QuizPipeline};
 export type QuizDraftSummary={id:string;fileName:string;subject:string;total:number;pending:number;pipelineState?:string;pipelineProgress?:number;updatedAt:string};
 export type QuizWorkspaceError=Error&{status?:number;draft?:QuizDraft};
 export type QuizPipelineUpdate=(draft:QuizDraft)=>void|Promise<void>;
@@ -51,6 +55,10 @@ export async function retryQuizPipeline(draft:QuizDraft,onUpdate?:QuizPipelineUp
  const initial=await quizWorkspace<QuizDraft>('quiz-retry',{id:draft.id,revision:draft.revision});
  return continueQuizPipeline(initial,onUpdate);
 }
+
+export const getQuizDriveRoots=()=>quizWorkspace<QuizRootsResult>('quiz-roots');
+export const browseQuizDrive=(folderId:string)=>quizWorkspace<QuizBrowseResult>('quiz-browse',{folderId});
+export const publishQuizDraft=(id:string)=>quizWorkspace<QuizPublishResult>('quiz-publish',{id});
 
 export async function sourceFileBase64(file:File){
  if(!/\.(?:docx|txt|pdf)$/i.test(file.name)||file.size>2000000)throw new Error('Chọn tệp .docx, .txt hoặc .pdf tối đa 2 MB.');

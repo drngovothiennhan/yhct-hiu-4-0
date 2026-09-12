@@ -1,5 +1,6 @@
 import {handleQuizWorkspace} from '../_lib/quiz-workspace.js';
 import {handleQuizPipelineV2,isQuizPipelineV2Action} from '../_lib/quiz-pipeline-v2.js';
+import {handleQuizPublish} from '../_lib/quiz-publish.js';
 import {learningContentAccess,memberAccess,memberRpc} from '../_lib/member-access.js';
 import {registerDriveLearningResource} from '../_lib/knowledge-gateway.js';
 import {buildDriveRagIndex,retrieveDriveRag} from '../_lib/drive-rag.js';
@@ -68,6 +69,7 @@ export default async function handler(req,res){
   if(req.method==='GET')return handleDriveList(req,res);
   if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
   if(isQuizPipelineV2Action(req.body?.action))return handleQuizPipelineV2(req,res);
+  if(req.body?.action==='quiz-publish')return handleQuizPublish(req,res);
   if(['quiz-roots','quiz-browse','quiz-preview','quiz-commit','quiz-drafts','quiz-draft'].includes(req.body?.action))return handleQuizWorkspace(req,res);
   return clean(req.body?.action,40)==='quiz-sync'?handleQuizSync(req,res):handleDriveRag(req,res);
 }

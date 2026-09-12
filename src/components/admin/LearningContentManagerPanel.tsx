@@ -1,36 +1,71 @@
 import {useEffect,useState} from 'react';
-import {CheckCircle2,FileUp,RefreshCcw,ShieldCheck,XCircle} from 'lucide-react';
+import {BookOpenCheck,CheckCircle2,ChevronRight,FileText,FileUp,Folder,FolderOpen,RefreshCcw,Send,ShieldCheck,XCircle} from 'lucide-react';
 import {getPracticeReviewQueue,reviewPracticeQuestion,type PracticeReviewQuestion} from '../../services/dailyPracticeService';
-import {quizWorkspace,retryQuizPipeline,sourceFileBase64,startQuizPipeline,type QuizCandidate,type QuizDraft} from '../../services/quizWorkspaceService';
+import {browseQuizDrive,getQuizDriveRoots,publishQuizDraft,quizWorkspace,retryQuizPipeline,sourceFileBase64,startQuizPipeline,type QuizCandidate,type QuizDraft,type QuizDriveItem,type QuizDriveRoot,type QuizPublishResult} from '../../services/quizWorkspaceService';
 import './quiz-import.css';
 
-// Server-side review authorization contract: practice_question_review_v1.
-// Shared resumable pipeline contract markers for static RBAC audit: quiz-start · quiz-process-chunk · quiz-retry · quiz-commit.
-type ConversionMode='auto'|'generate'|'extract';
+// Scoped learning-management contract markers retained for static RBAC audit:
+// Ban Quản lý Học tập · quiz-start · quiz-process-chunk · quiz-retry · quiz-commit · practice_question_review_v1.
+type SourceMode='upload'|'drive';
 
 export default function LearningContentManagerPanel(){
-  const [subject,setSubject]=useState(''),[file,setFile]=useState<File|null>(null),[mode,setMode]=useState<ConversionMode>('auto'),[draft,setDraft]=useState<QuizDraft|null>(null),[selected,setSelected]=useState<Set<string>>(new Set()),[review,setReview]=useState<PracticeReviewQuestion[]>([]),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+  const [sourceMode,setSourceMode]=useState<SourceMode>('upload'),[subject,setSubject]=useState(''),[file,setFile]=useState<File|null>(null),[roots,setRoots]=useState<QuizDriveRoot[]>([]),[folderId,setFolderId]=useState(''),[driveItems,setDriveItems]=useState<QuizDriveItem[]>([]),[selectedDrive,setSelectedDrive]=useState<QuizDriveItem|null>(null),[draft,setDraft]=useState<QuizDraft|null>(null),[review,setReview]=useState<PracticeReviewQuestion[]>([]),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[published,setPublished]=useState<QuizPublishResult|null>(null),[driveReady,setDriveReady]=useState(false);
   const loadReview=async()=>setReview(await getPracticeReviewQueue(20));
-  useEffect(()=>{void loadReview().catch(e=>setMessage((e as Error).message))},[]);
+  useEffect(()=>{void loadReview().catch(()=>{});void getQuizDriveRoots().then(x=>{setRoots(x.roots||[]);setDriveReady(Boolean(x.driveConfigured));if(x.roots?.[0])setFolderId(x.roots[0].id)}).catch(()=>setDriveReady(false))},[]);
+  useEffect(()=>{if(sourceMode!=='drive'||!folderId||!driveReady)return;let alive=true;setDriveItems([]);void browseQuizDrive(folderId).then(x=>{if(alive)setDriveItems(x.items||[])}).catch(e=>{if(alive)setMessage((e as Error).message)});return()=>{alive=false}},[sourceMode,folderId,driveReady]);
   const run=async(fn:()=>Promise<void>)=>{if(busy)return;setBusy(true);setMessage('');try{await fn()}catch(e){setMessage((e as Error).message)}finally{setBusy(false)}};
-  const track=(next:QuizDraft)=>{setDraft(next);if(next.pipeline?.state==='processing')setMessage(`Đang xử lý ${next.pipeline.completedChunks}/${next.pipeline.totalChunks} phần · ${next.pipeline.percent}%`)};
-  const finish=(next:QuizDraft)=>{setDraft(next);setSelected(new Set());setMessage(`Đã hoàn tất chuyển đổi: ${next.total} câu. Chưa có câu nào được tự động nhập; cần đối chiếu trước khi xác nhận.`)};
-  const preview=async()=>{
-    if(!file||!subject.trim())throw new Error('Nhập chủ đề và chọn tệp DOCX/TXT/PDF trước khi chuyển đổi.');
-    finish(await startQuizPipeline({fileName:file.name,base64:await sourceFileBase64(file),subjectName:subject.trim(),conversionMode:mode},track));
+  const track=(next:QuizDraft)=>{setDraft(next);if(next.pipeline?.state==='processing')setMessage(`A.I đang xử lý tài liệu · ${next.pipeline.percent}%`)};
+  const finish=(next:QuizDraft)=>{setDraft(next);setPublished(null);setMessage(`Đã tạo ${next.questions.filter(q=>q.correctIndex!==null).length} câu có đáp án. Hãy xem nhanh nội dung rồi bấm “Duyệt & phát hành”.`)};
+  const processSource=async()=>{
+    if(sourceMode==='upload'){
+      if(!file)throw new Error('Chọn một tệp DOCX, TXT hoặc PDF.');
+      if(!subject.trim())throw new Error('Nhập tên môn/chủ đề cho tài liệu.');
+      finish(await startQuizPipeline({fileName:file.name,base64:await sourceFileBase64(file),subjectName:subject.trim(),conversionMode:'auto'},track));
+      return;
+    }
+    if(!selectedDrive)throw new Error('Chọn một tài liệu trong Kho học tập.');
+    finish(await startQuizPipeline({fileId:selectedDrive.id,subjectFolderId:folderId,conversionMode:'auto'},track));
   };
   const retry=async()=>{if(draft?.pipeline?.state==='error')finish(await retryQuizPipeline(draft,track))};
-  const toggle=(q:QuizCandidate,checked:boolean)=>setSelected(old=>{const next=new Set(old);if(checked&&q.correctIndex!==null&&!q.imported&&next.size<200)next.add(q.id);else next.delete(q.id);return next});
-  const commit=async()=>{if(!draft||!selected.size)throw new Error('Chọn ít nhất một câu đã đối chiếu có đáp án.');if(draft.pipeline?.state==='processing'||draft.pipeline?.state==='error')throw new Error('Hoàn tất pipeline trước khi nhập câu hỏi.');const selection=draft.questions.filter(q=>selected.has(q.id)&&!q.imported&&q.correctIndex!==null).map(q=>({...q,confirmed:true}));if(!selection.length)throw new Error('Không có câu hợp lệ để nhập.');await quizWorkspace('quiz-commit',{id:draft.id,revision:draft.revision,selection});const next=await quizWorkspace<QuizDraft>('quiz-draft',{id:draft.id});setDraft(next);setSelected(new Set());await loadReview();setMessage(`Đã nhập ${selection.length} câu được xác nhận vào ngân hàng ôn tập.`)};
-  const decide=async(id:string,status:'expert_approved'|'rejected')=>{await reviewPracticeQuestion(id,status);await loadReview();setMessage(status==='expert_approved'?'Đã duyệt câu hỏi.':'Đã loại câu hỏi khỏi hàng chờ duyệt.')};
-  const pipeline=draft?.pipeline;
-  return <section className="panel quiz-import" aria-label="Ban Quản lý Học tập">
-    <div className="qi-heading"><div><span className="qi-kicker"><ShieldCheck/>Ban Quản lý Học tập</span><h2>Quản lý nội dung Học Thuật</h2><p>Quyền giới hạn: chuyển tài liệu thành bản nháp quiz, đối chiếu, nhập câu đã xác nhận và duyệt ngân hàng. Không có quyền quản lý thành viên, theme, A.I Operations hoặc ACC hệ thống.</p></div><ShieldCheck/></div>
-    <div className="qi-flow" aria-label="Quy trình"><span><b>1</b><FileUp/>Tải nguồn</span><span><b>2</b>Chia phần & xử lý</span><span><b>3</b>Đối chiếu</span><span><b>4</b><CheckCircle2/>Duyệt</span></div>
-    <div className="qi-direct-upload"><label><span><b>Chủ đề</b><small>Chủ đề sẽ đi cùng nguồn và câu hỏi.</small></span><input value={subject} disabled={busy} placeholder="Ví dụ: Sinh lý học, Châm cứu học…" onChange={e=>setSubject(e.target.value)}/></label><label><span><b>Cách chuyển đổi</b><small>Gemini chỉ được dùng nội dung nguồn.</small></span><select value={mode} disabled={busy} onChange={e=>setMode(e.target.value as ConversionMode)}><option value="auto">Tự động</option><option value="generate">Gemini thiết kế từ tài liệu</option><option value="extract">Chỉ trích xuất câu có sẵn</option></select></label><label className="qi-upload"><FileUp/><span><b>Tải DOCX, TXT hoặc PDF</b><small>.docx / UTF-8 .txt / PDF có lớp văn bản · tối đa 2 MB · PDF tối đa 80 trang · không OCR tự động</small></span><input type="file" accept=".docx,.txt,.pdf,text/plain,application/pdf" disabled={busy} onChange={e=>setFile(e.target.files?.[0]||null)}/></label><div className="qi-actions"><button disabled={busy||!file||!subject.trim()} onClick={()=>void run(preview)}>{busy?'Đang xử lý…':'Tạo bản nháp quiz'}</button>{file&&<small>{file.name}</small>}</div></div>
-    {pipeline&&<div className="qi-status" role="status"><b>Pipeline v{pipeline.version} · {pipeline.state==='processing'?'Đang xử lý':pipeline.state==='error'?'Tạm dừng':pipeline.state==='needs_review'?'Chờ đối chiếu':'Sẵn sàng'}</b><progress max={100} value={pipeline.percent}/><span>{pipeline.percent}% · {pipeline.completedChunks}/{pipeline.totalChunks||pipeline.completedChunks} phần · lần chạy {pipeline.attempt}</span>{pipeline.lastError&&<small className="warning">{pipeline.lastError}</small>}{pipeline.state==='error'&&pipeline.retryable&&<button disabled={busy} onClick={()=>void run(retry)}><RefreshCcw/>Thử lại từ phần bị lỗi</button>}</div>}
+  const validPending=(value:QuizDraft)=>value.questions.filter(q=>!q.imported&&q.correctIndex!==null);
+  const publishAll=async()=>{
+    if(!draft)throw new Error('Chưa có bản nháp để phát hành.');
+    if(draft.pipeline?.state==='processing'||draft.pipeline?.state==='error')throw new Error('A.I chưa xử lý xong tài liệu.');
+    let current=draft;
+    let pending=validPending(current);
+    if(!pending.length&&!current.questions.some(q=>q.imported))throw new Error('Không có câu hỏi hợp lệ để phát hành.');
+    while(pending.length){
+      const selection=pending.slice(0,200).map(q=>({...q,confirmed:true}));
+      await quizWorkspace('quiz-commit',{id:current.id,revision:current.revision,selection});
+      current=await quizWorkspace<QuizDraft>('quiz-draft',{id:current.id});
+      setDraft(current);
+      pending=validPending(current);
+    }
+    const result=await publishQuizDraft(current.id);
+    setPublished(result);
+    await loadReview();
+    setMessage(`Đã phát hành ${result.questionCount} câu. Sinh viên có thể chọn nội dung này và bắt đầu làm quiz ngay.`);
+  };
+  const decide=async(id:string,status:'expert_approved'|'rejected')=>{await reviewPracticeQuestion(id,status);await loadReview();setMessage(status==='expert_approved'?'Đã duyệt câu ngoại lệ.':'Đã loại câu hỏi khỏi hàng chờ.')};
+  const reset=()=>{setDraft(null);setPublished(null);setFile(null);setSelectedDrive(null);setMessage('')};
+  const pipeline=draft?.pipeline,validCount=draft?.questions.filter(q=>q.correctIndex!==null).length||0,invalidCount=(draft?.questions.length||0)-validCount;
+  return <section className="panel quiz-import publish-center-v2" aria-label="Trung tâm phát hành Học tập">
+    <div className="qi-heading"><div><span className="qi-kicker"><ShieldCheck/>TRUNG TÂM PHÁT HÀNH HỌC TẬP</span><h2>Tài liệu → Quiz → Phát hành</h2><p>Admin chỉ cần đưa tài liệu vào, xem nhanh kết quả và duyệt phát hành. Gemini tự chuyển nội dung thành câu hỏi có đáp án và dẫn chứng; Drive ID, pipeline và cấu hình kỹ thuật được hệ thống xử lý phía sau.</p></div><BookOpenCheck/></div>
+    <div className="qi-flow" aria-label="Quy trình phát hành"><span><b>1</b><FileUp/>Chọn nguồn</span><span><b>2</b>A.I xử lý</span><span><b>3</b><CheckCircle2/>Duyệt nội dung</span><span><b>4</b><Send/>Phát hành</span></div>
+
+    {!draft&&<div className="publish-source-card">
+      <div className="publish-source-tabs" role="tablist" aria-label="Nguồn tài liệu"><button type="button" className={sourceMode==='upload'?'active':''} onClick={()=>setSourceMode('upload')}><FileUp/>Tải tài liệu</button><button type="button" className={sourceMode==='drive'?'active':''} onClick={()=>setSourceMode('drive')}><FolderOpen/>Kho học tập</button></div>
+      {sourceMode==='upload'?<div className="qi-direct-upload"><label><span><b>Môn / chủ đề</b><small>Dùng để sinh viên chọn đúng nội dung khi luyện quiz.</small></span><input type="text" value={subject} disabled={busy} placeholder="Ví dụ: Sinh lý học – Nội tiết" onChange={e=>setSubject(e.target.value)}/></label><label className="qi-upload"><FileUp/><span><b>DOCX, TXT hoặc PDF</b><small>Tối đa 2 MB · PDF có lớp văn bản · hệ thống tự nhận diện câu có sẵn hoặc dùng Gemini tạo câu.</small></span><input type="file" accept=".docx,.txt,.pdf,text/plain,application/pdf" disabled={busy} onChange={e=>setFile(e.target.files?.[0]||null)}/></label>{file&&<div className="publish-selected"><FileText/><span><b>{file.name}</b><small>Sẵn sàng xử lý</small></span></div>}</div>:<div className="publish-drive-browser">{!driveReady&&<div className="qi-drive-warning">Kho học tập chưa sẵn sàng. Có thể dùng “Tải tài liệu” ngay.</div>}{driveReady&&<><div className="qi-root-actions">{roots.map(root=><button type="button" className={folderId===root.id?'active':''} key={root.id} onClick={()=>{setFolderId(root.id);setSelectedDrive(null)}}><Folder/>{root.name}</button>)}</div><div className="qi-files">{driveItems.map(item=><div key={item.id}>{item.folder?<button type="button" className="publish-folder" onClick={()=>{setFolderId(item.id);setSelectedDrive(null)}}><FolderOpen/><span>{item.name}</span><ChevronRight/></button>:<button type="button" className={`publish-file ${selectedDrive?.id===item.id?'active':''}`} disabled={!item.supported} onClick={()=>setSelectedDrive(item)}><FileText/><span><b>{item.name}</b><small>{item.supported?'Chọn tài liệu':'Định dạng chưa hỗ trợ từ Drive'}</small></span></button>}</div>)}</div>{selectedDrive&&<div className="publish-selected"><CheckCircle2/><span><b>{selectedDrive.name}</b><small>Đã chọn từ Kho học tập</small></span></div>}</>}</div>}
+      <div className="qi-actions"><button className="qi-primary-convert" disabled={busy||(sourceMode==='upload'?(!file||!subject.trim()):!selectedDrive)} onClick={()=>void run(processSource)}>{busy?'A.I đang xử lý…':'Tạo quiz từ tài liệu'}</button></div>
+    </div>}
+
+    {pipeline&&<div className="qi-status" role="status"><b>{pipeline.state==='processing'?'A.I đang chuyển tài liệu thành quiz':pipeline.state==='error'?'Xử lý tạm dừng':'Bản quiz đã sẵn sàng để duyệt'}</b>{pipeline.state==='processing'&&<><progress max={100} value={pipeline.percent}/><span>{pipeline.percent}%</span></>}{pipeline.lastError&&<small className="warning">{pipeline.lastError}</small>}{pipeline.state==='error'&&pipeline.retryable&&<button disabled={busy} onClick={()=>void run(retry)}><RefreshCcw/>Thử lại</button>}</div>}
     {message&&<p className="qi-status" role="status">{message}</p>}
-    {draft&&<div className="qi-preview"><h3>{draft.document.fileName}</h3><p>{draft.total} câu · {draft.questions.filter(q=>q.imported).length} đã nhập · {draft.questions.filter(q=>!q.imported).length} đang chờ</p>{draft.warnings.map((w,i)=><p key={i} className="warning">{w}</p>)}<details><summary>Xem nguyên văn nguồn để đối chiếu</summary><pre>{draft.sourceText}</pre></details>{draft.questions.slice(0,40).map((q,i)=><article key={q.id}><label><input type="checkbox" disabled={busy||q.imported||q.correctIndex===null||pipeline?.state==='processing'||pipeline?.state==='error'} checked={selected.has(q.id)} onChange={e=>toggle(q,e.target.checked)}/>{i+1}. {q.imported?'Đã nhập':'Đã đối chiếu'}</label><b>{q.stem}</b>{q.issues.length>0&&<p className="warning">{q.issues.join(' · ')}</p>}<ol type="A">{q.options.map((o,j)=><li key={j}><span>{o}</span>{q.correctIndex===j&&<b> ✓</b>}</li>)}</ol>{q.explanation&&<p>{q.explanation}</p>}{q.answerEvidence&&<small>{q.answerEvidence}</small>}</article>)}{draft.questions.length>40&&<p className="muted">Đang hiển thị 40 câu đầu để giữ giao diện nhẹ; toàn bộ câu vẫn nằm trong bản nháp và có thể nhập theo lô tối đa 200 câu.</p>}<div className="qi-actions"><button disabled={busy||!selected.size||pipeline?.state==='processing'||pipeline?.state==='error'} onClick={()=>void run(commit)}>Nhập {selected.size} câu đã xác nhận</button></div></div>}
-    <details open><summary>Hàng chờ duyệt quiz ({review.length})</summary><div className="qi-drafts">{review.length===0&&<p className="muted">Không có câu đang chờ duyệt.</p>}{review.map(q=><article key={q.id}><b>{q.subject} · {q.topic}</b><p>{q.stem}</p><ol type="A">{q.options.map((o,i)=><li key={i}>{o}{q.correctIndex===i?' ✓':''}</li>)}</ol><small>Nguồn: {q.sourceFileName}</small><div className="qi-actions"><button disabled={busy} onClick={()=>void run(()=>decide(q.id,'expert_approved'))}><CheckCircle2/>Duyệt</button><button className="secondary" disabled={busy} onClick={()=>void run(()=>decide(q.id,'rejected'))}><XCircle/>Loại</button></div></article>)}</div></details>
+
+    {draft&&!published&&pipeline?.state!=='processing'&&pipeline?.state!=='error'&&<div className="publish-review-card"><div className="publish-review-head"><div><h3>{draft.document.fileName}</h3><p><b>{validCount} câu sẵn sàng</b>{invalidCount>0?` · ${invalidCount} câu không đủ căn cứ sẽ không phát hành`:''}</p></div><button className="secondary" disabled={busy} onClick={reset}>Đổi tài liệu</button></div>{draft.warnings.slice(0,2).map((w,i)=><p key={i} className="warning">{w}</p>)}<div className="qi-preview">{draft.questions.filter(q=>q.correctIndex!==null).slice(0,30).map((q:QuizCandidate,i)=><article key={q.id}><b>Câu {i+1}. {q.stem}</b><ol type="A">{q.options.map((o,j)=><li key={j}>{o}{q.correctIndex===j&&<b> ✓</b>}</li>)}</ol>{q.explanation&&<p>{q.explanation}</p>}{q.answerEvidence&&<small>{q.answerEvidence}</small>}</article>)}{validCount>30&&<p className="muted">Đang hiển thị 30 câu đầu để giao diện nhẹ. Khi duyệt, hệ thống nhập và phát hành toàn bộ {validCount} câu hợp lệ theo lô an toàn.</p>}</div><div className="publish-approval"><ShieldCheck/><div><b>Xác nhận của Ban Quản lý Học tập</b><p>Bấm nút dưới đây nghĩa là đã xem bản quiz và đồng ý đưa toàn bộ câu hợp lệ vào ngân hàng sinh viên.</p></div><button className="qi-primary-convert" disabled={busy||validCount===0} onClick={()=>void run(publishAll)}>{busy?'Đang phát hành…':`Duyệt & phát hành ${validCount} câu`}</button></div></div>}
+
+    {published&&<div className="publish-success" role="status"><CheckCircle2/><div><h3>Đã phát hành</h3><p>{published.questionCount} câu đã vào ngân hàng đã duyệt. Sinh viên có thể chọn nội dung và số lượng câu để làm quiz ngay.</p><small>Mã tài nguyên: {published.resourceKey}</small></div><button type="button" onClick={reset}>Phát hành tài liệu khác</button></div>}
+
+    <details className="publish-exceptions"><summary>Kiểm tra ngoại lệ / câu đang chờ ({review.length})</summary><div className="qi-drafts">{review.length===0&&<p className="muted">Không có câu ngoại lệ đang chờ.</p>}{review.map(q=><article key={q.id}><b>{q.subject} · {q.topic}</b><p>{q.stem}</p><ol type="A">{q.options.map((o,i)=><li key={i}>{o}{q.correctIndex===i?' ✓':''}</li>)}</ol><small>Nguồn: {q.sourceFileName}</small><div className="qi-actions"><button disabled={busy} onClick={()=>void run(()=>decide(q.id,'expert_approved'))}><CheckCircle2/>Duyệt riêng</button><button className="secondary" disabled={busy} onClick={()=>void run(()=>decide(q.id,'rejected'))}><XCircle/>Loại</button></div></article>)}</div></details>
   </section>;
 }
