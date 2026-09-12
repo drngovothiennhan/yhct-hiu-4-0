@@ -27,9 +27,12 @@ html[data-viewport-mode="mobile"][data-mobile-ui="social"] .top-title{
   max-width:calc(100% - 50px)!important;
 }
 
-html[data-viewport-mode="mobile"][data-mobile-ui="social"] .ai-mini-unified{
-  right:10px!important;
+/* UnifiedAiMini currently renders .xz-mini/.xz-orb. Keep its floating control clear of the fixed navigation. */
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .xz-mini{
   bottom:calc(var(--yhct-mobile-nav-height) + var(--yhct-mobile-float-gap))!important;
+}
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .xz-panel{
+  bottom:calc(var(--yhct-mobile-nav-height) + 64px)!important;
 }
 
 /* Shell navigation is always comfortably tappable; compact in-content chips intentionally keep their own density. */
