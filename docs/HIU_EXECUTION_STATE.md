@@ -1,15 +1,15 @@
 # HIU YHCT 4.0 — Execution State
 
 Updated: 2026-09-12
-Active branch: `hiu-profile-achievements-phase6-20260912`
-Base production-verified main: `ba7ea8c9d4430ae8fe97cde60a8f70f72d1a58fb`
+Active branch: `hiu-responsive-phase7-b1-20260912`
+Base production-verified main: `62a3c75d70d7c934407e813c7ed243cf0fb09f27`
 Production project: `yhct-hiu-final4-stage`
 Primary production alias: `yhct-hiu-final4-stage.vercel.app`
 Supabase production: `gzmpnsrwqjpsbklyflqr` — ACTIVE_HEALTHY
 
 ## Current phase
 
-PHASE 6 — Profile learning achievements / server-authoritative HIU Y Quán title.
+PHASE 7 — Responsive UI/UX cleanup, Batch 1 mobile shell safety.
 
 ## DO_NOT_BREAK
 
@@ -22,70 +22,63 @@ PHASE 6 — Profile learning achievements / server-authoritative HIU Y Quán tit
 - AI canonical role boundaries: App Assistant / Research / module capability.
 - National Exam server-authoritative session/scoring contracts.
 - HIU Y Quán game state, score/progression and existing game contract tests.
-- Current production aliases and Vercel Git integration.
+- Full-desktop-on-phone viewport contract and current production aliases/Vercel Git integration.
 
 ## PHASE 1 — DONE / PRODUCTION VERIFIED
 
-- ACC compact grouping, scoped Learning Manager capability/UI and Admin appointment flow shipped through PRs `#70`–`#72`.
-- `/acc` remains Admin-only; frozen module and role contracts preserved.
+- ACC compact grouping and scoped Learning Manager capability/UI shipped through PRs `#70`–`#72`.
 
 ## PHASE 2 — DONE / PRODUCTION VERIFIED
 
-- Resumable V2 quiz pipeline, deterministic bounded chunks, revision CAS and retry/recovery shipped through PRs `#73`–`#74`.
-- Human review/commit remains authoritative; no automatic publish bypass.
-- Direct source upload supports DOCX, UTF-8 TXT and text-layer PDF.
-- PDF parser pinned to `pdf-parse` `2.4.5`; invalid/encrypted/no-text PDFs fail closed; no automatic OCR/fabricated source text.
-- Source evidence and byte-derived hashes are preserved through the review path.
+- Resumable V2 document-to-quiz pipeline shipped through PRs `#73`–`#76`.
+- DOCX, UTF-8 TXT and bounded text-layer PDF direct upload preserve source evidence and human approval; no automatic OCR/fabricated source text.
 
 ## PHASE 3 — DONE / PRODUCTION VERIFIED
 
-- `/exam` remains the canonical route and module id `exam`; no new Learning module was added.
-- Learning Hub compact shell exposes quick review, free practice, spaced review and standard exam while preserving the existing server-authoritative National Exam engine.
-- Existing quiz/session/scoring contracts, state-preserving mounts, mobile/desktop responsive behavior and Chrome regression gates passed before release.
+- `/exam` remains the canonical route with compact four-experience Learning Hub while preserving server-authoritative exam/session/scoring behavior.
 
 ## PHASE 4 — DONE / PRODUCTION VERIFIED
 
-- Home/news surface was compacted without removing rollback-safe news backend contracts.
-- Install/share/performance controls live in Settings; Home delegates AI interaction to the single Unified AI Mini.
-- Weather integration is fail-soft and privacy-safe: Home does not request device geolocation; regional/IP weather is shown only when available.
-- Fixed missing `lat/lon` coercion that previously converted null query values to `(0,0)`.
-- Production verified at main `7dd87d73cdd83680da35ea037a8a2ad1ab4585f8`.
-- Web CI `#621`: FULL PASS.
-- Vercel Production `#506`: PASS.
-- Deployment `dpl_DXvqZ2ASJcG62z3X2VucKZTqMUDD`: READY, exact SHA, primary alias and live Chrome/evidence PASS.
+- Home/news compacted and regional weather made privacy-safe/fail-closed.
+- Production main `7dd87d73cdd83680da35ea037a8a2ad1ab4585f8`; Web CI `#621`, Vercel `#506`, deployment `dpl_DXvqZ2ASJcG62z3X2VucKZTqMUDD`: PASS/READY/live Chrome.
 
 ## PHASE 5 — DONE / PRODUCTION VERIFIED
 
-- Notification list remains bounded to five recent rows, but unread count is authoritative across the complete member notification set.
-- App shell owns one canonical unread count used by desktop sidebar, mobile bottom navigation and Notifications Center.
-- Client no longer attempts direct table UPDATE.
-- Production migration `notification_read_state_rpc_v1` adds narrow SECURITY DEFINER RPCs that can only mutate `read_at` for `private.current_member_id()`.
-- Live ACL verified: authenticated `SELECT=true`, direct `UPDATE=false`, both read-state RPCs `EXECUTE=true`.
-- Production verified at main `ba7ea8c9d4430ae8fe97cde60a8f70f72d1a58fb`.
-- Web CI `#623`: FULL PASS.
-- Vercel Production `#508`: PASS.
-- Deployment `dpl_vT5fpHNNKbduuzem79VyQdmRUQw3`: READY, exact SHA, primary alias and live Chrome/evidence PASS.
+- Notification unread state is authoritative across the member notification set; direct client table UPDATE was replaced by narrow read-state RPCs.
+- Production main `ba7ea8c9d4430ae8fe97cde60a8f70f72d1a58fb`; Web CI `#623`, Vercel `#508`, deployment `dpl_vT5fpHNNKbduuzem79VyQdmRUQw3`: PASS/READY/live Chrome.
 
-## PHASE 6 — ACTIVE
+## PHASE 6 — DONE / PRODUCTION VERIFIED
 
-Goal: add useful learning achievements to Profile without inventing official credentials or deriving game titles on the client.
+- Profile now surfaces existing member-scoped Student Journey metrics explicitly as progress stored on the current device.
+- HIU Y Quán title, level, XP, streak and mastery are read only from `hiu_y_quan_engagement_v15()`; the client does not hardcode server titles or reimplement XP title thresholds.
+- Game synchronization is read-only and fail-soft; base Profile/wall/DRL/password remain independent.
+- No DB migration, role/module/navigation change or game mutation was introduced.
+- PR `#83` exact code head `431ff4e71cb02df444e59acf641a6567524df3c4`; PR Web CI `#625`: FULL PASS.
+- Production main `62a3c75d70d7c934407e813c7ed243cf0fb09f27`; main Web CI `#626`: FULL PASS.
+- Vercel Production `#511`: PASS.
+- Deployment `dpl_6tGZz3PvNRckgSpvGgou9B4Se4tT`: READY, exact SHA, primary alias, live Chrome/evidence PASS.
 
-Locked source contract:
-- Device learning progress comes only from existing member-scoped `StudentJourney` state (`streak`, learning XP, exam attempts, last exam score, AI uses, module visits). It must be explicitly labeled as progress stored on this device.
-- HIU Y Quán title/progress comes only from production RPC `hiu_y_quan_engagement_v15()`.
-- Profile must not reimplement game XP thresholds or hardcode game titles.
-- Game synchronization is read-only and fail-soft; game/RPC failure must not break the base profile, wall, DRL or password functions.
-- No new module, DB schema, role, game mutation or navigation route.
+## PHASE 7 — Batch 1 ACTIVE
 
-Implementation in active branch:
-- `profileAchievementService.ts` validates the server engagement payload and exposes only read-only profile fields.
-- `ProfileAchievements.tsx` shows device-local learning metrics and server-confirmed HIU Y Quán title/level/XP/streak/mastery.
-- Achievement UI is isolated in `profile-achievements.css` and mounted as a child of existing ProfileCenter.
-- `profile-achievement-check.mjs` locks source honesty, read-only game behavior and no hardcoded titles; it is wired into Web CI.
+Goal: improve the mobile application shell without changing module data or behavior.
+
+Audit findings:
+- Existing viewport matrix strongly checks horizontal overflow and mobile/desktop mode, but does not assert shell touch-target size or fixed-element overlap.
+- A late mobile override reduced the header “Thêm” control to `40x40`, below the Batch 1 44px shell target.
+- Unified AI Mini used a fixed `bottom:78px`, leaving no real gap above the 78px mobile bottom navigation when safe-area is zero.
+- Main already reserves bottom space, but the nav height/AI offset were maintained as independent constants and could drift.
+
+Implemented in active branch:
+- `responsive-phase7.css` is loaded last and is scoped only to `html[data-viewport-mode="mobile"][data-mobile-ui="social"]`.
+- One mobile-nav height variable now drives bottom-nav height, main clearance and AI Mini offset, including `env(safe-area-inset-bottom)`.
+- Header “Thêm” is restored to `44x44`; bottom-nav and sheet shell controls retain at least 44px touch height.
+- AI Mini keeps a 10px measured gap above the bottom navigation.
+- Forced desktop-on-phone and ordinary desktop selectors are untouched.
+- New real-Chrome `mobile-shell-responsive-check.mjs` runs at 390x844 DPR3 after production build and fails on horizontal overflow, mobile-mode mismatch, <44px shell targets, inadequate main bottom clearance or AI Mini/bottom-nav overlap. It stores screenshot/JSON evidence in `browser-artifacts/`.
+- Web CI runs this gate before the existing Chrome smoke/rendered-content/adaptive viewport matrix.
 
 ## Remaining high-level phases
 
-7. Responsive UI/UX cleanup.
 8. Version cleanup by reference/dependency evidence only.
 9. Top-5 AI health issues by Impact × Frequency × Risk.
 10. ACC AI/System Health safe-fix workflow.
@@ -94,4 +87,4 @@ Implementation in active branch:
 
 ## Next gate
 
-Open PHASE 6 PR, require full Web CI + TypeScript/Vite + real Chrome + rendered-content + viewport matrix, then squash-merge with expected-head guard. After merge, require full main CI and exact Vercel production READY/primary-alias/live-Chrome verification before marking PHASE 6 done.
+Open the PHASE 7 Batch 1 PR and require full Web CI, including the new mobile-shell real-Chrome gate plus existing Chrome/viewport matrix. Only then squash-merge with expected-head guard and require full main CI + exact Vercel READY/primary-alias/live-Chrome production verification.

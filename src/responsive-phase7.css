@@ -1,0 +1,48 @@
+/* PHASE 7 — bounded mobile shell hardening. Keep desktop/forced-desktop contracts untouched. */
+html[data-viewport-mode="mobile"][data-mobile-ui="social"]{
+  --yhct-mobile-nav-base:78px;
+  --yhct-mobile-nav-safe:env(safe-area-inset-bottom);
+  --yhct-mobile-nav-height:calc(var(--yhct-mobile-nav-base) + var(--yhct-mobile-nav-safe));
+  --yhct-mobile-float-gap:10px;
+}
+
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] main{
+  padding-bottom:calc(var(--yhct-mobile-nav-height) + 26px)!important;
+}
+
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .mobile-bottom-nav{
+  height:var(--yhct-mobile-nav-height)!important;
+  padding-bottom:var(--yhct-mobile-nav-safe)!important;
+}
+
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .mobile-more-button{
+  width:44px!important;
+  height:44px!important;
+  min-width:44px!important;
+  min-height:44px!important;
+  flex:0 0 44px!important;
+}
+
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .top-title{
+  max-width:calc(100% - 50px)!important;
+}
+
+/* UnifiedAiMini currently renders .xz-mini/.xz-orb. Keep its floating control clear of the fixed navigation. */
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .xz-mini{
+  bottom:calc(var(--yhct-mobile-nav-height) + var(--yhct-mobile-float-gap))!important;
+}
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .xz-panel{
+  bottom:calc(var(--yhct-mobile-nav-height) + 64px)!important;
+}
+
+/* Shell navigation is always comfortably tappable; compact in-content chips intentionally keep their own density. */
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .mobile-bottom-nav>button,
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .mobile-more-sheet>header>button,
+html[data-viewport-mode="mobile"][data-mobile-ui="social"] .mobile-session-action{
+  min-height:44px!important;
+}
+
+@media(max-width:360px){
+  html[data-viewport-mode="mobile"][data-mobile-ui="social"] .mobile-bottom-nav button{font-size:10.5px!important}
+  html[data-viewport-mode="mobile"][data-mobile-ui="social"] .mobile-bottom-nav button svg{width:22px!important;height:22px!important}
+}
