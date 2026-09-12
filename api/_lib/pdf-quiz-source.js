@@ -1,5 +1,4 @@
 import {createHash} from 'node:crypto';
-import {PDFParse} from 'pdf-parse';
 
 const MAX_PDF_BYTES=2_000_000;
 const MAX_PDF_PAGES=80;
@@ -9,6 +8,7 @@ const PDF_MIME='application/pdf';
 const cleanName=value=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,300);
 const sha256=value=>createHash('sha256').update(value).digest('hex');
 const stripParserPageMarkers=value=>String(value||'').replace(/(?:^|\n)\s*--\s*\d+\s+of\s+\d+\s*--\s*(?=\n|$)/gi,'\n').replace(/\n{3,}/g,'\n\n').trim();
+let pdfParsePromise=null;
 
 function decodePdfBase64(base64){
  if(typeof base64!=='string'||!base64.length||base64.length>MAX_BASE64_CHARS||!/^[A-Za-z0-9+/]*={0,2}$/.test(base64))throw new Error('Tệp PDF không hợp lệ hoặc lớn hơn 2 MB.');
@@ -18,9 +18,24 @@ function decodePdfBase64(base64){
  return buffer;
 }
 
+async function loadPdfParser(){
+ if(!pdfParsePromise)pdfParsePromise=(async()=>{
+  // pdf-parse/pdfjs touches DOM geometry globals at module initialization in Node.
+  // Keep the whole native stack off normal Drive/RAG cold starts and initialize it only for an actual PDF upload.
+  const canvas=await import('@napi-rs/canvas');
+  if(typeof globalThis.DOMMatrix==='undefined'&&canvas.DOMMatrix)globalThis.DOMMatrix=canvas.DOMMatrix;
+  if(typeof globalThis.ImageData==='undefined'&&canvas.ImageData)globalThis.ImageData=canvas.ImageData;
+  if(typeof globalThis.Path2D==='undefined'&&canvas.Path2D)globalThis.Path2D=canvas.Path2D;
+  const module=await import('pdf-parse');
+  if(typeof module.PDFParse!=='function')throw new Error('PDF parser runtime is unavailable.');
+  return module.PDFParse;
+ })().catch(error=>{pdfParsePromise=null;throw error});
+ return pdfParsePromise;
+}
+
 export async function readUploadedPdfFile(name,base64){
  if(!/\.pdf$/i.test(String(name||'')))throw new Error('Định dạng tải lên không phải PDF.');
- const buffer=decodePdfBase64(base64),sourceHash=sha256(buffer),parser=new PDFParse({data:new Uint8Array(buffer)});
+ const buffer=decodePdfBase64(base64),sourceHash=sha256(buffer),PDFParse=await loadPdfParser(),parser=new PDFParse({data:new Uint8Array(buffer)});
  try{
   const info=await parser.getInfo({parsePageInfo:false});
   const pages=Number(info?.total||0);
