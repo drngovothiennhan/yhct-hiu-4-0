@@ -63,6 +63,8 @@ jobs:
       - name: Learning Hub structural regression
         run: node scripts/learning-hub-contract-check.mjs
       - run: npm run build
+      - name: Mobile shell touch and fixed-spacing regression
+        run: node scripts/mobile-shell-responsive-check.mjs
       - name: Real Google Chrome responsive smoke
         run: node scripts/chrome-real-smoke.mjs
       - name: Chrome rendered-content contract
