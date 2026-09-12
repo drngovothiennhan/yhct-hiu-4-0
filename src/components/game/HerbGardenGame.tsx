@@ -5,6 +5,14 @@ import HerbGardenGameV7 from './HerbGardenGameV7';
 import HiuYQuanGameV20 from './HiuYQuanGameV20';
 import HiuYQuanEngagementV20 from './HiuYQuanEngagementV20';
 import '../../garden-sky-v8.css';
+import '../../garden-personalization.css';
+import '../../garden-professional-v7.css';
+import '../../garden-community-v13.css';
+import '../../yquan-v15-engagement.css';
+import '../../yquan-v20-game-engine.css';
+import '../../yquan-v20-1-character-acting.css';
+import '../../yquan-v20-mobile-typography.css';
+import '../../yquan-v20-unified.css';
 
 // Compatibility marker for the pre-V20 platform acceptance script only:
 // import HiuYQuanGame from './HiuYQuanGame'
