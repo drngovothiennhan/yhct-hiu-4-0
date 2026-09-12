@@ -1,23 +1,24 @@
-import {useMemo,useState,type FormEvent} from 'react';
+import {useMemo,useRef,useState,type FormEvent} from 'react';
 import {ArrowRight,BookOpen,Brain,FlaskConical,GraduationCap,Sparkles,Target} from 'lucide-react';
 import type {Member} from '../../types';
 import type {ModuleId} from '../../modules/moduleContract';
+import {setLearningQuizPreset} from '../../services/learningLaunchService';
 import {readStudentJourney} from '../../services/studentJourneyService';
 import {routeStudyOsRequest} from '../../v2/study-os/intentRouter';
 import './study-hub-v2.css';
 
 const RESEARCH_PENDING_KEY='yhct-research-pending-query-v1';
-
 type Props={member:Member|null;onNavigate:(module:ModuleId)=>void;onLogin:()=>void};
 type QuickAction={label:string;seed:string;icon:'learn'|'quiz'|'research'};
 const QUICK_ACTIONS:QuickAction[]=[
   {label:'Ôn phần tôi còn yếu',seed:'Ôn tập phần kiến thức tôi còn yếu hôm nay',icon:'learn'},
   {label:'Làm 20 câu trắc nghiệm',seed:'Làm 20 câu trắc nghiệm ôn tập',icon:'quiz'},
-  {label:'Tìm bằng chứng nghiên cứu',seed:'Tìm bằng chứng nghiên cứu gần đây về ',icon:'research'}
+  {label:'Đặt câu hỏi nghiên cứu',seed:'Tìm bằng chứng nghiên cứu gần đây về ',icon:'research'}
 ];
 
 export default function StudyHubV2({member,onNavigate,onLogin}:Props){
   const [query,setQuery]=useState('');
+  const commandRef=useRef<HTMLTextAreaElement|null>(null);
   const journey=useMemo(()=>readStudentJourney(member?.id||null),[member?.id]);
   const name=member?.herbalAlias||member?.fullName?.split(/\s+/).filter(Boolean).slice(-2).join(' ')||'bạn';
   const focus=journey.preferences?.focus||'kiến thức YHCT';
@@ -32,6 +33,8 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
       return;
     }
     if(plan.destination==='exam'){
+      const count=plan.query.match(/\b(10|20|30|50)\s*câu\b/i)?.[1];
+      setLearningQuizPreset({count:count?Number(count) as 10|20|30|50:20});
       onNavigate('exam');
       return;
     }
@@ -41,7 +44,14 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
 
   const submit=(event:FormEvent)=>{event.preventDefault();execute(query)};
   const useQuickAction=(item:QuickAction)=>{
-    if(item.icon==='research'){setQuery(item.seed);return}
+    if(item.icon==='research'){
+      setQuery(item.seed);
+      window.requestAnimationFrame(()=>{commandRef.current?.focus();commandRef.current?.setSelectionRange(item.seed.length,item.seed.length)});
+      return;
+    }
+    if(item.icon==='quiz'){
+      setLearningQuizPreset({count:20});onNavigate('exam');return;
+    }
     execute(item.seed);
   };
 
@@ -52,7 +62,7 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
       <p>Một điểm vào cho học tập, ôn luyện, trợ lý riêng và nghiên cứu Y học cổ truyền. Bạn chỉ cần nói mục tiêu; hệ thống tự chuyển đến đúng công cụ.</p>
       <form className="study-os-v2__command" onSubmit={submit}>
         <label className="sr-only" htmlFor="study-os-command">Yêu cầu học tập hoặc nghiên cứu</label>
-        <textarea id="study-os-command" rows={2} value={query} onChange={event=>setQuery(event.target.value)} placeholder="Ví dụ: Tôi có 30 phút, giúp tôi ôn Sinh lý nội tiết…"/>
+        <textarea ref={commandRef} id="study-os-command" rows={2} value={query} onChange={event=>setQuery(event.target.value)} placeholder="Ví dụ: Tôi có 30 phút, giúp tôi ôn Sinh lý nội tiết…"/>
         <button type="submit" disabled={!query.trim()}><Sparkles/> Bắt đầu <ArrowRight/></button>
       </form>
       <div className="study-os-v2__quick" aria-label="Gợi ý nhanh">
@@ -70,7 +80,7 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
       <article className="study-os-v2__card">
         <div className="study-os-v2__card-icon"><GraduationCap/></div>
         <div><small>QUIZ & ÔN LUYỆN</small><h3>{journey.todayQuestions||0} câu hôm nay</h3><p>Chọn nội dung, số lượng câu và bắt đầu luyện từ ngân hàng đã duyệt.</p></div>
-        <button onClick={()=>onNavigate('exam')}>Mở Learning Hub <ArrowRight/></button>
+        <button onClick={()=>{setLearningQuizPreset({count:20});onNavigate('exam')}}>Mở quiz 20 câu <ArrowRight/></button>
       </article>
 
       <article className="study-os-v2__card">
