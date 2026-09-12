@@ -7,7 +7,7 @@ import './profile-achievements.css';
 
 type Props={member:Member};
 
-const moduleCount=(journey:StudentJourney)=>Object.values(journey.visitedModules||{}).filter(Boolean).length;
+const moduleCount=(journey:StudentJourney)=>Object.values(journey.moduleVisits||{}).filter(value=>Number(value)>0).length;
 
 export default function ProfileAchievements({member}:Props){
   const [journey,setJourney]=useState(()=>readStudentJourney(member.id));
@@ -19,7 +19,7 @@ export default function ProfileAchievements({member}:Props){
   const syncGame=async()=>{setGameBusy(true);setGameUnavailable(false);try{setGame(await fetchHiuYQuanProfileProgress())}catch{setGame(null);setGameUnavailable(true)}finally{setGameBusy(false)}};
   useEffect(()=>{void syncGame()},[member.id]);
 
-  const visited=useMemo(()=>moduleCount(journey),[journey.visitedModules]);
+  const visited=useMemo(()=>moduleCount(journey),[journey.moduleVisits]);
   const score=typeof journey.lastExamScore==='number'?`${journey.lastExamScore}%`:'—';
 
   return <article className="profile-achievements-card" aria-label="Thành tích học tập">
