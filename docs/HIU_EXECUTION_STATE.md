@@ -1,15 +1,15 @@
 # HIU YHCT 4.0 — Execution State
 
 Updated: 2026-09-12
-Active branch: `hiu-version-cleanup-phase8-b1-20260912`
-Base production-verified main: `1a15f824ff285afd5cde6a8a233a4a19bb66a40f`
+Active branch: `hiu-ai-health-phase9-20260912`
+Base production-verified main: `6b640f46979e64234cc98d357fc7c8b2e6ddbb4f`
 Production project: `yhct-hiu-final4-stage`
 Primary production alias: `yhct-hiu-final4-stage.vercel.app`
 Supabase production: `gzmpnsrwqjpsbklyflqr` — ACTIVE_HEALTHY
 
 ## Current phase
 
-PHASE 8 — Version cleanup by reference/dependency evidence only, Batch 1.
+PHASE 9 — Top-5 A.I health audit by Impact × Frequency × Risk. Audit/report only; runtime safe-fixes start in Phase 10.
 
 ## DO_NOT_BREAK
 
@@ -23,7 +23,7 @@ PHASE 8 — Version cleanup by reference/dependency evidence only, Batch 1.
 - National Exam server-authoritative session/scoring contracts.
 - HIU Y Quán game state, score/progression and existing game contract tests.
 - Full-desktop-on-phone viewport contract and current production aliases/Vercel Git integration.
-- Never delete a versioned file solely because its filename looks old; deletion requires zero active runtime/build/test reference or a verified current replacement.
+- Never weaken privacy/provenance gates to improve A.I availability.
 
 ## PHASE 1 — DONE / PRODUCTION VERIFIED
 
@@ -36,7 +36,7 @@ PHASE 8 — Version cleanup by reference/dependency evidence only, Batch 1.
 
 ## PHASE 3 — DONE / PRODUCTION VERIFIED
 
-- `/exam` remains the canonical route with compact four-experience Learning Hub while preserving server-authoritative exam/session/scoring behavior.
+- `/exam` remains canonical with a compact four-experience Learning Hub and preserved server-authoritative exam/session/scoring behavior.
 
 ## PHASE 4 — DONE / PRODUCTION VERIFIED
 
@@ -50,41 +50,48 @@ PHASE 8 — Version cleanup by reference/dependency evidence only, Batch 1.
 
 ## PHASE 6 — DONE / PRODUCTION VERIFIED
 
-- Profile surfaces existing member-scoped Student Journey metrics explicitly as progress stored on the current device.
-- HIU Y Quán title, level, XP, streak and mastery are read only from `hiu_y_quan_engagement_v15()`; client does not hardcode server titles or reimplement XP title thresholds.
-- Production main `62a3c75d70d7c934407e813c7ed243cf0fb09f27`; Web CI `#626`, Vercel Production `#511`, deployment `dpl_6tGZz3PvNRckgSpvGgou9B4Se4tT`: PASS/READY/live Chrome.
+- Profile uses real Student Journey metrics and server-authoritative HIU Y Quán title/progression.
+- Production main `62a3c75d70d7c934407e813c7ed243cf0fb09f27`; Web CI `#626`, Vercel `#511`, deployment `dpl_6tGZz3PvNRckgSpvGgou9B4Se4tT`: PASS/READY/live Chrome.
 
 ## PHASE 7 — DONE / PRODUCTION VERIFIED
 
-- Mobile shell hardening uses one bottom-nav height contract to drive content clearance and Unified AI Mini offset.
-- Header “Thêm” and shell controls retain at least 44px touch targets; Unified AI Mini maintains measured clearance above bottom navigation.
-- Real-Chrome `mobile-shell-responsive-check.mjs` is enforced before the existing smoke/rendered-content/adaptive viewport matrix.
-- PR `#84` exact head `8937c30...`: FULL PASS before merge.
-- Production main `1a15f824ff285afd5cde6a8a233a4a19bb66a40f`; main Web CI `#630`: FULL PASS.
-- Vercel Production `#515`: PASS.
-- Deployment `dpl_Fx5qpUbns7cPWKVbdkQatBhQdmCA`: READY, exact SHA, primary alias, live Chrome/evidence PASS.
+- Mobile shell touch targets and Unified AI Mini/bottom-nav fixed-spacing are guarded by real Chrome regression.
+- Production main `1a15f824ff285afd5cde6a8a233a4a19bb66a40f`; Web CI `#630`, Vercel `#515`, deployment `dpl_Fx5qpUbns7cPWKVbdkQatBhQdmCA`: PASS/READY/live Chrome.
 
-## PHASE 8 — Batch 1 ACTIVE
+## PHASE 8 — DONE / PRODUCTION VERIFIED
 
-Goal: remove only proven-dead release/CI artifacts without touching active runtime, data, migrations, version contracts or historical documentation.
+- Removed only 14 proven-dead CI/release/version artifacts; preserved active version metadata, migrations, runtime/game and current contracts.
+- PR `#85`, PR Web CI `#631`: FULL PASS.
+- Production main `6b640f46979e64234cc98d357fc7c8b2e6ddbb4f`; main Web CI `#632`: FULL PASS.
+- Vercel Production `#517`: PASS.
+- Deployment `dpl_BRQcXspDMzmDkQWUWTLGY68Lm9yh`: READY, exact SHA, primary alias, `aliasError=null`, live Chrome/evidence PASS.
 
-Evidence locked before deletion:
-- `scripts/acceptance-check-v4.mjs` is active through `package.json#audit:source` and `prebuild`; retained.
-- `public/version.json` is freshness-critical in `public/service-worker.js`; retained.
-- `scripts/adaptive-viewport-check-v2.mjs` is the active viewport matrix; legacy `scripts/adaptive-viewport-check.mjs` has zero active references and is removed.
-- `public/v12-release.txt` through `public/v17-release.txt` have zero active references and are not part of the service-worker/version contract; removed.
-- Seven temporary CI/branch marker files under `docs/` have zero active references; removed.
-- No migrations, game runtime/CSS, National Exam legacy implementation, active acceptance contracts or version metadata are removed in Batch 1.
+## PHASE 9 — AUDIT COMPLETE / REPORT PENDING MERGE
 
-Batch 1 commit before checkpoint docs: `d6f707bf1363ebc4328def78788f111c01c688ea`.
+Source of truth: `docs/AI_HEALTH_TOP5_2026-09-12.md`.
+
+Scoring uses `Impact × Frequency × Risk` on 1–5 scales. Available production logs do not contain enough real A.I request traffic to claim measured request frequency; Frequency is explicitly treated as static call-path/UI exposure.
+
+Ranked issues:
+1. App Assistant lacks normalized success/runtime telemetry — score 80.
+2. A.I Operations can present configured readiness as runtime health — score 64.
+3. Research internal mode can starve public PubMed/OpenAlex/ClinicalTrials evidence — score 60.
+4. ACC Diagnostic bypasses canonical provider policy and has log-schema/metadata-redaction defects — score 50.
+5. Static provider registry drifts from the actual Gemini-first runtime — score 48.
+
+No runtime/data/schema behavior was changed in Phase 9.
+
+## PHASE 10 — NEXT
+
+ACC A.I/System Health safe-fix, bounded to the five audited issues:
+- focused regression contracts first;
+- preserve public evidence budget when internal Research context is enabled;
+- normalize/redact ACC Diagnostic payload and reuse canonical provider policy primitives;
+- add privacy-safe App Assistant telemetry;
+- separate configured readiness from live/probed state and align provider registry/A.I Operations with runtime truth;
+- full AI/RAG/build/Chrome/exact-SHA production gates before completion.
 
 ## Remaining high-level phases
 
-9. Top-5 AI health issues by Impact × Frequency × Risk.
-10. ACC AI/System Health safe-fix workflow.
 11. Performance bottlenecks.
 12. Final multi-viewport QA and production verification.
-
-## Next gate
-
-Open the PHASE 8 Batch 1 PR and require full Web CI. Only after exact-head PR CI passes, squash-merge with expected-head guard, then require full main CI and exact-SHA Vercel READY/primary-alias/live-Chrome production verification before declaring Phase 8 complete.
