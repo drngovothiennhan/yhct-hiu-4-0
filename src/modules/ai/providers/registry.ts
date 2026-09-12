@@ -1,4 +1,5 @@
-// Implementation registry only. Product UI must not make students choose providers; provider choice stays behind the shared gateway.
+// Implementation registry only. `state` describes canonical architecture role, never runtime liveness/readiness.
+// Product UI must not make students choose providers; runtime status comes from /api/ai/health and explicit probes.
 export type AiProviderKind='cloud-llm'|'browser-local'|'knowledge'|'academic-search'|'translation';
 export type AiProviderState='active'|'optional';
 
@@ -14,8 +15,8 @@ export type AiProviderDescriptor={
 };
 
 export const aiProviderRegistry:AiProviderDescriptor[]=[
-  {id:'openai',label:'OpenAI Cloud Runtime',kind:'cloud-llm',state:'active',zeroInstallCost:true,networkRequired:true,capabilities:['structured-output','function-calling','general','research','exam'],note:'Server-side gateway; usage cost is controlled by the deployment owner.'},
-  {id:'gemini-server',label:'Gemini Server Runtime',kind:'cloud-llm',state:'optional',zeroInstallCost:true,networkRequired:true,capabilities:['structured-output','research','exam','multimodal-ready','provider-failover'],note:'Optional server-side provider. No mandatory software-license/setup fee; API quota or usage charges depend on the Google tier selected by the deployment owner.'},
+  {id:'openai',label:'OpenAI Cloud Runtime',kind:'cloud-llm',state:'optional',zeroInstallCost:true,networkRequired:true,capabilities:['structured-output','function-calling','general','research','exam','provider-failover'],note:'Canonical cloud fallback/capability provider. Runtime readiness is reported separately by A.I health.'},
+  {id:'gemini-server',label:'Gemini Server Runtime',kind:'cloud-llm',state:'active',zeroInstallCost:true,networkRequired:true,capabilities:['structured-output','google-search','research','exam','multimodal-ready','provider-primary'],note:'Canonical primary provider for public search and Research leader. Runtime readiness is reported separately by A.I health.'},
   {id:'browser-local',label:'Browser Local A.I',kind:'browser-local',state:'active',zeroInstallCost:true,networkRequired:false,capabilities:['fallback','topic-suggestion','local-translation'],note:'Runs on-device when browser capability is available.'},
   {id:'central-rag',label:'Central YHCT RAG',kind:'knowledge',state:'active',zeroInstallCost:true,networkRequired:true,capabilities:['evidence-search','citations','offline-fallback'],note:'Supabase-backed YHCT knowledge with verified evidence links.'},
   {id:'drive-rag',label:'Drive RAG',kind:'knowledge',state:'active',zeroInstallCost:true,networkRequired:true,capabilities:['private-library-search'],note:'Server-side retrieval from the configured YHCT research folder.'},
