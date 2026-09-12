@@ -2,6 +2,7 @@ import {useEffect,useState} from 'react';
 import {BookOpenCheck,CheckCircle2,ChevronRight,FileText,FileUp,Folder,FolderOpen,RefreshCcw,Send,ShieldCheck,XCircle} from 'lucide-react';
 import {getPracticeReviewQueue,reviewPracticeQuestion,type PracticeReviewQuestion} from '../../services/dailyPracticeService';
 import {browseQuizDrive,getQuizDriveRoots,publishQuizDraft,quizWorkspace,retryQuizPipeline,sourceFileBase64,startQuizPipeline,syncTrustedApprovedDrive,tryTrustedQuizUpload,type QuizCandidate,type QuizDraft,type QuizDriveItem,type QuizDriveRoot,type QuizPublishResult,type TrustedQuizImportResult} from '../../services/quizWorkspaceService';
+import AnswerReviewQueue from './AnswerReviewQueue';
 import './quiz-import.css';
 
 // Scoped learning-management contract markers retained for static RBAC audit:
@@ -65,5 +66,6 @@ export default function LearningContentManagerPanel(){
     {published&&<div className="publish-success" role="status"><CheckCircle2/><div><h3>Đã phát hành</h3><p>{published.questionCount} câu đã vào ngân hàng đã duyệt. Sinh viên có thể chọn nội dung và số lượng câu để làm quiz ngay.</p><small>Mã tài nguyên: {published.resourceKey}</small></div><button type="button" onClick={reset}>Phát hành tài liệu khác</button></div>}
 
     <details className="publish-exceptions"><summary>Kiểm tra ngoại lệ / câu đang chờ ({review.length})</summary><div className="qi-drafts">{review.length===0&&<p className="muted">Không có câu ngoại lệ đang chờ.</p>}{review.map(q=><article key={q.id}><b>{q.subject} · {q.topic}</b><p>{q.stem}</p><ol type="A">{q.options.map((o,i)=><li key={i}>{o}{q.correctIndex===i?' ✓':''}</li>)}</ol><small>Nguồn: {q.sourceFileName}</small><div className="qi-actions"><button disabled={busy} onClick={()=>void run(()=>decide(q.id,'expert_approved'))}><CheckCircle2/>Duyệt riêng</button><button className="secondary" disabled={busy} onClick={()=>void run(()=>decide(q.id,'rejected'))}><XCircle/>Loại</button></div></article>)}</div></details>
+    <AnswerReviewQueue/>
   </section>;
 }
