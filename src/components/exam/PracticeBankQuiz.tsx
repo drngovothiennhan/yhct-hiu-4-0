@@ -3,6 +3,7 @@ import {CheckCircle2,ChevronDown,CircleHelp,FileQuestion,LoaderCircle,RotateCcw,
 import {getPracticeQuizConfig,getPracticeQuizPage,submitPracticeQuiz,type PracticeQuizConfig,type PracticeQuizQuestion,type PracticeQuizResult} from '../../services/practiceQuizService';
 import {requestPracticeAnswerReview} from '../../services/dailyPracticeService';
 import '../../practice-bank-quiz.css';
+import '../../practice-answer-review.css';
 
 const QUESTION_COUNTS=[10,20,30,50] as const;
 
