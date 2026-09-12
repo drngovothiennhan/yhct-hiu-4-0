@@ -1,0 +1,2 @@
+.notification-nav-icon{position:relative;display:inline-grid;place-items:center;flex:0 0 auto}.notification-nav-icon>svg{width:1em;height:1em}.notification-nav-count{position:absolute;top:-7px;right:-11px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;display:grid;place-items:center;background:var(--danger,#b42318);color:#fff;font-size:10px;font-style:normal;font-weight:800;line-height:1;box-shadow:0 0 0 2px var(--panel,#fff)}
+.mobile-bottom-nav .notification-nav-count{top:-6px;right:-10px;box-shadow:0 0 0 2px var(--bg,#fff)}
