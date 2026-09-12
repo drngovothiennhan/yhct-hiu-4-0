@@ -1,8 +1,9 @@
 import {useEffect,useMemo,useState} from 'react';
-import {BookOpen,Brain,CalendarDays,ChevronRight,Flame,Gamepad2,GraduationCap,LogIn,Sparkles,Target,Trophy} from 'lucide-react';
+import {BookOpen,Brain,CalendarDays,ChevronRight,CloudSun,Flame,Gamepad2,GraduationCap,LogIn,Sparkles,Target,Trophy} from 'lucide-react';
 import type {Member} from '../../types';
 import type {ModuleId} from '../../modules/moduleContract';
 import {fetchSchedules} from '../../services/scheduleService';
+import {fetchApproxWeather,type WeatherSnapshot} from '../../services/weatherService';
 import {readStudentJourney,saveStudentPreferences,subscribeStudentJourney,type StudentPreferences,type StudentYear,type StudyGoal} from '../../services/studentJourneyService';
 import '../../student-home.css';
 
@@ -14,9 +15,10 @@ const DAY_TARGET=5;
 const greeting=()=>{const hour=new Date().getHours();return hour<11?'Chào buổi sáng':hour<14?'Chào buổi trưa':hour<18?'Chào buổi chiều':'Chào buổi tối'};
 const goalLabel=(goal?:StudyGoal)=>GOALS.find(item=>item.value===goal)?.label||'Học đều mỗi ngày';
 const todayLabel=()=>new Intl.DateTimeFormat('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit'}).format(new Date());
+const rounded=(value:number|null)=>value===null?null:Math.round(value);
 
 export default function StudentHome({member,onNavigate,onLogin}:Props){
-  const identity=member?.id||null,[journey,setJourney]=useState(()=>readStudentJourney(identity)),[editing,setEditing]=useState(()=>!readStudentJourney(identity).preferences),[year,setYear]=useState<StudentYear>(()=>readStudentJourney(identity).preferences?.year||1),[focus,setFocus]=useState(()=>readStudentJourney(identity).preferences?.focus||SUBJECTS[0]),[goal,setGoal]=useState<StudyGoal>(()=>readStudentJourney(identity).preferences?.goal||'daily'),[dailyMinutes,setDailyMinutes]=useState<StudentPreferences['dailyMinutes']>(()=>readStudentJourney(identity).preferences?.dailyMinutes||20),[nextSchedule,setNextSchedule]=useState<NextSchedule|null>(null),[notice,setNotice]=useState('');
+  const identity=member?.id||null,[journey,setJourney]=useState(()=>readStudentJourney(identity)),[editing,setEditing]=useState(()=>!readStudentJourney(identity).preferences),[year,setYear]=useState<StudentYear>(()=>readStudentJourney(identity).preferences?.year||1),[focus,setFocus]=useState(()=>readStudentJourney(identity).preferences?.focus||SUBJECTS[0]),[goal,setGoal]=useState<StudyGoal>(()=>readStudentJourney(identity).preferences?.goal||'daily'),[dailyMinutes,setDailyMinutes]=useState<StudentPreferences['dailyMinutes']>(()=>readStudentJourney(identity).preferences?.dailyMinutes||20),[nextSchedule,setNextSchedule]=useState<NextSchedule|null>(null),[weather,setWeather]=useState<WeatherSnapshot|null>(null),[notice,setNotice]=useState('');
   const profile=journey.preferences;
   const name=member?.herbalAlias||member?.fullName?.split(/\s+/).filter(Boolean).slice(-2).join(' ')||'bạn';
   const dailyProgress=Math.min(DAY_TARGET,journey.todayQuestions),dailyPercent=Math.round(dailyProgress/DAY_TARGET*100);
@@ -34,9 +36,11 @@ export default function StudentHome({member,onNavigate,onLogin}:Props){
 
   useEffect(()=>{const next=readStudentJourney(identity);setJourney(next);setYear(next.preferences?.year||1);setFocus(next.preferences?.focus||SUBJECTS[0]);setGoal(next.preferences?.goal||'daily');setDailyMinutes(next.preferences?.dailyMinutes||20);setEditing(!next.preferences);return subscribeStudentJourney(identity,setJourney)},[identity]);
   useEffect(()=>{let alive=true;void fetchSchedules().then(items=>{if(!alive)return;const now=Date.now(),upcoming=items.filter(item=>Date.parse(item.startsAt)>=now-3600000).sort((a,b)=>Date.parse(a.startsAt)-Date.parse(b.startsAt))[0];setNextSchedule(upcoming?{title:upcoming.title,startsAt:upcoming.startsAt,location:upcoming.location}:null)}).catch(()=>{if(alive)setNextSchedule(null)});return()=>{alive=false}},[member?.id]);
+  useEffect(()=>{let alive=true;void fetchApproxWeather().then(value=>{if(alive)setWeather(value)});return()=>{alive=false}},[]);
 
   const saveOnboarding=()=>{const preferences:StudentPreferences={year,focus,goal,dailyMinutes};setJourney(saveStudentPreferences(preferences,identity));setEditing(false);setNotice('Đã cá nhân hóa My HIU YHCT.');window.setTimeout(()=>setNotice(''),2200)};
   const openAi=()=>{if(!member){onLogin();return}window.dispatchEvent(new CustomEvent('yhct:ai:open',{detail:{context:'student-home'}}))};
+  const weatherDetail=weather?[rounded(weather.apparentTemperature)!==null?`Cảm giác ${rounded(weather.apparentTemperature)}°`:null,rounded(weather.humidity)!==null?`ẩm ${rounded(weather.humidity)}%`:null,'ước tính theo khu vực mạng'].filter(Boolean).join(' · '):'';
 
   return <section className="student-home" aria-label="My HIU YHCT">
     <div className="student-home-hero">
@@ -44,8 +48,9 @@ export default function StudentHome({member,onNavigate,onLogin}:Props){
       <div className="student-home-stats"><span><Flame/><b>{journey.streak}</b><small>ngày liên tiếp</small></span><span><Trophy/><b>{journey.xp}</b><small>XP học tập</small></span><button onClick={()=>setEditing(true)}>{profile?'Chỉnh lộ trình':'Cá nhân hóa'}</button></div>
     </div>
 
-    <div className="student-daily-context" aria-label="Bối cảnh học hôm nay">
+    <div className={`student-daily-context${weather?' has-weather':''}`} aria-label="Bối cảnh học hôm nay">
       <div className="student-daily-date"><CalendarDays/><span><small>HÔM NAY</small><b>{dayLabel}</b></span></div>
+      {weather&&<div className="student-daily-weather" title="Dữ liệu Open-Meteo · khu vực ước tính từ mạng, không dùng GPS thiết bị"><CloudSun/><span><small>THỜI TIẾT KHU VỰC</small><b>{Math.round(weather.temperature)}° · {weather.condition}</b><em>{weatherDetail}</em></span></div>}
       <div className="student-daily-suggestion"><Sparkles/><span><small>GỢI Ý HỌC</small><b>{dailySuggestion}</b>{nextSchedule&&<em>{new Date(nextSchedule.startsAt).toLocaleString('vi-VN')}{nextSchedule.location?` · ${nextSchedule.location}`:''}</em>}</span></div>
       <button className="student-link-btn" onClick={()=>onNavigate('schedule')}>Xem lịch <ChevronRight/></button>
     </div>
