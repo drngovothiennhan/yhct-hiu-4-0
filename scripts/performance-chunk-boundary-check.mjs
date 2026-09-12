@@ -20,12 +20,21 @@ const gardenRouteCss=[
   "import '../../yquan-v20-unified.css';"
 ];
 const gardenLazySelectors=['.garden-pro-v7','.hyq-v15','.hyq-v20-shell','.hyq-v20-unified'];
+const researchEntryMarker="import './research-ai-upgrade.css';";
+const researchLazyImport="@import './research-route-upgrade.css';";
+const researchRouteSelectors=['.research-center-v2','.research-ai-mini','.research-proposal'];
+// .research-center-v2 also exists in legacy shared layout CSS. Use only signatures
+// unique to the moved Research visual payload when asserting absence from initial CSS.
+const researchMovedSignatures=['.research-ai-mini','.research-proposal'];
 
 function sourceCheck(){
   const vite=read('vite.config.ts');
   const app=read('src/App.tsx');
   const main=read('src/main.tsx');
   const garden=read('src/components/game/HerbGardenGame.tsx');
+  const researchMarker=read('src/research-ai-upgrade.css');
+  const researchLeader=read('src/research-ai-leader.css');
+  const researchRoute=read('src/research-route-upgrade.css');
   const requiredVendorChunks=["return 'vendor-react'","return 'vendor-supabase'","return 'vendor-icons'","return 'vendor-documents'",'return undefined'];
   for(const token of requiredVendorChunks)vite.includes(token)?ok(`Vite vendor boundary contains ${token}`):fail(`Vite vendor boundary missing ${token}`);
   if(vite.includes("normalized.includes('/src/components/"))fail('Vite must not manually chunk src/components application modules');
@@ -50,6 +59,15 @@ function sourceCheck(){
     if(!garden.includes(token))fail(`Garden/Y Quan lazy route must own module CSS: ${token}`);
   }
   if(!gardenRouteCss.some(token=>main.includes(token))&&gardenRouteCss.every(token=>garden.includes(token)))ok('Garden/Y Quan module CSS is owned by the lazy Garden route, not the app entry');
+
+  if(!main.includes(researchEntryMarker))fail('Legacy Research entry marker import is unexpectedly missing');
+  if(researchMovedSignatures.some(selector=>researchMarker.includes(selector)))fail('Research app-entry marker must remain payload-free');
+  else ok('Research app-entry marker contains no moved Research visual payload');
+  if(!researchLeader.includes(researchLazyImport))fail('Lazy Research A.I stylesheet must import route-scoped Research visual rules');
+  else ok('Research route visual rules are owned by the lazy Research A.I stylesheet boundary');
+  for(const selector of researchRouteSelectors){
+    if(!researchRoute.includes(selector))fail(`Research route stylesheet must retain selector ${selector}`);
+  }
 }
 
 function assetPath(href){
@@ -114,6 +132,9 @@ function distCheck(){
   for(const selector of gardenLazySelectors){
     if(initialCss.includes(selector))fail(`Initial CSS must not contain lazy Garden/Y Quan selector ${selector}`);
   }
+  for(const selector of researchMovedSignatures){
+    if(initialCss.includes(selector))fail(`Initial CSS must not contain moved Research payload signature ${selector}`);
+  }
 
   const assetsDir=path.join(root,'dist/assets');
   const lazyCssFiles=fs.existsSync(assetsDir)?fs.readdirSync(assetsDir).filter(name=>name.endsWith('.css')).map(name=>path.join(assetsDir,name)).filter(file=>!initialCssFiles.has(path.resolve(file))):[];
@@ -122,6 +143,11 @@ function distCheck(){
     const hit=lazyCssBodies.find(item=>item.body.includes(selector));
     if(!hit)fail(`Lazy CSS assets must retain Garden/Y Quan selector ${selector}`);
     else ok(`Lazy Garden/Y Quan selector ${selector} retained in ${path.basename(hit.file)}`);
+  }
+  for(const selector of researchRouteSelectors){
+    const hit=lazyCssBodies.find(item=>item.body.includes(selector));
+    if(!hit)fail(`Lazy CSS assets must retain Research selector ${selector}`);
+    else ok(`Lazy Research selector ${selector} retained in ${path.basename(hit.file)}`);
   }
   console.log(`PERF METRIC: lazy CSS asset count=${lazyCssFiles.length}`);
 
