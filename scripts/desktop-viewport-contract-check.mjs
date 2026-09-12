@@ -6,6 +6,7 @@ const checks=[
   ['desktop boot guard',/if\(isWideDesktop\(\)\)return'desktop'/],
   ['desktop preview remains non-persistent',/if\(isWideDesktop\(\)\)[\s\S]*localStorage\.setItem\(VIEWPORT_MODE_KEY,'desktop'\)/],
   ['stale viewport contract reset',/VIEWPORT_CONTRACT_KEY='yhct-viewport-contract-v4'/],
+  ['desktop-on-phone migration is preserved',/preserveDesktopOnPhone=.*forceDesktop&&saved==='desktop'/],
   ['desktop copy marks mobile as preview',/Xem thử bản Mobile/]
 ];
 let failed=false;
