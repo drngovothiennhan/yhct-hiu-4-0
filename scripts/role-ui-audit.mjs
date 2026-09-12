@@ -18,7 +18,7 @@ const checks=[
   ['global system theme application',has(files.app,'applyTheme(theme)','fetchSystemTheme()','watchSystemTheme(next=>')&&has(files.theme,"supabase.rpc('system_theme_get_v1')",'watchSystemTheme')],
   ['legacy theme override removed + atomic bootstrap',not(files.boot,'yhct-hiu-ui-theme-v1','data-theme="duoc-ngoc"')&&has(files.main,'bootstrapThemeState()')&&has(files.theme,'localStorage.removeItem(LEGACY_THEME_KEY)','normalizeManifestLink','SYSTEM_THEME_HINT_KEY','dataset.themeSwitching')],
   ['moderation workbench includes feedback only for admin',has(files.moderation,"moderation_workbench_v2","canAdmin=roleAtLeast(member?.role,'admin')",'feedback_admin_resolve_v1','p_on_date')],
-  ['host-neutral diagnostics',has(files.admin,"edgeUrl('acc-diagnostics')","edgeUrl('public-weather')",'SUPABASE_PUBLISHABLE_KEY')],
+  ['host-neutral diagnostics',has(files.admin,"fetch('/api/ai/diagnostics'","edgeUrl('public-weather')",'SUPABASE_PUBLISHABLE_KEY')&&not(files.admin,"edgeUrl('acc-diagnostics')")],
   ['admin-only DRL publication',has(files.drl,"canPublish=roleAtLeast(member?.role,'admin')",'drl_admin_publish_semester_v1','drl_admin_lock_semester_v1')]
  ]],
  ['SUPER_MOD',[
