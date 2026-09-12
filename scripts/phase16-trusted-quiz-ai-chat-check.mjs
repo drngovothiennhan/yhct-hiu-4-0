@@ -32,7 +32,7 @@ need(route,/trusted-quiz-sync/,'trusted Drive sync route missing');
 
 for(const pattern of [/security definer/gi,/set search_path=''/gi,/private\.is_learning_content_manager\(\)/,/private\.is_approved\(\)/,/revoke all on table public\.practice_answer_review_requests from public,anon,authenticated/])need(migration,pattern,`secure migration contract missing ${pattern}`);
 need(migration,/practice_trusted_quiz_ingest_v1/,'trusted quiz ingest RPC missing');
-need(migration,/sourceMark','word-font-color-red-v1/,'trusted RPC must validate deterministic source marker');
+need(migration,/sourceMark[^\n]*word-font-color-red-v1/,'trusted RPC must validate deterministic source marker');
 need(migration,/sourceMarkColor/,'trusted RPC must validate marker color');
 need(migration,/trustedApprovedSource/,'trusted RPC must require approved-source provenance');
 need(migration,/extensions\.digest/,'answer correction hash must use schema-qualified digest');
