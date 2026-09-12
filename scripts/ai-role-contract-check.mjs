@@ -39,8 +39,8 @@ need(quiz,['createGeminiJson','geminiAiConfigured','gemini-quiz-designer-v1','Ch
 need(acc,['Tài liệu → Ngân hàng trắc nghiệm','conversionMode','Gemini thiết kế trắc nghiệm từ tài liệu','Tải tài liệu trực tiếp tại ACC','Tự chuyển đổi','Cập nhật vào ngân hàng','setChecked(new Set())','Tất cả kết quả chỉ ở trạng thái bản nháp','driveConfigured===false','manualSubject.trim()','subjectName','Drive tạm chưa khả dụng'],'ACC Drive-to-quiz UX with direct-upload fallback');
 forbid(acc,['selection:ready','setChecked(new Set(d.questions'],'ACC explicit admin review');
 
-need(aiOps,['fetchAiHealth','readiness · model/provider · latency · degraded mode · privacy gate · contract'],'Admin A.I Operations observability');
-forbid(aiOps,['candidateZeroCostProviders','Adapter 0đ có thể tích hợp tiếp','GEMINI_ALLOW_PRIVATE_CONTEXT'],'Admin A.I Operations anti-sprawl');
+need(aiOps,['fetchAiHealth','cấu hình · provider/model · live probe · privacy gate · contract','Cấu hình không được xem là bằng chứng liveness','Live probe Gemini',"?'CONFIG':'OFF'"],'Admin A.I Operations truthful observability');
+forbid(aiOps,['readiness · model/provider · latency · degraded mode · privacy gate · contract','candidateZeroCostProviders','Adapter 0đ có thể tích hợp tiếp','GEMINI_ALLOW_PRIVATE_CONTEXT'],'Admin A.I Operations anti-sprawl and no false readiness');
 need(systemOps,['Vận hành hệ thống · Quy tắc xác định'],'deterministic system operations naming');
 forbid(systemOps,['A.I Ops · Quản trị giải thích được'],'system operations must not masquerade as another A.I product');
 for(const dead of ["id:'gemini-byok'","id:'unpaywall'",'candidateZeroCostProviders'])forbid(providerRegistry,[dead],`provider registry dead adapter ${dead}`);
@@ -48,4 +48,4 @@ for(const core of ["id:'gemini-server'","id:'central-rag'","id:'drive-rag'","id:
 
 if(vercel?.git?.deploymentEnabled!==false)fail.push('Vercel Git auto-deploy must be disabled so production is gated by Web CI');
 if(fail.length){console.error('AI ROLE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('AI role contract PASS: one App Assistant, one Research A.I role, module capabilities, request-scoped internal consent, provenance/admin review and anti-sprawl boundaries are enforced.');
+console.log('AI role contract PASS: one App Assistant, one Research A.I role, module capabilities, request-scoped internal consent, provenance/admin review, truthful configured-vs-live observability and anti-sprawl boundaries are enforced.');

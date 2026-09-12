@@ -1,20 +1,23 @@
 import {supabase} from '../../../services/authService';
 
 // Client health/probe transport shares /api/ai/health to avoid allocating an extra Vercel Function.
+export type ProviderLiveness='not_probed'|'live'|'failed'|'not_configured';
 export type AiHealth={
   ok:boolean;
   ai:{
     mode:string;
     cloudReady:boolean;
     providers?:{openai:boolean;gemini:boolean};
-    academicProviderPriority?:'gemini-first'|'openai-first';
+    providerStatus?:{openai:{configured:boolean;liveness:ProviderLiveness};gemini:{configured:boolean;liveness:ProviderLiveness}};
+    academicProviderPriority?:'gemini-first'|'openai-fallback'|'local-only';
     localFallback:boolean;
     offlineFallback:boolean;
     centralRag:boolean;
     centralRagReady:boolean;
+    centralRagStatus?:{ready:boolean;reason:'ready'|'threshold_not_met'|'rpc_error'|string};
     evidenceBacked:boolean;
     evidenceSources:string[];
-    knowledgeStats?:Record<string,number>;
+    knowledgeStats?:Record<string,number>|null;
     structuredOutputs:boolean;
     citationWhitelist:boolean;
     functionCalling:boolean;
@@ -31,6 +34,7 @@ export type AiHealth={
 export type GeminiProviderCheck={
   ok:boolean;
   configured:boolean;
+  liveness:ProviderLiveness;
   provider:'gemini';
   models:Array<{model:string;ok:boolean;status:number;displayName:string;error:string}>;
   checkedAt:string;

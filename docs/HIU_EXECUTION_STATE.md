@@ -1,15 +1,16 @@
 # HIU YHCT 4.0 — Execution State
 
 Updated: 2026-09-12
-Active branch: `hiu-ai-health-phase9-20260912`
-Base production-verified main: `6b640f46979e64234cc98d357fc7c8b2e6ddbb4f`
+Active branch: `hiu-ai-system-health-phase10-20260912`
+Base production-verified runtime main: `6b640f46979e64234cc98d357fc7c8b2e6ddbb4f`
+Latest main including docs-only Phase 9: `48c46faa931c415fe32ec20ea831d62f3f173dd3`
 Production project: `yhct-hiu-final4-stage`
 Primary production alias: `yhct-hiu-final4-stage.vercel.app`
 Supabase production: `gzmpnsrwqjpsbklyflqr` — ACTIVE_HEALTHY
 
 ## Current phase
 
-PHASE 9 — Top-5 A.I health audit by Impact × Frequency × Risk. Audit/report only; runtime safe-fixes start in Phase 10.
+PHASE 10 — ACC A.I/System Health safe-fix, bounded to the five Phase 9 findings. Runtime changes are on branch only until full PR/main/Vercel gates pass.
 
 ## DO_NOT_BREAK
 
@@ -66,11 +67,11 @@ PHASE 9 — Top-5 A.I health audit by Impact × Frequency × Risk. Audit/report 
 - Vercel Production `#517`: PASS.
 - Deployment `dpl_BRQcXspDMzmDkQWUWTLGY68Lm9yh`: READY, exact SHA, primary alias, `aliasError=null`, live Chrome/evidence PASS.
 
-## PHASE 9 — AUDIT COMPLETE / REPORT PENDING MERGE
+## PHASE 9 — DONE / AUDIT MERGED
 
-Source of truth: `docs/AI_HEALTH_TOP5_2026-09-12.md`.
-
-Scoring uses `Impact × Frequency × Risk` on 1–5 scales. Available production logs do not contain enough real A.I request traffic to claim measured request frequency; Frequency is explicitly treated as static call-path/UI exposure.
+- Source of truth: `docs/AI_HEALTH_TOP5_2026-09-12.md`.
+- PR `#86` merged docs-only to main `48c46faa931c415fe32ec20ea831d62f3f173dd3`; no runtime deployment was required.
+- Available production logs did not contain enough real A.I traffic to claim measured request frequency; Frequency was explicitly ranked by static call-path/UI exposure.
 
 Ranked issues:
 1. App Assistant lacks normalized success/runtime telemetry — score 80.
@@ -79,17 +80,24 @@ Ranked issues:
 4. ACC Diagnostic bypasses canonical provider policy and has log-schema/metadata-redaction defects — score 50.
 5. Static provider registry drifts from the actual Gemini-first runtime — score 48.
 
-No runtime/data/schema behavior was changed in Phase 9.
+## PHASE 10 — ACTIVE
 
-## PHASE 10 — NEXT
+Implemented on branch, not yet production:
+- Research leader reserves source budget for public evidence while internal mode is enabled: 2 public + 2 Central RAG + 2 Drive when available, with bounded fill for missing categories.
+- XiaoZhi/App Assistant emits normalized success/failure telemetry containing provider/model/route/degraded/failureClass/latency/sourceCount only; no query, prompt, local context or source content.
+- ACC Diagnostic uses canonical `/api/ai/diagnostics`, server-side allowlist/redaction, Gemini-first then OpenAI/local fallback, and preserves safe snake_case audit mapping.
+- `/api/ai/health` separates provider configuration from liveness/probe and reports Central RAG fail-soft reason.
+- ACC A.I Operations labels provider configuration as `CONFIG`, displays live probe separately, and registry is aligned to Gemini primary/OpenAI fallback architecture.
+- `scripts/ai-health-phase10-check.mjs` is enforced by `npm run audit:ai-health`, `prebuild`, and an explicit early Web CI step.
 
-ACC A.I/System Health safe-fix, bounded to the five audited issues:
-- focused regression contracts first;
-- preserve public evidence budget when internal Research context is enabled;
-- normalize/redact ACC Diagnostic payload and reuse canonical provider policy primitives;
-- add privacy-safe App Assistant telemetry;
-- separate configured readiness from live/probed state and align provider registry/A.I Operations with runtime truth;
-- full AI/RAG/build/Chrome/exact-SHA production gates before completion.
+## PHASE 10 release gate
+
+1. Open PR from exact frozen Phase 10 head.
+2. Require full PR Web CI: AI contracts, build, mobile-shell Chrome, real Chrome, rendered-content, viewport matrix and dist integrity.
+3. Squash-merge with expected-head guard only after full PASS.
+4. Require full main Web CI on exact merge SHA.
+5. Require Vercel Production exact merge SHA READY, primary alias, `aliasError=null`, live Chrome/evidence PASS.
+6. Post-release verify `/api/ai/health` truthful configured-vs-live semantics.
 
 ## Remaining high-level phases
 
