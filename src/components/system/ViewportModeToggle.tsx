@@ -28,9 +28,18 @@ const desktopPhoneViewport=()=>`width=${DESKTOP_PHONE_CANVAS_WIDTH}, initial-sca
 function ensureViewportContract(){
   try{
     if(localStorage.getItem(VIEWPORT_CONTRACT_KEY)==='1')return;
-    localStorage.removeItem(VIEWPORT_MODE_KEY);
-    localStorage.removeItem(FORCE_DESKTOP_MOBILE_KEY);
-    localStorage.removeItem(LEGACY_KEY);
+    const saved=localStorage.getItem(VIEWPORT_MODE_KEY);
+    const forceDesktop=localStorage.getItem(FORCE_DESKTOP_MOBILE_KEY)==='1';
+    const preserveDesktopOnPhone=(isCompactScreen()||isPhysicalPhoneLike())&&forceDesktop&&saved==='desktop';
+    if(!preserveDesktopOnPhone){
+      localStorage.removeItem(VIEWPORT_MODE_KEY);
+      localStorage.removeItem(FORCE_DESKTOP_MOBILE_KEY);
+      localStorage.removeItem(LEGACY_KEY);
+    }else{
+      localStorage.setItem(VIEWPORT_MODE_KEY,'desktop');
+      localStorage.setItem(FORCE_DESKTOP_MOBILE_KEY,'1');
+      localStorage.setItem(LEGACY_KEY,'pc');
+    }
     localStorage.setItem(VIEWPORT_CONTRACT_KEY,'1');
   }catch{}
 }
