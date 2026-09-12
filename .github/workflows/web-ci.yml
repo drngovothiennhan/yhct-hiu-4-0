@@ -59,6 +59,8 @@ jobs:
       - run: npm run build
       - name: Real Google Chrome responsive smoke
         run: node scripts/chrome-real-smoke.mjs
+      - name: Chrome rendered-content contract
+        run: node scripts/chrome-production-content-check.mjs
       - name: Adaptive mobile, full desktop-on-phone and Win11 viewport matrix
         run: node scripts/adaptive-viewport-check-v2.mjs
       - name: Upload Chrome QA evidence
