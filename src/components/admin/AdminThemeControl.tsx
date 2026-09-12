@@ -1,6 +1,7 @@
 import {Check,Sparkles} from 'lucide-react';
 import {THEME_OPTIONS,type ThemeName} from '../../theme';
 
+// Module isolation contract: module khác chỉ nhận theme đồng bộ.
 export default function AdminThemeControl({theme,onChange}:{theme:ThemeName;onChange:(theme:ThemeName)=>void}){
   const current=THEME_OPTIONS.find(option=>option.id===theme)||THEME_OPTIONS[0];
   return <section className="panel acc-theme-control acc-theme-control--compact" aria-label="Giao diện hệ thống dành cho Admin">
