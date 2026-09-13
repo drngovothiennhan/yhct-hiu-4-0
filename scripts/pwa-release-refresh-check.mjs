@@ -10,6 +10,7 @@ const types=read('src/vite-env.d.ts');
 const main=read('src/main.tsx');
 const sw=read('public/service-worker.js');
 const panel=read('src/components/admin/LearningContentManagerPanel.tsx');
+const answerQueue=read('src/components/admin/AnswerReviewQueue.tsx');
 
 need(vite,/VERCEL_GIT_COMMIT_SHA/,'Vercel commit SHA must feed the release fingerprint');
 need(vite,/GITHUB_SHA/,'GitHub CI SHA must feed the release fingerprint');
@@ -29,7 +30,9 @@ need(sw,/service-worker\.js/,'service worker script must be treated as freshness
 need(sw,/cache:'no-store'/,'freshness-sensitive requests must bypass HTTP cache');
 
 need(panel,/>Cập nhật<|:'Cập nhật'/,'new quiz-bank update button missing from source');
-need(panel,/Báo đáp án sai/,'wrong-answer inbox missing from source');
+need(panel,/AnswerReviewQueue/,'learning manager must mount the wrong-answer inbox');
+need(answerQueue,/Báo đáp án sai/,'wrong-answer inbox missing from its component');
+need(answerQueue,/chờ xử lý/,'wrong-answer inbox pending count missing');
 forbid(panel,/Làm mới bản nháp|Chọn một kho Drive ở trên|Bản nháp và lịch sử nhập/i,'obsolete quiz-bank UX returned to source');
 
 console.log('PWA release-aware refresh + current quiz-bank UI contract: PASS');
