@@ -40,16 +40,18 @@ test('PDF upload fails closed for invalid signature and image-only/no-text sourc
  await assert.rejects(readUploadedPdfFile('lesson.txt',b64(makePdf('text'))),/không phải PDF/i);
 });
 
-test('PDF upload wiring remains inside the single canonical resumable human-reviewed pipeline',async()=>{
+test('PDF exam sources use deterministic one-step Update before any exception workflow',async()=>{
  const fs=await import('node:fs');
  const api=fs.readFileSync('api/_lib/quiz-pipeline-v2.js','utf8');
+ const ingest=fs.readFileSync('api/_lib/trusted-quiz-ingest.js','utf8');
  const service=fs.readFileSync('src/services/quizWorkspaceService.ts','utf8');
  const learning=fs.readFileSync('src/components/admin/LearningContentManagerPanel.tsx','utf8');
  const acc=fs.readFileSync('src/components/admin/QuizImportCenter.tsx','utf8');
  const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
  assert.equal(pkg.dependencies['pdf-parse'],'2.4.5');
  assert.ok(api.includes('readUploadedPdfFile')&&api.includes("/\\.pdf$/i.test(fileName)")&&api.includes("rpc('save',id,payload)"));
- assert.ok(service.includes('docx|txt|pdf'));
- assert.ok(learning.includes('.docx,.txt,.pdf')&&acc.includes('LearningContentManagerPanel')&&!acc.includes('.docx,.txt,.pdf'));
- assert.ok(learning.includes('quiz-commit')&&!acc.includes("quizWorkspace('quiz-commit'"));
+ assert.ok(service.includes('docx|txt|pdf')&&service.includes('tryTrustedQuizUpload'));
+ assert.ok(ingest.includes("PDF_MIME='application/pdf'")&&ingest.includes('PDFParse')&&ingest.includes('parseTrustedDeterministicSource')&&ingest.includes('practice_trusted_quiz_ingest_v1'));
+ assert.ok(learning.includes('DOCX · PDF · TXT')&&learning.includes('updateQuizBank')&&learning.includes('tryTrustedQuizUpload')&&learning.includes('không được dùng A.I suy đoán'));
+ assert.ok(acc.includes('LearningContentManagerPanel')&&!acc.includes('sourceFileBase64'));
 });
