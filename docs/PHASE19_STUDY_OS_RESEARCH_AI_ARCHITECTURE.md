@@ -6,9 +6,9 @@ Phase 19 intentionally stops expanding overlapping workflows. New work must conv
 
 ### Quiz bank — one canonical path
 
-`Drive / NGÂN HÀNG TRẮC NGHIỆM / Thêm thủ công` → Admin `Cập nhật` → scan only NEW direct DOCX files → accept only questions with four A–D choices and exactly one Word red-font answer → publish valid questions immediately.
+`Drive / NGÂN HÀNG TRẮC NGHIỆM / Thêm thủ công` → Admin `Cập nhật` → scan direct DOCX files and DOCX files inside one immediate subject folder → process new, changed, or parser-revision-pending sources → accept only questions with four A–D choices and exactly one Word red-font answer → publish valid questions immediately.
 
-File names are provenance for administrators only. They are not member subjects and are not returned by the member quiz-page RPC. Invalid questions/files never block valid data. Unchanged/previously-seen Drive file IDs are not rescanned; re-uploading a corrected document creates a new intake item.
+File names are provenance for administrators only. They are not member subjects and are not returned by the member quiz-page RPC. Immediate folder names are the member-facing subject taxonomy. Invalid questions/files never block valid data. Unchanged ready sources are not rescanned; changed/nonready sources may be retried deterministically by the current parser revision.
 
 ## Execution discipline lock
 
@@ -73,7 +73,7 @@ A feature qualifies as part of Study OS only if it follows these invariants:
 
 ## Phase 19 release gates
 
-- Quiz Update scans only direct NEW DOCX children of `Thêm thủ công`.
+- Quiz Update scans direct DOCX children of `Thêm thủ công` plus DOCX files in one immediate subject-folder level, retrying only new, changed, or nonready/parser-revision-pending sources.
 - Trusted bank accepts only Word red-font answer evidence; valid questions publish immediately.
 - Member quiz RPC never returns `sourceFileName` and does not depend on file/folder registry for eligibility.
 - Research workbench has no `buildAcademicFallback` path.
