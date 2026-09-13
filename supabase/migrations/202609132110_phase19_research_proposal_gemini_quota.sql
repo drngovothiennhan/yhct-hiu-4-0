@@ -1,7 +1,7 @@
 create table if not exists private.research_proposal_quota_v1 (
   user_id uuid primary key references auth.users(id) on delete cascade,
   window_started_at timestamptz not null,
-  used smallint not null default 0 check (used between 0 and 3),
+  used smallint not null default 0 check (used between 0 and 5),
   updated_at timestamptz not null default now()
 );
 
@@ -16,6 +16,8 @@ as $$
 declare
   v_uid uuid := auth.uid();
   v_access jsonb;
+  v_role text;
+  v_limit integer;
   v_started timestamptz;
   v_used integer;
   v_now timestamptz := now();
@@ -26,11 +28,16 @@ begin
   end if;
 
   v_access := public.current_member_access_v1();
-  if coalesce((v_access->>'approved')::boolean,false) is not true
-     or coalesce(v_access->>'role','guest')='guest' then
+  v_role := coalesce(v_access->>'role','guest');
+  if coalesce((v_access->>'approved')::boolean,false) is not true or v_role='guest' then
     raise exception using errcode='42501', message='Approved member required';
   end if;
 
+  if v_role='admin' then
+    return jsonb_build_object('allowed',true,'unlimited',true,'limit',null,'remaining',null,'used',0,'windowHours',6,'retryAt',null,'role',v_role);
+  end if;
+
+  v_limit := case when v_role in('mod','super_mod','leader') then 5 else 3 end;
   perform pg_advisory_xact_lock(hashtextextended(v_uid::text||':research-proposal-v1',0));
 
   select window_started_at, used into v_started, v_used
@@ -39,7 +46,7 @@ begin
 
   if not found then
     if not p_consume then
-      return jsonb_build_object('allowed',true,'limit',3,'remaining',3,'used',0,'windowHours',6,'retryAt',null);
+      return jsonb_build_object('allowed',true,'unlimited',false,'limit',v_limit,'remaining',v_limit,'used',0,'windowHours',6,'retryAt',null,'role',v_role);
     end if;
     v_started := v_now;
     v_used := 0;
@@ -54,8 +61,8 @@ begin
   end if;
 
   v_retry := v_started + interval '6 hours';
-  if p_consume and v_used >= 3 then
-    return jsonb_build_object('allowed',false,'limit',3,'remaining',0,'used',v_used,'windowHours',6,'retryAt',v_retry);
+  if p_consume and v_used >= v_limit then
+    return jsonb_build_object('allowed',false,'unlimited',false,'limit',v_limit,'remaining',0,'used',v_used,'windowHours',6,'retryAt',v_retry,'role',v_role);
   end if;
 
   if p_consume then
@@ -67,11 +74,13 @@ begin
 
   return jsonb_build_object(
     'allowed',true,
-    'limit',3,
-    'remaining',greatest(0,3-v_used),
+    'unlimited',false,
+    'limit',v_limit,
+    'remaining',greatest(0,v_limit-v_used),
     'used',v_used,
     'windowHours',6,
-    'retryAt',case when v_used>=3 then v_retry else null end
+    'retryAt',case when v_used>=v_limit then v_retry else null end,
+    'role',v_role
   );
 end;
 $$;
