@@ -29,7 +29,8 @@ forbid(pageBody,["'correctIndex'","'explanation'"],'Practice Quiz page must not 
 need(sql,['least(coalesce(p_limit,25),50)','jsonb_array_length(p_answers)>500'],'server request abuse bounds');
 
 for(const count of ['5','10','20'])need(daily,[count],`Quick Review ${count}-question choice`);
-need(daily,['selectedCount','Ôn tập nhanh','const openToday=async(count=selectedCount)','getTodayDailyPractice(count)','openToday(selectedCount)'],'Quick Review user-selectable daily set and stable server session');
+need(daily,['selectedCount','Ôn tập nhanh','Ngân hàng đề HIU','const openToday=async(count=selectedCount)','getTodayDailyPractice(count)','openToday(selectedCount)'],'Quick Review user-selectable daily set and stable server session');
+forbid(daily,['eligibleCount','<small>Sẵn sàng</small>'],'member Quick Review must never expose the global approved-bank question total');
 
 need(practice,['QUIZ HỌC TẬP','Chọn nguồn → nội dung → số câu → bắt đầu','HIU_QUESTION_COUNTS=[10,20,30,50]','AI_QUESTION_COUNTS=[5,10,20]','Ngân hàng đề HIU','Đề do Gemini tạo','A.I tạo','getPracticeQuizPage(subject,0,seed.current,count)','submitPracticeQuiz(questions as PracticeQuizQuestion[]','Nộp bài','practice-bank__options'],'source-first HIU/Gemini Practice Quiz');
 forbid(practice,['Tải thêm','hasMore','eligibleCount','câu đã duyệt'],'member Practice Quiz must hide global bank count and pagination controls');
@@ -43,4 +44,4 @@ need(mascot,["'default'|'eagle'|'viet'|'minimal'",'assistant-mascot__beak'],'sel
 forbid(mascot,['fetch(','askServerAi','askXiaoZhiMini'],'mascot must remain presentation-only');
 
 if(fail.length){console.error('QUIZ LEARNING PIPELINE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('Quiz learning pipeline contract PASS: single canonical ACC manager -> SOURCE-backed trusted HIU bank + separate grounded Gemini web quiz -> source/content/count/start member flow -> compact task-only A.I Mini presentation.');
+console.log('Quiz learning pipeline contract PASS: single canonical ACC manager -> SOURCE-backed trusted HIU bank + separate grounded Gemini web quiz -> no member-facing global bank total -> source/content/count/start member flow -> compact task-only A.I Mini presentation.');
