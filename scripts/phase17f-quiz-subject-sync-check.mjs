@@ -25,7 +25,8 @@ assert.match(migration,/practice_source_pending_admin_v1/,'waiting-source RPC mi
 assert.match(migration,/sync_status='needs_review'/,'waiting sources must remain non-published until red evidence appears');
 assert.match(migration,/private\.is_learning_content_manager\(\)/,'pending-source registration must stay manager-scoped');
 
-assert.match(bank,/practice-bank__subject-strip/,'member UI must expose subject-level review choices');
+assert.match(bank,/Nội dung ôn tập/,'member UI must retain subject-level review choice for the HIU bank');
+assert.match(bank,/config\?\.subjects\.map/,'canonical subject folders must still populate the member selector');
 assert.match(bank,/AI_PENDING_KEY='yhct-ai-center-pending-query-v1'/,'subject review must hand off to Gemini Study, not XiaoZhi');
 assert.match(bank,/Học cùng Gemini/,'contextual Gemini study action missing');
 assert.match(hubCss,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/,'mobile Learning Hub modes must use compact 2x2 layout');

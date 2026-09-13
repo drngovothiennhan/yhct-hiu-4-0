@@ -10,6 +10,8 @@ const manager=read('src/components/admin/LearningContentManagerPanel.tsx');
 const daily=read('src/components/exam/DailyDrivePractice.tsx');
 const practice=read('src/components/exam/PracticeBankQuiz.tsx');
 const service=read('src/services/practiceQuizService.ts');
+const studyService=read('src/services/studyAiService.ts');
+const studyHandler=read('api/_lib/study-assistant-handler.js');
 const exam=read('src/components/exam/ExamCenter.tsx');
 const mini=read('src/components/ai/UnifiedAiMini.tsx');
 const mascot=read('src/components/ai/AssistantMascot.tsx');
@@ -28,9 +30,12 @@ need(sql,['least(coalesce(p_limit,25),50)','jsonb_array_length(p_answers)>500'],
 
 for(const count of ['5','10','20'])need(daily,[count],`Quick Review ${count}-question choice`);
 need(daily,['selectedCount','Ôn tập nhanh','const openToday=async(count=selectedCount)','getTodayDailyPractice(count)','openToday(selectedCount)'],'Quick Review user-selectable daily set and stable server session');
-need(practice,['QUIZ HỌC TẬP','Chọn nội dung → số câu → bắt đầu','QUESTION_COUNTS=[10,20,30,50]','getPracticeQuizPage(subject,0,seed.current,count)','Nộp bài','practice-bank__options'],'one-step approved-bank Practice Quiz');
-forbid(practice,['Tải thêm','hasMore'],'primary Practice Quiz must not expose pagination controls');
-need(service,['practice_quiz_page_v1','practice_quiz_submit_v1','for(let at=0;at<questions.length;at+=500)'],'client submit remains chunked and server-authoritative');
+
+need(practice,['QUIZ HỌC TẬP','Chọn nguồn → nội dung → số câu → bắt đầu','HIU_QUESTION_COUNTS=[10,20,30,50]','AI_QUESTION_COUNTS=[5,10,20]','Ngân hàng đề HIU','Đề do Gemini tạo','A.I tạo','getPracticeQuizPage(subject,0,seed.current,count)','submitPracticeQuiz(questions as PracticeQuizQuestion[]','Nộp bài','practice-bank__options'],'source-first HIU/Gemini Practice Quiz');
+forbid(practice,['Tải thêm','hasMore','eligibleCount','câu đã duyệt'],'member Practice Quiz must hide global bank count and pagination controls');
+need(service,['practice_quiz_page_v1','practice_quiz_submit_v1','for(let at=0;at<questions.length;at+=500)'],'HIU client submit remains chunked and server-authoritative');
+need(studyService,["task:'quiz'",'/api/ai/assistant','generateStudyGeminiQuiz'],'Gemini quiz must reuse the existing Study gateway');
+need(studyHandler,["task==='quiz'",'createGeminiWebSearch','Gemini quiz has no grounded web source','aiGenerated:true'],'Gemini quiz must be Google Search grounded and fail closed without citations');
 need(exam,["import PracticeBankQuiz from './PracticeBankQuiz'",'<PracticeBankQuiz/>'],'approved bank Practice Quiz is integrated in Exam Center');
 
 need(mini,['AssistantMascot','guideOpen','avatarStyle','Trợ lý tác vụ','Câu hỏi học tập sẽ tự chuyển sang Gemini Study.','app-assistant-guide-toggle'],'task-only A.I Mini compact/collapsible guide and avatar preference');
@@ -38,4 +43,4 @@ need(mascot,["'default'|'eagle'|'viet'|'minimal'",'assistant-mascot__beak'],'sel
 forbid(mascot,['fetch(','askServerAi','askXiaoZhiMini'],'mascot must remain presentation-only');
 
 if(fail.length){console.error('QUIZ LEARNING PIPELINE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('Quiz learning pipeline contract PASS: single canonical ACC manager -> SOURCE-backed human review/trusted update -> approved bank -> 5/10/20 quick review -> content/count/start Practice Quiz -> compact task-only A.I Mini presentation.');
+console.log('Quiz learning pipeline contract PASS: single canonical ACC manager -> SOURCE-backed trusted HIU bank + separate grounded Gemini web quiz -> source/content/count/start member flow -> compact task-only A.I Mini presentation.');

@@ -48,10 +48,13 @@ forbidText(manager,/Chọn một kho Drive ở trên|Làm mới bản nháp/,'ob
 requireText(admin,/LearningContentManagerPanel/,'system admins must receive the same learning-management surface');
 requireText(admin,/canBulk&&<LearningContentManagerPanel\/>/,'learning-management surface must remain admin-only inside AdminControlCenter');
 
-requireText(student,/QUESTION_COUNTS=\[10,20,30,50\]/,'student must choose a bounded quiz question count');
-requireText(student,/Chọn nội dung → số câu → bắt đầu/,'student workflow must be content → count → start');
-requireText(student,/getPracticeQuizPage\(subject,0,seed\.current,count\)/,'selected count must control the server-backed quiz page');
+requireText(student,/HIU_QUESTION_COUNTS=\[10,20,30,50\]/,'HIU bank must keep bounded member-selected question counts');
+requireText(student,/AI_QUESTION_COUNTS=\[5,10,20\]/,'Gemini-generated quiz must keep a tighter bounded count');
+requireText(student,/Chọn nguồn → nội dung → số câu → bắt đầu/,'student workflow must be source → content → count → start');
+requireText(student,/Ngân hàng đề HIU/,'canonical approved HIU bank must remain an explicit student source');
+requireText(student,/Đề do Gemini tạo/,'Gemini-generated quiz must remain explicitly separated from the HIU bank');
+requireText(student,/getPracticeQuizPage\(subject,0,seed\.current,count\)/,'selected HIU count must control the server-backed quiz page');
 forbidText(student,/Tải thêm/,'primary student quiz flow must not require pagination controls');
-requireText(student,/submitPracticeQuiz/,'server-side grading must remain authoritative');
+requireText(student,/submitPracticeQuiz/,'server-side grading must remain authoritative for canonical HIU questions');
 
 console.log('Publish Center V2 contracts: PASS');
