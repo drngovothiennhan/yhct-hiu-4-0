@@ -56,30 +56,60 @@ export function inspectMarkedDocx(buffer){
   return paragraphs;
 }
 
-export function parseTrustedMarkedDocx(buffer,file,sourceHash=''){
-  const paragraphs=inspectMarkedDocx(buffer),questions=[];let current=null,lastOption=-1;
+function normalizeTrustedQuestion(q,file,sourceHash,layout='labeled-abcd-v1'){
+  const uniqueMarked=[...new Set(q.marked)],structural=q.stem.length>=4&&q.options.length===4&&q.options.every(Boolean)&&new Set(q.options.map(x=>x.toLowerCase())).size===4;
+  if(!structural||uniqueMarked.length!==1)return{question:null,invalid:{number:q.number,reason:!structural?'invalid_question_structure':uniqueMarked.length===0?'missing_red_answer':'multiple_red_answers',marked:uniqueMarked.map(i=>letters[i]).filter(Boolean)}};
+  const correctIndex=uniqueMarked[0],normalized=normalizeImportQuestion({number:q.number,stem:q.stem,options:q.options,correctIndex,explanation:`Đáp án ${letters[correctIndex]} được đánh dấu đỏ trong tài liệu nguồn đã duyệt.`,answerEvidence:`Word font color FF0000: ${letters[correctIndex]}`,raw:q.raw.join('\n')},file,true);
+  normalized.externalKey=`trusted:${file.id}:${hash(`${q.stem}|${q.options.join('|')}|${correctIndex}`).slice(0,24)}`;
+  normalized.reviewStatus='source_verified';
+  normalized.provenance={...normalized.provenance,sourceHash,sourceMark:'word-font-color-red-v1',sourceMarkColor:'FF0000',sourceLayout:layout,trustedApprovedSource:true,adminConfirmed:true,questionNumber:q.number,markedAnswer:letters[correctIndex]};
+  return{question:normalized,invalid:null};
+}
+
+function parseLabeledQuestions(paragraphs){
+  const questions=[];let current=null,lastOption=-1;
   const flush=()=>{if(!current)return;questions.push(current);current=null;lastOption=-1};
   for(const paragraph of paragraphs){
     const q=paragraph.text.match(/^(?:Câu|Cau)\s+(\d{1,4})\s*[.)：:\-]?\s*(.*)$/i);
-    if(q){flush();current={number:q[1],stem:clean(q[2],4000),options:['','','',''],marked:[],raw:[paragraph.text]};continue}
+    if(q){flush();current={number:q[1],stem:clean(q[2],4000),options:['','','',''],marked:[],raw:[paragraph.text],layout:'labeled-abcd-v1'};continue}
     const option=paragraph.text.match(/^([A-D])\s*[.)：:]\s*(.*)$/i);
     if(option&&current){const index=letters.indexOf(option[1].toUpperCase());current.options[index]=clean(option[2],1500);lastOption=index;current.raw.push(paragraph.text);if(paragraph.red)current.marked.push(index);continue}
     if(!current)continue;
     current.raw.push(paragraph.text);
     if(lastOption<0)current.stem=clean(`${current.stem} ${paragraph.text}`,4000);else current.options[lastOption]=clean(`${current.options[lastOption]} ${paragraph.text}`,1500);
   }
-  flush();
+  flush();return questions;
+}
 
-  const valid=[],invalid=[];
-  for(const q of questions){
-    const uniqueMarked=[...new Set(q.marked)],structural=q.stem.length>=4&&q.options.every(Boolean)&&new Set(q.options.map(x=>x.toLowerCase())).size===4;
-    if(!structural||uniqueMarked.length!==1){invalid.push({number:q.number,reason:!structural?'invalid_question_structure':uniqueMarked.length===0?'missing_red_answer':'multiple_red_answers',marked:uniqueMarked.map(i=>letters[i])});continue}
-    const correctIndex=uniqueMarked[0],normalized=normalizeImportQuestion({number:q.number,stem:q.stem,options:q.options,correctIndex,explanation:`Đáp án ${letters[correctIndex]} được đánh dấu đỏ trong tài liệu nguồn đã duyệt.`,answerEvidence:`Word font color FF0000: ${letters[correctIndex]}`,raw:q.raw.join('\n')},file,true);
-    normalized.externalKey=`trusted:${file.id}:${hash(`${q.stem}|${q.options.join('|')}|${correctIndex}`).slice(0,24)}`;
-    normalized.reviewStatus='source_verified';
-    normalized.provenance={...normalized.provenance,sourceHash,sourceMark:'word-font-color-red-v1',sourceMarkColor:'FF0000',trustedApprovedSource:true,adminConfirmed:true,questionNumber:q.number,markedAnswer:letters[correctIndex]};
-    valid.push(normalized);
+// Some faculty-approved banks use "2. question" followed by four unlabeled option
+// paragraphs, with the correct option colored red. This layout is still deterministic:
+// we accept it only when there are exactly four option paragraphs and exactly one red one.
+function parseNumberedUnlabeledQuestions(paragraphs){
+  const starts=[];
+  for(let index=0;index<paragraphs.length;index++){
+    const match=paragraphs[index].text.match(/^(\d{1,4})\s*[.)：:]\s*(.+)$/);
+    if(match)starts.push({index,number:match[1],stem:clean(match[2],4000)});
   }
-  const trusted=questions.length>0&&invalid.length===0&&valid.length===questions.length;
-  return{trusted,questions:valid,total:questions.length,valid:valid.length,invalid,marker:'word-font-color-red-v1'};
+  const questions=[];
+  for(let at=0;at<starts.length;at++){
+    const start=starts[at],end=at+1<starts.length?starts[at+1].index:paragraphs.length,optionParagraphs=paragraphs.slice(start.index+1,end);
+    const options=optionParagraphs.map(x=>clean(x.text,1500)),marked=[];
+    optionParagraphs.forEach((x,index)=>{if(x.red)marked.push(index)});
+    questions.push({number:start.number,stem:start.stem,options,marked,raw:[paragraphs[start.index].text,...optionParagraphs.map(x=>x.text)],layout:'numbered-unlabeled-options-v1'});
+  }
+  return questions;
+}
+
+export function parseTrustedMarkedDocx(buffer,file,sourceHash=''){
+  const paragraphs=inspectMarkedDocx(buffer);
+  const labeled=parseLabeledQuestions(paragraphs);
+  const sourceQuestions=labeled.length?labeled:parseNumberedUnlabeledQuestions(paragraphs);
+  const valid=[],invalid=[];
+  for(const q of sourceQuestions){
+    if(q.options.length!==4){invalid.push({number:q.number,reason:'invalid_option_count',optionCount:q.options.length,marked:q.marked.map(i=>letters[i]||String(i+1))});continue}
+    const normalized=normalizeTrustedQuestion(q,file,sourceHash,q.layout);
+    if(normalized.question)valid.push(normalized.question);else invalid.push(normalized.invalid);
+  }
+  const trusted=sourceQuestions.length>0&&invalid.length===0&&valid.length===sourceQuestions.length;
+  return{trusted,questions:valid,total:sourceQuestions.length,valid:valid.length,invalid,marker:'word-font-color-red-v1'};
 }
