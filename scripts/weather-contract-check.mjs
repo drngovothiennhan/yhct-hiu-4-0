@@ -46,11 +46,11 @@ try{
 }finally{globalThis.fetch=originalFetch}
 
 const home=fs.readFileSync('src/components/home/StudentHome.tsx','utf8');
+const studyHub=fs.readFileSync('src/components/home/StudyHubV2.tsx','utf8');
 const service=fs.readFileSync('src/services/weatherService.ts','utf8');
 const edge=fs.readFileSync('supabase/functions/public-weather/index.ts','utf8');
-need(home.includes('fetchApproxWeather')&&home.includes('THỜI TIẾT KHU VỰC'),'Home renders fail-soft regional weather when available');
-need(home.includes('ước tính theo khu vực mạng')&&home.includes('Open-Meteo'),'Home labels approximation and source context');
-need(!home.includes('navigator.geolocation')&&!service.includes('navigator.geolocation'),'Home weather never requests device GPS implicitly');
-need(service.includes("fetch('/api/weather'")&&!service.includes('?lat=')&&!service.includes('?lon='),'Home client uses regional backend without sending precise coordinates');
+need(!home.includes('navigator.geolocation')&&!studyHub.includes('navigator.geolocation')&&!service.includes('navigator.geolocation'),'Study Home and weather client never request device GPS implicitly');
+need(service.includes("fetch('/api/weather'")&&!service.includes('?lat=')&&!service.includes('?lon='),'weather client uses regional backend without sending precise coordinates');
+need(service.includes("data.locationMode==='IP'||data.locationMode==='GPS'")&&service.includes("data.source!=='Open-Meteo'"),'weather client accepts only explicit source and location provenance');
 need(edge.includes("if(value===null)return null")&&edge.includes("mode='IP'")&&edge.includes('hasExplicitLocation'),'Edge weather fallback mirrors fail-closed coordinate handling');
-console.log('Weather privacy, source and coordinate regression passed.');
+console.log('Weather privacy, source and coordinate regression passed independently of the retired legacy Home weather card.');

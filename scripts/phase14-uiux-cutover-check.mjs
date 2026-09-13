@@ -5,12 +5,13 @@ const need=(text,pattern,message)=>{if(!pattern.test(text))fail(message)};
 const forbid=(text,pattern,message)=>{if(pattern.test(text))fail(message)};
 
 const app=read('src/App.tsx');
-const canary=read('src/v2/study-os/canary.ts');
+const home=read('src/components/home/StudentHome.tsx');
 const hub=read('src/components/home/StudyHubV2.tsx');
 const css=read('src/phase14-uiux-v2.css');
 
-need(canary,/if\(!raw\)return true/,'Study OS V2 must be default-on');
-need(canary,/studyos.*legacy/s,'legacy rollback must remain explicit');
+if(fs.existsSync(new URL('../src/v2/study-os/canary.ts',import.meta.url)))fail('legacy Study OS rollback gate must remain retired');
+need(home,/StudyHubV2/,'Study OS V2 must be the sole Home runtime');
+forbid(home,/StudentHomeLegacy|studyos|legacy visual rollback/i,'legacy Home runtime must not remain after Phase 17E');
 need(hub,/MY HIU YHCT · AI STUDY OS/,'Home must expose the production Study OS identity');
 forbid(hub,/CANARY/,'canary wording must not ship in production UI');
 
@@ -36,4 +37,4 @@ need(css,/\.phase14-shell/,'Phase 14 styles must be namespace-scoped');
 need(css,/mobile-bottom-nav--study-os/,'mobile navigation styles must be present');
 need(css,/home-community-secondary/,'secondary community surface styles must be present');
 
-console.log('Phase 14 UI/UX production cutover contract: PASS');
+console.log('Phase 14/17E UI/UX production convergence contract: PASS');

@@ -1,120 +1,16 @@
-import {lazy,Suspense,useEffect,useMemo,useState} from 'react';
-import {BookOpen,Brain,CalendarDays,ChevronRight,CloudSun,Flame,Gamepad2,GraduationCap,LogIn,Sparkles,Target,Trophy} from 'lucide-react';
+import {lazy,Suspense} from 'react';
 import type {Member} from '../../types';
 import type {ModuleId} from '../../modules/moduleContract';
-import {fetchSchedules} from '../../services/scheduleService';
-import {fetchApproxWeather,type WeatherSnapshot} from '../../services/weatherService';
-import {readStudentJourney,saveStudentPreferences,subscribeStudentJourney,type StudentPreferences,type StudentYear,type StudyGoal} from '../../services/studentJourneyService';
-import {studyOsV2CanaryEnabled} from '../../v2/study-os/canary';
-import '../../student-home.css';
 
 const StudyHubV2=lazy(()=>import('./StudyHubV2'));
 
 type Props={member:Member|null;onNavigate:(module:ModuleId)=>void;onLogin:()=>void};
-type NextSchedule={title:string;startsAt:string;location?:string};
-const SUBJECTS=['Lý luận cơ bản YHCT','Dược liệu & Phương tễ','Châm cứu - Dưỡng sinh','Nội - Ngoại - Phụ - Nhi YHCT','Giải phẫu & Sinh lý','Nghiên cứu khoa học'];
-const GOALS:Array<{value:StudyGoal;label:string}>=[
-  {value:'daily',label:'Học đều mỗi ngày'},
-  {value:'exam',label:'Ôn thi hiệu quả'},
-  {value:'research',label:'Nghiên cứu khoa học'},
-  {value:'clinical',label:'Tư duy lâm sàng'}
-];
-const DAY_TARGET=5;
-const greeting=()=>{const hour=new Date().getHours();return hour<11?'Chào buổi sáng':hour<14?'Chào buổi trưa':hour<18?'Chào buổi chiều':'Chào buổi tối'};
-const goalLabel=(goal?:StudyGoal)=>GOALS.find(item=>item.value===goal)?.label||'Học đều mỗi ngày';
-const todayLabel=()=>new Intl.DateTimeFormat('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit'}).format(new Date());
-const rounded=(value:number|null)=>value===null?null:Math.round(value);
 
-function StudentHomeLegacy({member,onNavigate,onLogin}:Props){
-  const identity=member?.id||null;
-  const [journey,setJourney]=useState(()=>readStudentJourney(identity));
-  const [editing,setEditing]=useState(()=>!readStudentJourney(identity).preferences);
-  const [year,setYear]=useState<StudentYear>(()=>readStudentJourney(identity).preferences?.year||1);
-  const [focus,setFocus]=useState(()=>readStudentJourney(identity).preferences?.focus||SUBJECTS[0]);
-  const [goal,setGoal]=useState<StudyGoal>(()=>readStudentJourney(identity).preferences?.goal||'daily');
-  const [dailyMinutes,setDailyMinutes]=useState<StudentPreferences['dailyMinutes']>(()=>readStudentJourney(identity).preferences?.dailyMinutes||20);
-  const [nextSchedule,setNextSchedule]=useState<NextSchedule|null>(null);
-  const [weather,setWeather]=useState<WeatherSnapshot|null>(null);
-  const [notice,setNotice]=useState('');
-  const profile=journey.preferences;
-  const name=member?.herbalAlias||member?.fullName?.split(/\s+/).filter(Boolean).slice(-2).join(' ')||'bạn';
-  const dailyProgress=Math.min(DAY_TARGET,journey.todayQuestions),dailyPercent=Math.round(dailyProgress/DAY_TARGET*100);
-  const continueLabel=profile?.focus||'Khám phá kiến thức YHCT';
-  const statusLine=useMemo(()=>profile?`SV năm ${profile.year} · ${goalLabel(profile.goal)} · ${profile.dailyMinutes} phút/ngày`:'Thiết lập 30 giây để cá nhân hóa lộ trình học.',[profile]);
-  const dayLabel=useMemo(()=>todayLabel(),[]);
-  const dailySuggestion=useMemo(()=>{
-    if(!profile)return'Thiết lập lộ trình để nhận gợi ý học phù hợp hôm nay.';
-    const remaining=Math.max(0,DAY_TARGET-dailyProgress);
-    const untilSchedule=nextSchedule?Date.parse(nextSchedule.startsAt)-Date.now():Number.POSITIVE_INFINITY;
-    if(nextSchedule&&untilSchedule>=-3600000&&untilSchedule<=24*60*60*1000)return`Có ${nextSchedule.title} sắp tới · dành ${Math.min(profile.dailyMinutes,20)} phút xem lại ${profile.focus} trước lịch.`;
-    if(remaining>0)return`Hoàn thành ${remaining} câu ôn nhanh còn lại, sau đó dành ${profile.dailyMinutes} phút cho ${profile.focus}.`;
-    return`Đã đạt mục tiêu ${DAY_TARGET} câu hôm nay · tiếp tục ${profile.dailyMinutes} phút với ${profile.focus}.`;
-  },[profile,dailyProgress,nextSchedule]);
-
-  useEffect(()=>{
-    const next=readStudentJourney(identity);
-    setJourney(next);
-    setYear(next.preferences?.year||1);
-    setFocus(next.preferences?.focus||SUBJECTS[0]);
-    setGoal(next.preferences?.goal||'daily');
-    setDailyMinutes(next.preferences?.dailyMinutes||20);
-    setEditing(!next.preferences);
-    return subscribeStudentJourney(identity,setJourney);
-  },[identity]);
-  useEffect(()=>{
-    let alive=true;
-    void fetchSchedules().then(items=>{
-      if(!alive)return;
-      const now=Date.now(),upcoming=items.filter(item=>Date.parse(item.startsAt)>=now-3600000).sort((a,b)=>Date.parse(a.startsAt)-Date.parse(b.startsAt))[0];
-      setNextSchedule(upcoming?{title:upcoming.title,startsAt:upcoming.startsAt,location:upcoming.location}:null);
-    }).catch(()=>{if(alive)setNextSchedule(null)});
-    return()=>{alive=false};
-  },[member?.id]);
-  useEffect(()=>{let alive=true;void fetchApproxWeather().then(value=>{if(alive)setWeather(value)});return()=>{alive=false}},[]);
-
-  const saveOnboarding=()=>{
-    const preferences:StudentPreferences={year,focus,goal,dailyMinutes};
-    setJourney(saveStudentPreferences(preferences,identity));
-    setEditing(false);
-    setNotice('Đã cá nhân hóa My HIU YHCT.');
-    window.setTimeout(()=>setNotice(''),2200);
-  };
-  const openAi=()=>{if(!member){onLogin();return}window.dispatchEvent(new CustomEvent('yhct:ai:open',{detail:{context:'student-home'}}))};
-  const weatherDetail=weather?[rounded(weather.apparentTemperature)!==null?`Cảm giác ${rounded(weather.apparentTemperature)}°`:null,rounded(weather.humidity)!==null?`ẩm ${rounded(weather.humidity)}%`:null,'ước tính theo khu vực mạng'].filter(Boolean).join(' · '):'';
-
-  return <section className="student-home" aria-label="My HIU YHCT">
-    <div className="student-home-hero">
-      <div><span className="student-home-eyebrow"><Sparkles/> MY HIU YHCT</span><h2>{greeting()}, {name} 👋</h2><p>{statusLine}</p></div>
-      <div className="student-home-stats"><span><Flame/><b>{journey.streak}</b><small>ngày liên tiếp</small></span><span><Trophy/><b>{journey.xp}</b><small>XP học tập</small></span><button onClick={()=>setEditing(true)}>{profile?'Chỉnh lộ trình':'Cá nhân hóa'}</button></div>
-    </div>
-
-    <div className={`student-daily-context${weather?' has-weather':''}`} aria-label="Bối cảnh học hôm nay">
-      <div className="student-daily-date"><CalendarDays/><span><small>HÔM NAY</small><b>{dayLabel}</b></span></div>
-      {weather&&<div className="student-daily-weather" title="Dữ liệu Open-Meteo · khu vực ước tính từ mạng, không dùng GPS thiết bị"><CloudSun/><span><small>THỜI TIẾT KHU VỰC</small><b>{Math.round(weather.temperature)}° · {weather.condition}</b><em>{weatherDetail}</em></span></div>}
-      <div className="student-daily-suggestion"><Sparkles/><span><small>GỢI Ý HỌC</small><b>{dailySuggestion}</b>{nextSchedule&&<em>{new Date(nextSchedule.startsAt).toLocaleString('vi-VN')}{nextSchedule.location?` · ${nextSchedule.location}`:''}</em>}</span></div>
-      <button className="student-link-btn" onClick={()=>onNavigate('schedule')}>Xem lịch <ChevronRight/></button>
-    </div>
-
-    {editing&&<div className="student-onboarding" role="region" aria-label="Cá nhân hóa lộ trình"><div className="student-onboarding-head"><div><b>Lộ trình học của bạn</b><small>4 lựa chọn · lưu trên thiết bị · có thể đổi bất cứ lúc nào</small></div>{profile&&<button className="student-link-btn" onClick={()=>setEditing(false)}>Đóng</button>}</div><div className="student-onboarding-grid"><label>Năm học<select value={year} onChange={e=>setYear(Number(e.target.value) as StudentYear)}>{[1,2,3,4,5,6].map(value=><option key={value} value={value}>Năm {value}</option>)}</select></label><label>Môn/chủ đề ưu tiên<select value={focus} onChange={e=>setFocus(e.target.value)}>{SUBJECTS.map(value=><option key={value}>{value}</option>)}</select></label><label>Mục tiêu<select value={goal} onChange={e=>setGoal(e.target.value as StudyGoal)}>{GOALS.map(item=><option key={item.value} value={item.value}>{item.label}</option>)}</select></label><label>Thời gian/ngày<select value={dailyMinutes} onChange={e=>setDailyMinutes(Number(e.target.value) as StudentPreferences['dailyMinutes'])}>{[10,20,30,45].map(value=><option key={value} value={value}>{value} phút</option>)}</select></label></div><button className="student-primary" onClick={saveOnboarding}><Target/> Bắt đầu lộ trình của tôi</button></div>}
-
-    <div className="student-today-grid">
-      <article className="student-action-card student-action-primary"><div className="student-action-icon"><BookOpen/></div><div><small>HỌC TIẾP</small><b>{continueLabel}</b><p>{profile?`Mục tiêu hôm nay: ${profile.dailyMinutes} phút tập trung.`:'Chọn lộ trình để Home ưu tiên đúng môn bạn đang học.'}</p></div><button onClick={()=>onNavigate('research')}>Mở học liệu <ChevronRight/></button></article>
-      <article className="student-action-card"><div className="student-action-icon"><GraduationCap/></div><div><small>ÔN NHANH HÔM NAY</small><b>{dailyProgress}/{DAY_TARGET} câu</b><div className="student-progress" aria-label={`${dailyPercent}%`}><i style={{width:`${dailyPercent}%`}}/></div><p>Hoàn thành 5 câu để duy trì nhịp học mỗi ngày.</p></div><button onClick={()=>onNavigate('exam')}>Luyện ngay <ChevronRight/></button></article>
-    </div>
-
-    <div className="student-ai-strip"><div className="student-ai-copy"><span><Brain/></span><div><b>Trợ lý ứng dụng</b><small>Hỏi nhanh, điều hướng, lịch, điểm hoạt động và hỗ trợ học tập thường quy.</small></div></div><button className="student-ai-open" onClick={openAi}>{member?<><Sparkles/> Mở trợ lý</>:<><LogIn/> Đăng nhập để dùng</>}</button></div>
-
-    <div className="student-shortcuts">
-      <button onClick={()=>onNavigate('research')}><Brain/><span><b>Nghiên cứu</b><small>AI có nguồn & học liệu</small></span></button>
-      <button onClick={()=>member?onNavigate('garden'):onLogin()}><Gamepad2/><span><b>Game YHCT</b><small>Gia Viên & HIU-Y-Quán</small></span></button>
-      <button onClick={()=>onNavigate('exam')}><GraduationCap/><span><b>Luyện thi</b><small>Học từ điểm yếu</small></span></button>
-    </div>
-    {notice&&<div className="student-home-notice" role="status">{notice}</div>}
-    <div className="student-community-heading"><div><Sparkles/><span><b>Cộng đồng học thuật</b><small>Bài viết, ca lâm sàng và nội dung mới từ HIU YHCT</small></span></div></div>
-  </section>;
-}
-
+/**
+ * Phase 17E production convergence: Study OS V2 is the only Home runtime.
+ * Rollback is performed through the verified Git/Vercel release history,
+ * never through a user-addressable legacy query parameter.
+ */
 export default function StudentHome(props:Props){
-  if(studyOsV2CanaryEnabled())return <Suspense fallback={<section className="panel lazy-module-loading" role="status">Đang tải AI Study OS V2…</section>}><StudyHubV2 {...props}/></Suspense>;
-  return <StudentHomeLegacy {...props}/>;
+  return <Suspense fallback={<section className="panel lazy-module-loading" role="status">Đang tải AI Study OS…</section>}><StudyHubV2 {...props}/></Suspense>;
 }

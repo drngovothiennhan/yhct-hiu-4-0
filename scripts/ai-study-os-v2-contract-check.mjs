@@ -5,23 +5,18 @@ const fail=message=>{throw new Error(`[AI Study OS V2 contract] ${message}`)};
 const requireText=(text,pattern,message)=>{if(!pattern.test(text))fail(message)};
 const forbidText=(text,pattern,message)=>{if(pattern.test(text))fail(message)};
 
-const canary=read('src/v2/study-os/canary.ts');
 const router=read('src/v2/study-os/intentRouter.ts');
 const home=read('src/components/home/StudentHome.tsx');
 const studyHub=read('src/components/home/StudyHubV2.tsx');
 const v2Css=read('src/components/home/study-hub-v2.css');
 const main=read('src/main.tsx');
 
-requireText(canary,/STUDY_OS_PARAM\s*=\s*['"]studyos['"]/,'Study OS query parameter must remain explicit');
-requireText(canary,/LEGACY_VALUE\s*=\s*['"]legacy['"]/,'legacy visual rollback value must remain explicit');
-requireText(canary,/if\(!raw\)return true/,'Study OS V2 must be default-on after Phase 14 cutover');
-requireText(canary,/!==LEGACY_VALUE/,'legacy rollback must be opt-in only');
-
+if(fs.existsSync(new URL('../src/v2/study-os/canary.ts',import.meta.url)))fail('legacy Study OS canary runtime must not return after Phase 17E convergence');
 requireText(home,/lazy\(\(\)=>import\(['"]\.\/StudyHubV2['"]\)\)/,'StudyHubV2 must remain lazy-loaded');
-requireText(home,/studyOsV2CanaryEnabled\(\)/,'StudentHome must preserve the visual rollback gate');
-requireText(home,/return <StudentHomeLegacy/,'legacy Home must remain available only as rollback surface');
+requireText(home,/return <Suspense[\s\S]*<StudyHubV2 \{\.\.\.props\}/,'StudentHome must render StudyHubV2 as the sole Home runtime');
+forbidText(home,/StudentHomeLegacy|studyOsV2CanaryEnabled|studyos|yhct:ai:open/i,'legacy Home/runtime assistant path must not remain');
 forbidText(main,/study-hub-v2\.css/,'V2 CSS must not be imported from the application entry');
-forbidText(home,/study-hub-v2\.css/,'V2 CSS must stay owned by the lazy StudyHubV2 chunk');
+forbidText(home,/student-home\.css|study-hub-v2\.css/,'legacy/V2 CSS must stay out of the Home wrapper');
 requireText(v2Css,/\.study-os-v2/,'V2 styles must remain isolated under the study-os-v2 namespace');
 
 requireText(router,/destination:'research'/,'router must preserve dedicated Research destination');
@@ -34,11 +29,11 @@ requireText(studyHub,/MY HIU YHCT · AI STUDY OS/,'production Home must identify
 forbidText(studyHub,/CANARY/,'production Home must not show canary labeling');
 requireText(studyHub,/yhct-ai-center-pending-query-v1/,'ordinary study requests must seed the dedicated AI Center');
 requireText(studyHub,/onNavigate\(['"]ai['"]\)/,'ordinary study requests must route to the dedicated AI Center');
-forbidText(studyHub,/yhct:ai:open/,'Study OS Home must not reopen the overlapping floating assistant for normal learning');
+forbidText(studyHub,/yhct:ai:open/,'Study OS Home must not reopen the floating task assistant for normal learning');
 requireText(studyHub,/yhct-research-pending-query-v1/,'research requests must reuse the existing Research handoff contract');
 requireText(studyHub,/onNavigate\(['"]research['"]\)/,'research intent must route to the existing Research module');
 requireText(studyHub,/onNavigate\(['"]exam['"]\)/,'quiz intent must route to the canonical exam module');
 forbidText(studyHub,/drive\.google\.com|GEMINI_API_KEY|GOOGLE_AI_API_KEY|OPENAI_API_KEY/,'student V2 must not expose Drive URLs or provider secrets');
 forbidText(studyHub,/OpenAI|provider/i,'student V2 must not expose backend jargon or alternate provider branding');
 
-console.log('AI Study OS V2 contracts: PASS');
+console.log('AI Study OS V2 converged production contracts: PASS');
