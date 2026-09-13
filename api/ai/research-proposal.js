@@ -13,6 +13,7 @@ function normalizeEvidence(raw){
 }
 
 async function quota(req,consume=false){return memberRpc(req,'research_proposal_quota_v1',{p_consume:consume})}
+const quotaError=usage=>usage?.unlimited?'':`Bạn đã dùng đủ ${Number(usage?.limit||0)} lượt tạo đề cương Gemini trong chu kỳ ${Number(usage?.windowHours||6)} giờ.`;
 
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Vary','Authorization');
@@ -30,7 +31,7 @@ export default async function handler(req,res){
 
   let usage;
   try{usage=await quota(req,true)}catch(error){return res.status(400).json({error:clean(error?.message||'Không kiểm tra được hạn mức Gemini.',300)})}
-  if(usage?.allowed===false)return res.status(429).json({error:'Bạn đã dùng đủ 3 lượt tạo đề cương Gemini trong chu kỳ 6 giờ.',quota:usage});
+  if(usage?.allowed===false)return res.status(429).json({error:quotaError(usage),quota:usage});
 
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),AI_TIMEOUT_MS);
   try{
