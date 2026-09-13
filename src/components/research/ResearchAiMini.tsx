@@ -12,12 +12,16 @@ type Task='evidence'|'pico'|'gap'|'methods'|'translate';
 type Props={member:Member;works:ResearchWork[];query:string;onOpenProposal:(title?:string)=>void};
 type ThreadMessage={id:string;role:'user'|'assistant';text:string;citations?:AiCitation[];meta?:string};
 const PENDING_KEY='yhct-research-pending-query-v1';
-const MAX_SOURCES=6;
+const MAX_SOURCES=6,PUBLIC_SOURCE_BUDGET=2,CENTRAL_SOURCE_BUDGET=2,DRIVE_SOURCE_BUDGET=2;
 const clean=(v:string)=>v.replace(/\s+/g,' ').trim();
 const message=(role:ThreadMessage['role'],text:string,extra:Pick<ThreadMessage,'citations'|'meta'>|{}={}):ThreadMessage=>({id:crypto.randomUUID(),role,text,...extra});
 const dedupe=(items:ResearchWork[])=>[...new Map(items.map(w=>[(w.doi||w.url||w.id).toLowerCase(),w])).values()];
 const asSources=(items:ResearchWork[]):AiSource[]=>items.slice(0,MAX_SOURCES).map(w=>({id:`${w.provider}:${w.id}`,title:w.title,text:`${w.abstract||w.title} ${w.authors.join(', ')} ${w.source} ${w.year||''}`.slice(0,4200),url:w.url}));
 const centralSources=(hits:CentralKnowledgeHit[]):AiSource[]=>hits.slice(0,3).map(h=>{const record=h.record as typeof h.record&{actions?:string;indications?:string;commonUses?:string;meridian?:string;category?:string};const evidence=h.evidence.find(x=>x.verified&&x.pubmedUrl?.startsWith('https://'));const authority=h.authoritySources.find(x=>x.verified&&x.sourceUrl?.startsWith('https://'));return{id:`central:${record.id}`,title:`${record.name} · nguồn nội bộ`,text:[record.name,...(record.aliases||[]),record.category,record.actions,record.indications,record.commonUses,record.meridian,referenceLabel(h.evidence,h.authoritySources,3)].filter(Boolean).join(' · ').slice(0,4200),url:evidence?.pubmedUrl||authority?.sourceUrl||null}});
+function balancedResearchSources(literature:AiSource[],knowledge:AiSource[],drive:AiSource[],internalEnabled:boolean){
+ if(!internalEnabled)return literature.slice(0,MAX_SOURCES);
+ return[...literature.slice(0,PUBLIC_SOURCE_BUDGET),...knowledge.slice(0,CENTRAL_SOURCE_BUDGET),...drive.slice(0,DRIVE_SOURCE_BUDGET)].slice(0,MAX_SOURCES);
+}
 const taskInstruction:Record<Exclude<Task,'translate'>,string>={
  evidence:'TỔNG HỢP BẰNG CHỨNG: trả lời câu hỏi trực tiếp; tách kết luận được hỗ trợ, chưa chắc chắn và thiếu dữ liệu; nêu thiết kế nghiên cứu và độ phù hợp của bằng chứng. Không suy diễn hiệu quả điều trị từ lý luận YHCT.',
  pico:'PICO/PICOS: chuyển câu hỏi thành Population, Intervention/Exposure, Comparator, Outcomes, Study design; sau đó đề xuất chuỗi từ khóa PubMed ngắn gọn. Không tự thêm đặc điểm dân số hay can thiệp chưa có căn cứ.',
@@ -38,7 +42,7 @@ export default function ResearchAiMini({member,works,query,onOpenProposal}:Props
    try{
      const [pubmed,openalex,trials,drive,central]=await Promise.all([searchPubMed(text,8).catch(()=>[]),searchOpenAlex(text,8).catch(()=>[]),searchClinicalTrials(text,5).catch(()=>[]),internalEnabled?searchDriveRag(text,4,controller.signal):Promise.resolve({sources:[],degraded:false}),internalEnabled?searchKnowledge(text,'all',4).catch(()=>[]):Promise.resolve([])]);
      if(controller.signal.aborted)return;
-     const publicWorks=dedupe([...pubmed,...openalex,...trials,...works]).slice(0,14),sources=[...asSources(publicWorks).slice(0,internalEnabled?3:6),...centralSources(central).slice(0,internalEnabled?2:0),...drive.sources.slice(0,internalEnabled?1:0)].slice(0,MAX_SOURCES);
+     const publicWorks=dedupe([...pubmed,...openalex,...trials,...works]).slice(0,14),literature=asSources(publicWorks),knowledge=centralSources(central),sources=balancedResearchSources(literature,knowledge,drive.sources,internalEnabled);
      const prompt=['RESEARCH_ROLE=GEMINI_MEDICAL_RESEARCH_LEAD',`TASK=${task}`,`QUESTION=${text}`,taskInstruction[task],'Ưu tiên y học chứng cứ. Phân biệt dữ liệu quan sát, thử nghiệm, tổng quan và ý kiến. Nếu nguồn không đủ để kết luận, phải nói rõ “chưa đủ bằng chứng”.','Mọi khẳng định thực nghiệm quan trọng phải dựa vào SOURCE IDs được hệ thống cung cấp. Không bịa DOI/PMID/tác giả/số liệu.','Trả lời bằng tiếng Việt, cấu trúc rõ, cụ thể; không viết lời dẫn sáo rỗng. Cuối cùng đề xuất tối đa 3 bước nghiên cứu tiếp theo.'].join('\n');
      const result=await askServerAi(prompt,'research',sources,controller.signal,{useInternal:internalEnabled});if(controller.signal.aborted)return;
      if(result.degraded){setStatus('Gemini Research hiện chưa khả dụng. Không tạo câu trả lời local thay thế; các nguồn đã tìm vẫn được giữ bên dưới.');return}
