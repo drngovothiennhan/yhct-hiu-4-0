@@ -7,10 +7,12 @@ import {consumeGuestSearchQuota,formatQuotaCountdown,GUEST_SEARCH_LIMIT,readGues
 import ResearchAiMini from './ResearchAiMini';
 import ResearchProposalBuilder from './ResearchProposalBuilder';
 
+const RESEARCH_PENDING_KEY='yhct-research-pending-query-v1';
 const dedupeDocs=(docs:RagDocument[])=>[...new Map(docs.map(d=>[d.id,d])).values()];
 const dedupeWorks=(works:ResearchWork[])=>[...new Map(works.map(w=>[(w.doi||w.url||w.title).toLowerCase(),w])).values()];
 const providerClass=(provider:string)=>provider.toLowerCase().replace(/[^a-z0-9]+/g,'-');
 const asAiSources=(works:ResearchWork[])=>works.slice(0,6).map(w=>({id:`${w.provider}:${w.id}`,title:w.title,text:`${w.abstract||w.title} ${w.authors.join(', ')} ${w.source} ${w.year||''}`.slice(0,4200),url:w.url}));
+const pendingResearchQuery=()=>{try{const value=String(localStorage.getItem(RESEARCH_PENDING_KEY)||'').replace(/\s+/g,' ').trim().slice(0,2200);if(value)localStorage.removeItem(RESEARCH_PENDING_KEY);return value}catch{return ''}};
 
 type Props={member:Member|null;onLogin?:()=>void};
 
@@ -20,6 +22,7 @@ export default function ResearchCenter({member,onLogin}:Props){
   const [ragInternalConsent,setRagInternalConsent]=useState(false);
   const login=()=>{if(onLogin){onLogin();return}const button=document.querySelector<HTMLButtonElement>('.mobile-account-button, aside footer button');button?.click()};
   useEffect(()=>{document.documentElement.classList.add('research-route-active');return()=>document.documentElement.classList.remove('research-route-active')},[]);
+  useEffect(()=>{const seed=pendingResearchQuery();if(!seed)return;setQ(seed);setRagQ(seed);setErr('')},[]);
   useEffect(()=>{let alive=true;void loadPersistedRagDocuments().then(x=>{if(alive){setDocs(x);setHydrated(true)}});return()=>{alive=false}},[]);
   useEffect(()=>{if(hydrated)void persistRagDocuments(docs)},[docs,hydrated]);
   useEffect(()=>{if(member)return;const id=window.setInterval(()=>{const t=Date.now();setNow(t);setQuota(readGuestSearchQuota(t))},1000);return()=>window.clearInterval(id)},[member]);

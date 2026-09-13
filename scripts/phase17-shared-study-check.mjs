@@ -20,6 +20,14 @@ assert.match(aiCenter,/Học sâu hơn/);
 assert.match(aiCenter,/Tài liệu liên quan/);
 assert.match(aiCenter,/findRelatedLearningResources\(seed,6\)/);
 assert.match(aiCenter,/Chỉ hiển thị metadata an toàn/);
+const researchCenter=read('src/components/research/ResearchCenter.tsx');
+assert.match(researchCenter,/yhct-research-pending-query-v1/);
+assert.match(researchCenter,/localStorage\.getItem\(RESEARCH_PENDING_KEY\)/);
+assert.match(researchCenter,/localStorage\.removeItem\(RESEARCH_PENDING_KEY\)/);
+assert.match(researchCenter,/setQ\(seed\)/);
+assert.match(researchCenter,/setRagQ\(seed\)/);
+assert.match(researchCenter,/const \[ragInternalConsent,setRagInternalConsent\]=useState\(false\)/);
+assert.doesNotMatch(researchCenter,/setRagInternalConsent\(true\)/);
 const resourceService=read('src/services/learningResourceService.ts');
 assert.match(resourceService,/learning_resource_list_v1/);
 assert.match(resourceService,/p_include_drafts:false/);
@@ -98,7 +106,7 @@ try{
   delete process.env.GEMINI_API_KEY;
   assert.equal((await invoke({mode:'study',query:'Tạng tượng là gì?'})).code,503);
   for(const mode of ['fast','research','exam','xiaozhi-mini'])assert.equal((await invoke({mode,query:'test'},'POST',false)).code,401,`${mode} authentication preserved`);
-  console.log('Phase 17 shared Study gateway runtime + privacy + learner-context + safe-resource + fallback contracts: PASS');
+  console.log('Phase 17 shared Study gateway runtime + privacy + learner-context + safe-resource + research-handoff + fallback contracts: PASS');
 }finally{
   globalThis.fetch=originalFetch;
   if(originalKey===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=originalKey;
