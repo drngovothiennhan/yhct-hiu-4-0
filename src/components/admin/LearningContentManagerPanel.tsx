@@ -18,24 +18,19 @@ export default function LearningContentManagerPanel(){
   const track=(next:QuizDraft)=>{setDraft(next);if(next.pipeline?.state==='processing')setMessage(`A.I đang xử lý tài liệu · ${next.pipeline.percent}%`)};
   const finish=(next:QuizDraft)=>{setDraft(next);setPublished(null);setTrustedResult(null);setMessage(`Đã tạo ${next.questions.filter(q=>q.correctIndex!==null).length} câu có đáp án. Kiểm tra nhanh rồi phát hành.`)};
   const processUpload=async()=>{
-    if(!file)throw new Error('Chọn một tệp DOCX, TXT hoặc PDF.');
+    if(!file)throw new Error('Chọn một tệp DOCX.');
     if(!subject.trim())throw new Error('Nhập tên môn/chủ đề cho tài liệu.');
-    const base64=await sourceFileBase64(file);
-    if(/\.docx$/i.test(file.name)){
-      const trusted=await tryTrustedQuizUpload(file.name,base64,subject.trim());
-      if(trusted?.ok){setTrustedResult(trusted);setDraft(null);setPublished(null);setMessage(`Đã cập nhật ${trusted.total||0} câu đạt chuẩn vào ngân hàng.`);return}
-    }
+    const base64=await sourceFileBase64(file),trusted=await tryTrustedQuizUpload(file.name,base64,subject.trim());
+    if(trusted?.ok){setTrustedResult(trusted);setDraft(null);setPublished(null);setMessage(`Đã cập nhật ${trusted.total||0} câu đạt chuẩn vào ngân hàng.`);return}
+    if(!/\.docx$/i.test(file.name))throw new Error('PDF/TXT này chưa có đáp án xác định trực tiếp từ nguồn nên không được dùng A.I suy đoán. Hãy dùng đề có đáp án rõ hoặc DOCX nếu cần xử lý nâng cao.');
     finish(await startQuizPipeline({fileName:file.name,base64,subjectName:subject.trim(),conversionMode:'auto'},track));
   };
   const processDrive=async()=>{if(!selectedDrive)throw new Error('Chọn một tài liệu trong kho Drive.');finish(await startQuizPipeline({fileId:selectedDrive.id,subjectFolderId:folderId,conversionMode:'auto'},track))};
   const updateQuizBank=async()=>{
     const localProcessed:TrustedQuizImportResult[]=[];let localWaiting='';
     if(file){
-      if(!/\.docx$/i.test(file.name))localWaiting='File ACC chưa thuộc luồng cập nhật nhanh; dùng Xử lý nâng cao cho PDF/TXT.';
-      else{
-        const base64=await sourceFileBase64(file),trusted=await tryTrustedQuizUpload(file.name,base64,subject.trim()||subjectFromFileName(file.name));
-        if(trusted?.ok){localProcessed.push(trusted);setTrustedResult(null);setFile(null)}else localWaiting='File ACC chưa có đáp án xác định rõ nên chưa đưa vào ngân hàng.';
-      }
+      const base64=await sourceFileBase64(file),trusted=await tryTrustedQuizUpload(file.name,base64,subject.trim()||subjectFromFileName(file.name));
+      if(trusted?.ok){localProcessed.push(trusted);setTrustedResult(null);setFile(null)}else localWaiting='File ACC chưa có đáp án xác định rõ nên chưa đưa vào ngân hàng.';
     }
     const result=driveReady?await syncQuizBank(10):{ok:true,processed:[],pending:0,remaining:0,errors:0},processed=[...localProcessed,...result.processed],imported=processed.filter(x=>x.ok).reduce((sum,x)=>sum+Number(x.inserted||0)+Number(x.updated||0),0),errors=processed.filter(x=>x.status==='error').length,waiting=processed.filter(x=>!x.ok&&x.status!=='error').length,remaining=Math.max(0,Number(result.remaining||0));
     if(!driveReady&&!file&&!processed.length)throw new Error('Drive chưa kết nối và chưa chọn file từ ACC.');
@@ -58,13 +53,13 @@ export default function LearningContentManagerPanel(){
     <div className="qi-heading qi-heading--compact"><div><span className="qi-kicker"><ShieldCheck/>QUẢN LÝ HỌC TẬP</span><h2>Ngân hàng câu hỏi</h2></div><BookOpenCheck/></div>
 
     <div className="quiz-bank-update-card">
-      <div className="quiz-bank-update-main"><FolderOpen/><div><b>NGÂN HÀNG TRẮC NGHIỆM</b><small>{driveReady?'Drive đã kết nối · Thả đề vào ngân hàng rồi bấm Cập nhật':'Drive chưa kết nối · vẫn có thể chọn DOCX từ ACC'}</small>{file&&<small><FileText/> {file.name}</small>}</div><label className="qi-upload quiz-bank-quick-upload"><FileUp/><span><b>File từ ACC</b><small>DOCX</small></span><input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={busy} onChange={e=>{const picked=e.target.files?.[0]||null;setFile(picked);if(picked&&!subject.trim())setSubject(subjectFromFileName(picked.name))}}/></label><button type="button" className="qi-primary-convert quiz-bank-update-button" disabled={busy||(!driveReady&&!file)} onClick={()=>void run(updateQuizBank)}><RefreshCcw/>{busy?'Đang cập nhật…':'Cập nhật'}</button></div>
+      <div className="quiz-bank-update-main"><FolderOpen/><div><b>NGÂN HÀNG TRẮC NGHIỆM</b><small>{driveReady?'Drive đã kết nối · Thả DOCX/PDF/TXT/Google Docs vào ngân hàng rồi bấm Cập nhật':'Drive chưa kết nối · vẫn có thể chọn file từ ACC'}</small>{file&&<small><FileText/> {file.name}</small>}</div><label className="qi-upload quiz-bank-quick-upload"><FileUp/><span><b>File từ ACC</b><small>DOCX · PDF · TXT</small></span><input type="file" accept=".docx,.pdf,.txt,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,text/plain" disabled={busy} onChange={e=>{const picked=e.target.files?.[0]||null;setFile(picked);if(picked&&!subject.trim())setSubject(subjectFromFileName(picked.name))}}/></label><button type="button" className="qi-primary-convert quiz-bank-update-button" disabled={busy||(!driveReady&&!file)} onClick={()=>void run(updateQuizBank)}><RefreshCcw/>{busy?'Đang cập nhật…':'Cập nhật'}</button></div>
       {message&&<p className="qi-status" role="status">{message}</p>}
     </div>
 
     <AnswerReviewQueue/>
 
-    {!draft&&!trustedResult&&!published&&<details className="quiz-bank-secondary"><summary>Xử lý nâng cao / tài liệu ngoại lệ</summary><div className="qi-direct-upload"><label><span><b>Môn / chủ đề</b></span><input type="text" value={subject} disabled={busy} placeholder="Ví dụ: Thuốc YHCT 2" onChange={e=>setSubject(e.target.value)}/></label><label className="qi-upload"><FileUp/><span><b>DOCX, TXT hoặc PDF</b></span><input type="file" accept=".docx,.txt,.pdf,text/plain,application/pdf" disabled={busy} onChange={e=>setFile(e.target.files?.[0]||null)}/></label>{file&&<div className="publish-selected"><FileText/><span><b>{file.name}</b></span></div>}<div className="qi-actions"><button className="qi-primary-convert" disabled={busy||!file||!subject.trim()} onClick={()=>void run(processUpload)}>Nhận diện tài liệu ngoại lệ</button></div></div></details>}
+    {!draft&&!trustedResult&&!published&&<details className="quiz-bank-secondary"><summary>Xử lý nâng cao / tài liệu ngoại lệ</summary><div className="qi-direct-upload"><label><span><b>Môn / chủ đề</b></span><input type="text" value={subject} disabled={busy} placeholder="Ví dụ: Thuốc YHCT 2" onChange={e=>setSubject(e.target.value)}/></label><label className="qi-upload"><FileUp/><span><b>DOCX cần A.I hỗ trợ</b><small>Chỉ dùng khi tài liệu chưa có đáp án xác định trực tiếp</small></span><input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={busy} onChange={e=>setFile(e.target.files?.[0]||null)}/></label>{file&&<div className="publish-selected"><FileText/><span><b>{file.name}</b></span></div>}<div className="qi-actions"><button className="qi-primary-convert" disabled={busy||!file||!subject.trim()} onClick={()=>void run(processUpload)}>Nhận diện tài liệu ngoại lệ</button></div></div></details>}
 
     {!draft&&!trustedResult&&!published&&driveReady&&<details className="quiz-bank-secondary"><summary>Duyệt Drive thủ công</summary><div className="publish-drive-browser"><div className="qi-root-actions">{roots.map(root=><button type="button" className={folderId===root.id?'active':''} key={root.id} onClick={()=>{setFolderId(root.id);setSelectedDrive(null)}}><Folder/>{root.name}</button>)}</div><div className="qi-files">{driveItems.map(item=><div key={item.id}>{item.folder?<button type="button" className="publish-folder" onClick={()=>{setFolderId(item.id);setSelectedDrive(null)}}><FolderOpen/><span>{item.name}</span><ChevronRight/></button>:<button type="button" className={`publish-file ${selectedDrive?.id===item.id?'active':''}`} disabled={!item.supported} onClick={()=>setSelectedDrive(item)}><FileText/><span><b>{item.name}</b></span></button>}</div>)}</div>{selectedDrive&&<div className="publish-selected"><CheckCircle2/><span><b>{selectedDrive.name}</b></span></div>}<div className="qi-actions"><button className="secondary" disabled={busy||!selectedDrive} onClick={()=>void run(processDrive)}>Xử lý tệp đã chọn</button></div></div></details>}
 
