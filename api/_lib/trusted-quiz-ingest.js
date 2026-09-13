@@ -27,7 +27,7 @@ async function serviceToken(){
   const response=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion:`${unsigned}.${signer.sign(cfg.key,'base64url')}`})});if(!response.ok)throw new Error(`Google OAuth ${response.status}`);const payload=await response.json(),token=String(payload?.access_token||'');if(!token)throw new Error('Google OAuth returned no access token');tokenCache={token,expiresAt:now+Math.min(3200,Number(payload?.expires_in||3300))};return token;
 }
 async function driveFetch(url,init={},ms=HTTP_MS){
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),ms);try{const target=new URL(String(url)),headers=new Headers(init.headers||{}),token=await serviceToken();if(token)headers.set('authorization',`Bearer ${token}`);else{const key=apiKey();if(!key)throw new Error('Google Drive credential missing');target.searchParams.set('key',key)}headers.set('user-agent','HIU-YHCT-Quiz-Bank/2.0');return await fetch(target,{...init,headers,signal:controller.signal})}finally{clearTimeout(timer)}
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),ms);try{const target=new URL(String(url)),headers=new Headers(init.headers||{}),token=await serviceToken();if(token)headers.set('authorization',`Bearer ${token}`);else{const key=apiKey();if(!key)throw new Error('Google Drive credential missing');target.searchParams.set('key',key)}headers.set('user-agent','HIU-YHCT-Quiz-Bank/2.1');return await fetch(target,{...init,headers,signal:controller.signal})}finally{clearTimeout(timer)}
 }
 const driveConfigured=()=>Boolean(serviceAccount()||apiKey());
 const isDocx=file=>String(file?.mimeType||'')===DOCX_MIME||/\.docx$/i.test(String(file?.name||''));
@@ -38,18 +38,27 @@ async function listChildren(parent,pageSize=1000){
 }
 
 async function listNewIntakeCandidates(){
-  const rootId=quizBankFolderId();if(!driveConfigured())return{configured:false,folder:rootId,files:[],reason:'missing_google_drive_credential'};
+  const rootId=quizBankFolderId();if(!driveConfigured())return{configured:false,folder:rootId,files:[],subjects:[],reason:'missing_google_drive_credential'};
   const root=await listChildren(rootId,1000),manual=root.find(x=>x.mimeType===FOLDER_MIME&&normalizedName(x.name)===normalizedName(MANUAL_INTAKE_FOLDER));
   if(!manual)throw new Error(`Không tìm thấy thư mục ${MANUAL_INTAKE_FOLDER} trong ${BANK_FOLDER_NAME}.`);
-  const rows=await listChildren(manual.id,1000),files=rows.filter(isDocx).map(file=>({...file,parentName:MEMBER_SUBJECT}));
-  return{configured:true,folder:rootId,intakeFolderId:manual.id,files:files.slice(0,1000)};
+  const rows=await listChildren(manual.id,1000);
+  const directFiles=rows.filter(isDocx).map(file=>({...file,parentName:MEMBER_SUBJECT,parentFolderId:manual.id}));
+  const subjectFolders=rows.filter(row=>row?.mimeType===FOLDER_MIME&&clean(row?.name,160));
+  const nestedGroups=await Promise.all(subjectFolders.map(async folder=>{
+    const subject=clean(folder.name,160)||MEMBER_SUBJECT,children=await listChildren(folder.id,1000);
+    return children.filter(isDocx).map(file=>({...file,parentName:subject,parentFolderId:folder.id}));
+  }));
+  const nestedFiles=nestedGroups.flat(),files=[...directFiles,...nestedFiles].sort((a,b)=>String(b.createdTime||'').localeCompare(String(a.createdTime||'')));
+  const subjects=[...new Set(subjectFolders.map(folder=>clean(folder.name,160)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
+  return{configured:true,folder:rootId,intakeFolderId:manual.id,subjects,files:files.slice(0,1000)};
 }
 
 async function downloadDocx(file){
   const url=new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}`);url.searchParams.set('alt','media');const response=await driveFetch(url,{},12000);if(!response.ok)throw new Error(`Google Drive download ${response.status}`);const len=Number(response.headers.get('content-length')||file.size||0);if(len>MAX_DRIVE_BYTES)throw new Error('DOCX vượt 5 MB');const buffer=Buffer.from(await response.arrayBuffer());if(!buffer.length||buffer.length>MAX_DRIVE_BYTES)throw new Error('DOCX không hợp lệ hoặc vượt 5 MB');return buffer;
 }
 
-const documentMeta=(file,sourceHash,questionCount,syncStatus='ready',syncMessage='')=>({driveFileId:String(file.id),fileName:clean(file.name,300),mimeType:DOCX_MIME,modifiedTime:file.modifiedTime||null,sourceHash,subjectHint:MEMBER_SUBJECT,syncStatus,syncMessage:syncMessage||`Đã nhận ${questionCount} câu có đúng một đáp án tô đỏ từ nguồn DOCX.`});
+const sourceSubject=file=>clean(file?.parentName,160)||MEMBER_SUBJECT;
+const documentMeta=(file,sourceHash,questionCount,syncStatus='ready',syncMessage='')=>({driveFileId:String(file.id),fileName:clean(file.name,300),mimeType:DOCX_MIME,modifiedTime:file.modifiedTime||null,sourceHash,subjectHint:sourceSubject(file),syncStatus,syncMessage:syncMessage||`Đã nhận ${questionCount} câu có đúng một đáp án tô đỏ từ nguồn DOCX.`});
 
 async function registerSeenInvalid(req,file,sourceHash,parsed){
   const message=parsed.valid>0?`Đã đưa ${parsed.valid} câu đạt chuẩn vào ngân hàng; bỏ qua ${parsed.invalid.length} câu chưa có đúng một đáp án tô đỏ.`:'Không có câu đạt chuẩn: mỗi câu phải đủ 4 lựa chọn và có đúng một đáp án tô đỏ.';
@@ -58,11 +67,11 @@ async function registerSeenInvalid(req,file,sourceHash,parsed){
 }
 
 async function importRedAnswerDocx(req,file,buffer){
-  const sourceHash=sha256(buffer),sourceFile={...file,parentName:MEMBER_SUBJECT},parsed=parseTrustedMarkedDocx(buffer,sourceFile,sourceHash);
-  if(!parsed.questions.length){const message=await registerSeenInvalid(req,file,sourceHash,parsed);return{ok:false,status:'invalid_red_answer_format',total:parsed.total,valid:0,invalid:parsed.invalid.length,message}}
+  const subject=sourceSubject(file),sourceHash=sha256(buffer),sourceFile={...file,parentName:subject},parsed=parseTrustedMarkedDocx(buffer,sourceFile,sourceHash);
+  if(!parsed.questions.length){const message=await registerSeenInvalid(req,file,sourceHash,parsed);return{ok:false,status:'invalid_red_answer_format',subject,total:parsed.total,valid:0,invalid:parsed.invalid.length,message}}
   const result=await memberRpc(req,'practice_trusted_quiz_ingest_v1',{p_document:documentMeta(file,sourceHash,parsed.valid,parsed.invalid.length?'needs_review':'ready',parsed.invalid.length?`${parsed.valid} câu đạt chuẩn; ${parsed.invalid.length} câu bị bỏ qua.`:''),p_questions:parsed.questions});
   let message='';if(parsed.invalid.length)message=await registerSeenInvalid(req,file,sourceHash,parsed);
-  return{ok:true,status:parsed.invalid.length?'imported_partial':'imported',total:parsed.total,valid:parsed.valid,invalid:parsed.invalid.length,inserted:Number(result?.inserted||0),updated:Number(result?.updated||0),marker:'word-font-color-red-v1',message};
+  return{ok:true,status:parsed.invalid.length?'imported_partial':'imported',subject,total:parsed.total,valid:parsed.valid,invalid:parsed.invalid.length,inserted:Number(result?.inserted||0),updated:Number(result?.updated||0),marker:'word-font-color-red-v1',message};
 }
 
 export async function handleTrustedQuizIngest(req,res){
@@ -74,8 +83,8 @@ export async function handleTrustedQuizIngest(req,res){
     if(!listing.configured)return res.status(200).json({ok:false,degraded:true,reason:listing.reason,processed:[]});
     const ids=listing.files.map(file=>String(file.id)),known=ids.length?await memberRpc(req,'practice_source_sync_state_v1',{p_file_ids:ids}):[],knownIds=new Set((Array.isArray(known)?known:[]).map(row=>String(row?.fileId||'')));
     const pending=listing.files.filter(file=>!knownIds.has(String(file.id))),maxFiles=Math.max(1,Math.min(10,Number(req.body?.maxFiles)||10)),selected=pending.slice(0,maxFiles).reverse(),processed=[];
-    for(const file of selected){try{processed.push(await importRedAnswerDocx(req,file,await downloadDocx(file)))}catch(error){processed.push({ok:false,status:'error',message:clean(error?.message||'Không xử lý được DOCX',300)})}}
+    for(const file of selected){try{processed.push(await importRedAnswerDocx(req,file,await downloadDocx(file)))}catch(error){processed.push({ok:false,status:'error',subject:sourceSubject(file),message:clean(error?.message||'Không xử lý được DOCX',300)})}}
     const remaining=Math.max(0,pending.length-selected.length),errors=processed.filter(x=>x.status==='error').length;
-    return res.status(200).json({ok:true,intake:MANUAL_INTAKE_FOLDER,filesSeen:listing.files.length,alreadySynced:listing.files.length-pending.length,pending:pending.length,remaining,errors,processed});
+    return res.status(200).json({ok:true,intake:MANUAL_INTAKE_FOLDER,subjects:listing.subjects,filesSeen:listing.files.length,alreadySynced:listing.files.length-pending.length,pending:pending.length,remaining,errors,processed});
   }catch(error){return res.status(400).json({error:clean(error?.message||'Quiz bank update failed',400)})}
 }
