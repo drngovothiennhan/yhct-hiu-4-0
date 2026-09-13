@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const githubPages=process.env.GITHUB_PAGES==='true';
+const releaseId=String(process.env.VERCEL_GIT_COMMIT_SHA||process.env.GITHUB_SHA||process.env.npm_package_version||'local').slice(0,64);
 
 // Keep manual chunking limited to true third-party vendor families.
 // Application modules already use React.lazy(); forcing src/components/* into
@@ -19,6 +20,7 @@ function productionChunk(id:string){
 export default defineConfig({
   base:githubPages?'/yhct-hiu-4-0/':'/',
   plugins:[react()],
+  define:{__YHCT_RELEASE_ID__:JSON.stringify(releaseId)},
   build:{
     target:'es2022',
     sourcemap:false,
