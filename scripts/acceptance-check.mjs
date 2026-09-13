@@ -16,12 +16,12 @@ const required=[
   'src/components/profile/ProfileCenter.tsx','src/components/profile/ProfileInbox.tsx','src/components/messages/MessagesCenter.tsx',
   'src/components/game/HerbGardenGame.tsx','src/components/game/HerbGardenSocialHub.tsx','src/components/game/HiuYQuanGame.tsx',
   'src/components/research/ResearchCenter.tsx','src/components/research/ResearchAiMini.tsx','src/components/research/ResearchProposalBuilder.tsx',
-  'src/components/exam/ExamCenter.tsx','src/components/ai/UnifiedAiMini.tsx','src/components/ai/AiCenter.tsx',
+  'src/components/exam/ExamCenter.tsx','src/components/exam/AdaptiveReview.tsx','src/components/exam/PracticeBankQuiz.tsx','src/components/exam/DailyDrivePractice.tsx','src/components/exam/QuestionReasoningGuide.tsx','src/components/ai/UnifiedAiMini.tsx','src/components/ai/AiCenter.tsx',
   'src/components/admin/AdminControlCenter.tsx','src/components/admin/SystemAdminCenter.tsx','src/components/admin/ModerationOpsPanel.tsx',
   'src/components/drl/DrlCenter.tsx','src/components/schedule/ScheduleCenter.tsx','src/components/notifications/NotificationsCenter.tsx',
   'src/components/system/AppSettingsDialog.tsx','src/components/system/ViewportModeToggle.tsx',
   'src/exam-v2.css','src/research-ai-upgrade.css','src/research-ai-leader.css','src/module-isolation.css','src/garden-v6.css','src/garden-sky-v8.css','src/hiu-y-quan.css','src/xiaozhi-mini.css',
-  'api/_lib/drive-rag.js','api/_lib/xiaozhi-mini-handler.js','api/ai/drive-rag.js','api/ai/assistant.js','api/_lib/study-assistant-handler.js','api/ai/research-proposal.js','api/translate.js','api/manifest.js',
+  'api/_lib/drive-rag.js','api/_lib/xiaozhi-mini-handler.js','api/ai/drive-rag.js','api/ai/assistant.js','api/ai/study-quiz.js','api/_lib/study-assistant-handler.js','api/ai/research-proposal.js','api/translate.js','api/manifest.js',
   'public/service-worker.js','public/manifest.webmanifest','public/pwa-icon-192.png','public/pwa-icon-512.png','public/pwa-maskable-512.png','public/garden-decor-sprite.svg',
   'vite.config.ts','vercel.json','scripts/role-ui-audit.mjs','scripts/module-isolation-check.mjs','scripts/platform-upgrade-check.mjs',
   'supabase/migrations/202609080630_admin_news_retention_and_garden_grid_v6.sql',
@@ -57,11 +57,12 @@ for(const stale of ['AiMiniFeedbackDock member={member}','PersonalCopilotWidget 
 need(main,['requestAnimationFrame(()=>requestAnimationFrame(revealStableApp))','delete root.dataset.appBooting','yhct-prepaint','./exam-v2.css'],'stable first paint');
 need(theme,["link.setAttribute('href','/api/manifest')",'system_theme_get_v1','theme-color'],'system theme + root manifest');
 
-const mini=read('src/components/ai/UnifiedAiMini.tsx'),xiaozhiService=read('src/services/xiaozhiMiniService.ts'),xiaozhiHandler=read('api/_lib/xiaozhi-mini-handler.js'),assistantGateway=read('api/ai/assistant.js'),studyService=read('src/services/studyAiService.ts'),studyGateway=read('api/_lib/study-assistant-handler.js'),aiCenter=read('src/components/ai/AiCenter.tsx'),research=read('src/components/research/ResearchCenter.tsx'),researchMini=read('src/components/research/ResearchAiMini.tsx'),proposal=read('src/components/research/ResearchProposalBuilder.tsx'),proposalApi=read('api/ai/research-proposal.js'),proposalQuota=read('supabase/migrations/202609132110_phase19_research_proposal_gemini_quota.sql'),translation=read('src/services/academicTranslationService.ts'),driveRag=read('src/services/driveRagService.ts');
+const mini=read('src/components/ai/UnifiedAiMini.tsx'),xiaozhiService=read('src/services/xiaozhiMiniService.ts'),xiaozhiHandler=read('api/_lib/xiaozhi-mini-handler.js'),assistantGateway=read('api/ai/assistant.js'),studyService=read('src/services/studyAiService.ts'),studyGateway=read('api/_lib/study-assistant-handler.js'),studyQuizGateway=read('api/ai/study-quiz.js'),aiCenter=read('src/components/ai/AiCenter.tsx'),research=read('src/components/research/ResearchCenter.tsx'),researchMini=read('src/components/research/ResearchAiMini.tsx'),proposal=read('src/components/research/ResearchProposalBuilder.tsx'),proposalApi=read('api/ai/research-proposal.js'),proposalQuota=read('supabase/migrations/202609132110_phase19_research_proposal_gemini_quota.sql'),translation=read('src/services/academicTranslationService.ts'),driveRag=read('src/services/driveRagService.ts');
 need(mini,['checkDrlConversation','fetchSchedules','researchIntent','SpeechSynthesisUtterance','SpeechRecognition','Giọng nói: bật','openResearch(text)','openStudyAi(text)'],'task/navigation voice routing');
 if(mini.includes('askXiaoZhiMini'))errors.push('task assistant must not answer ordinary study questions');
-need(studyService,["fetch('/api/ai/assistant'",'conversationContext','Authorization:`Bearer ${token}`'],'Gemini Study client');
+need(studyService,["fetch('/api/ai/assistant'",'conversationContext',"fetch('/api/ai/study-quiz'",'Authorization:`Bearer ${token}`'],'Gemini Study + resilient quiz client');
 need(studyGateway,['createGeminiWebSearch','createGeminiText','conversationContext','Gemini Study'],'Gemini Study server gateway');
+need(studyQuizGateway,["memberAccess(req,'member')",'runGemini','runOpenAi','createGeminiWebSearch','web_search_preview','openai-web-fallback','X-AI-Failover','Gemini quiz has no grounded web source'],'Gemini-first Study quiz with transparent grounded failover');
 need(aiCenter,['askStudyGemini','AI STUDY OS · GEMINI','ai-center__conversation'],'dedicated Gemini Study workspace');
 need(xiaozhiService,["fetch('/api/ai/assistant'","mode:'xiaozhi-mini'",'Authorization:`Bearer ${token}`'],'legacy XiaoZhi shared gateway client');
 need(xiaozhiHandler,['createGeminiWebSearch','geminiAiConfigured','web_search_preview','handleXiaoZhiMini','Trợ lý ứng dụng HIU YHCT 4.0','isResearchIntent',"route:'research'",'tuyệt đối không tự giả định rằng kho Drive/tài liệu nội bộ đã được bật'],'legacy XiaoZhi gateway remains isolated from task UI');
@@ -74,21 +75,27 @@ need(researchMini,['RESEARCH_ROLE=GEMINI_MEDICAL_RESEARCH_LEAD','searchPubMed(te
 forbid(researchMini,['buildAcademicFallback','Fallback học thuật cục bộ','A.I local 0đ'],'Research fake-local-answer path');
 if((research.match(/<ResearchAiMini\b/g)||[]).length!==1)errors.push('Research Center must mount exactly one Research A.I surface');
 
-need(proposal,['Gemini tạo đề cương','quota.remaining','6 giờ','/api/ai/research-proposal'],'member proposal quota UX');
+need(proposal,['Gemini tạo đề cương','quota.remaining','6 giờ','unlimited','/api/ai/research-proposal'],'role-aware proposal quota UX');
 forbid(proposal,['A.I local 0đ','Tinh chỉnh A.I cloud','buildLocalProposalSections'],'proposal duplicate/local AI paths');
 need(proposalApi,['createGeminiJson','geminiAiConfigured','geminiAiModel',"mode:'research'",'research_proposal_quota_v1','PMID','DOI','Không dùng bản nháp local thay thế'],'Gemini proposal safety and quota');
 forbid(proposalApi,['api.openai.com','OPENAI_API_KEY','localFallback'],'proposal provider sprawl');
-need(proposalQuota,["interval '6 hours'",'v_used >= 3',"'remaining',3",'Approved member required','grant execute on function public.research_proposal_quota_v1(boolean) to authenticated'],'server-authoritative 3/6h quota');
+need(proposalQuota,["interval '6 hours'","v_role='admin'","v_role in('mod','super_mod','leader')",'then 5 else 3',"'unlimited',true",'Approved member required','grant execute on function public.research_proposal_quota_v1(boolean) to authenticated'],'server-authoritative role-aware proposal quota');
 need(translation,['translateAcademic','/api/translate'],'academic translation gateway');
 need(driveRag,['searchDriveRag','/api/ai/drive-rag'],'shared Drive RAG client');
 
 const quizManager=read('src/components/admin/LearningContentManagerPanel.tsx'),trustedIngest=read('api/_lib/trusted-quiz-ingest.js'),bankMigration=read('supabase/migrations/202609132120_phase19_quiz_bank_data_first.sql');
-need(quizManager,['Ngân hàng đề thi','syncQuizBank','Thêm thủ công → Cập nhật → dùng ngay','đáp án tô đỏ','Tên tệp không dùng để đặt môn, không hiển thị cho thành viên'],'canonical one-step bank UX');
+need(quizManager,['Ngân hàng đề thi','syncQuizBank','Thêm thủ công → Cập nhật → dùng ngay','đáp án tô đỏ','Tên thư mục môn là nội dung người học nhìn thấy','tên tệp DOCX','không hiển thị cho thành viên'],'canonical one-step bank UX');
 forbid(quizManager,['sourceFileBase64','tryTrustedQuizUpload','startQuizPipeline','publishQuizDraft','Xử lý nâng cao','Duyệt Drive thủ công','File từ ACC'],'alternate quiz-bank ingestion UI');
-need(trustedIngest,["MANUAL_INTAKE_FOLDER='Thêm thủ công'","MEMBER_SUBJECT='Ngân hàng HIU'",'rows.filter(isDocx)','parseTrustedMarkedDocx','practice_source_sync_state_v1','practice_trusted_quiz_ingest_v1','!knownIds.has'],'new red-answer DOCX intake');
+need(trustedIngest,["MANUAL_INTAKE_FOLDER='Thêm thủ công'","MEMBER_SUBJECT='Ngân hàng HIU'",'rows.filter(isDocx)','subjectFolders','nestedGroups','sourceSubject(file)','parseTrustedMarkedDocx','practice_source_sync_state_v1','practice_trusted_quiz_ingest_v1','!knownIds.has'],'new red-answer DOCX intake with one-level subject folders');
 forbid(trustedIngest,['parseMcqDocument','explicit-answer-key-v1','trusted-quiz-upload','subjectFromName'],'non-canonical bank input/answer paths');
-need(bankMigration,['practice_quiz_config_v1','practice_quiz_page_v1',"then 'Ngân hàng HIU'","q.review_status in('source_verified','expert_approved')"],'data-first member bank');
+need(bankMigration,['practice_quiz_config_v1','practice_quiz_page_v1',"then 'Ngân hàng HIU'","q.review_status in('source_verified','expert_approved')",'practice_subject_folders_sync_admin_v1','where active is true'],'data-first member bank + safe subject registry sync');
 forbid(bankMigration,['sourceFileName'],'member-facing source filename leakage');
+
+const adaptive=read('src/components/exam/AdaptiveReview.tsx'),practiceBank=read('src/components/exam/PracticeBankQuiz.tsx'),dailyPractice=read('src/components/exam/DailyDrivePractice.tsx'),reasoningGuide=read('src/components/exam/QuestionReasoningGuide.tsx');
+need(adaptive,['REVIEW_COUNTS=[5,10,20]','getPracticeQuizConfig','Nội dung','Số thẻ','QuestionReasoningGuide'],'spaced review subject and card-count controls');
+need(practiceBank,['QuestionReasoningGuide','recordReview','getPracticeQuizPage','generateStudyGeminiQuiz','Ngân hàng HIU đã duyệt'],'free practice reasoning + spaced-review capture');
+need(dailyPractice,['QuestionReasoningGuide','recordReview','Ngân hàng HIU đã duyệt'],'daily practice contextual reasoning');
+need(reasoningGuide,['Dữ kiện quyết định','Loại trừ','Điểm cần nhớ','KHÔNG tiết lộ đáp án đúng','askServerAi',"'exam'"],'shared contextual reasoning contract');
 
 const garden=read('src/components/game/HerbGardenGame.tsx'),clinic=read('src/components/game/HiuYQuanGame.tsx'),clinicMigration=read('supabase/migrations/202609092248_hiu_y_quan_game_v1.sql'),gardenSocial=read('src/components/game/HerbGardenSocialHub.tsx'),gardenMigration=read('supabase/migrations/202609080630_admin_news_retention_and_garden_grid_v6.sql');
 need(garden,['herb_garden_state_v3','herb_garden_select_initial_plots_v3','herb_garden_plant_v3','herb_garden_water_v4','herb_garden_fertilize_v3','herb_garden_harvest_v3','garden-nine-grid','Đã mở {unlockedCount}/9 ô','garden-world-viewport','HiuYQuanGame'],'garden v8 world + stable v7 contracts');
@@ -131,4 +138,4 @@ if(!String(pkg.scripts?.prebuild||'').includes('audit:modules'))errors.push('pre
 if(!String(pkg.scripts?.prebuild||'').includes('audit:performance'))errors.push('prebuild must run performance source boundary audit');
 
 if(errors.length){console.error('ACCEPTANCE CHECK FAILED');errors.forEach(e=>console.error(`- ${e}`));process.exit(1)}
-console.log(`acceptance-ok: ${sourceFiles.length} application source files scanned; canonical Study OS routing + Gemini Study + Gemini medical Research + one-step red-answer quiz bank + server quota + garden/clinic + exam integrity + PWA gates clean`);
+console.log(`acceptance-ok: ${sourceFiles.length} application source files scanned; canonical Study OS routing + Gemini-first resilient Study quiz + contextual reasoning + Gemini medical Research + one-step subject-folder red-answer quiz bank + role-aware proposal quota + garden/clinic + exam integrity + PWA gates clean`);
