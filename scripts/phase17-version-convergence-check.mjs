@@ -17,6 +17,7 @@ const deployment=read('.github/workflows/vercel-production.yml');
 const quizAccEntry=read('src/components/admin/QuizImportCenter.tsx');
 const quizBankManager=read('src/components/admin/LearningContentManagerPanel.tsx');
 const trustedQuizIngest=read('api/_lib/trusted-quiz-ingest.js');
+const studyQuiz=read('api/ai/study-quiz.js');
 
 if(fs.existsSync(new URL('../src/v2/study-os/canary.ts',import.meta.url)))fail('legacy Home canary still exists');
 need(home,/StudyHubV2/,'StudentHome must use canonical StudyHubV2');
@@ -25,8 +26,8 @@ need(app,/tab==='ai'&&member&&<AiCenter/,'dedicated AI Center must remain canoni
 need(aiCenter,/askStudyGemini/,'Gemini Study must remain learning answer path');
 forbid(mini,/askXiaoZhiMini/,'task assistant must not regain academic answering');
 need(mini,/openStudyAi\(text\)/,'task assistant must hand study intent to Gemini Study');
-need(assistant,/mode==='study'.*handleStudyAssistant/s,'Study must share existing assistant gateway');
-if(fs.existsSync(new URL('../api/ai/study-assistant.js',import.meta.url)))fail('standalone Study serverless endpoint must remain removed');
+need(assistant,/mode==='study'.*handleStudyAssistant/s,'Study chat must share existing assistant gateway');
+if(fs.existsSync(new URL('../api/ai/study-assistant.js',import.meta.url)))fail('standalone Study chat endpoint must remain removed');
 need(research,/GEMINI_MEDICAL_RESEARCH_LEAD/,'Research must have one specialist Gemini leader');
 forbid(research,/buildAcademicFallback/,'Research must not expose fake local answer path');
 need(game,/import HiuYQuanGameV20 from/,'V20 must remain canonical HIU Y Quan runtime');
@@ -36,12 +37,17 @@ need(quizAccEntry,/LearningContentManagerPanel/,'ACC must use canonical quiz-ban
 forbid(quizAccEntry,/qi-flow|Chọn nguồn|Chia phần & xử lý|Xem & đối chiếu|Chọn thư mục Drive hoặc tải DOCX\/TXT\/PDF/i,'legacy ACC quiz workflow must not return');
 need(quizBankManager,/syncQuizBank/,'canonical bank Update service missing');
 need(quizBankManager,/Thêm thủ công → Cập nhật → dùng ngay/,'canonical one-step UX missing');
-forbid(quizBankManager,/File từ ACC|Duyệt Drive thủ công|Xử lý nâng cao|startQuizPipeline|publishQuizDraft/,'alternate user-addressable bank workflows must stay removed');
+need(quizBankManager,/Tên thư mục môn là nội dung người học nhìn thấy/,'subject folder taxonomy rule missing');
+forbid(quizBankManager,/File từ ACC|Duyệt Drive thủ công|Xử lý nâng cao|startQuizPipeline|publishQuizDraft|sourceFileBase64/,'alternate user-addressable bank workflows must stay removed');
 need(trustedQuizIngest,/MANUAL_INTAKE_FOLDER='Thêm thủ công'/,'canonical intake folder missing');
-need(trustedQuizIngest,/rows\.filter\(isDocx\)/,'only direct DOCX children may enter fast path');
+need(trustedQuizIngest,/rows\.filter\(isDocx\)/,'direct DOCX intake must remain supported');
+need(trustedQuizIngest,/subjectFolders/,'one-level subject folders must be supported');
+need(trustedQuizIngest,/nestedGroups/,'one-level nested DOCX scanning missing');
 need(trustedQuizIngest,/parseTrustedMarkedDocx/,'red-answer parser missing');
 need(trustedQuizIngest,/practice_trusted_quiz_ingest_v1/,'trusted direct-bank RPC missing');
-forbid(trustedQuizIngest,/root\.filter\(isDocx\)|subjectFolders|parseMcqDocument|trusted-quiz-upload/,'alternate intake/answer paths must stay removed');
+forbid(trustedQuizIngest,/parseMcqDocument|trusted-quiz-upload|subjectFromName/,'alternate answer/file-name taxonomy paths must stay removed');
+need(studyQuiz,/runGemini\(topic,count,controller\.signal\)/,'Gemini-first generated quiz path missing');
+need(studyQuiz,/runOpenAi\(topic,count,controller\.signal\)/,'bounded web-grounded failover missing');
 
 need(sw,/key=>key!==CACHE&&key\.startsWith\('yhct-hiu-4-'\)/,'service worker must evict old caches');
 need(sw,/url\.pathname\.startsWith\('\/api\/'\)/,'service worker must bypass API responses');
@@ -53,4 +59,4 @@ need(deployment,/workflow_run\.head_branch == 'main'/,'production must target ma
 
 const entries=[];function walk(dir,relative=''){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){if(entry.name.startsWith('_')||entry.name.startsWith('.'))continue;const name=relative+entry.name;if(entry.isDirectory())walk(new URL(`${entry.name}/`,dir),`${name}/`);else if(/\.(?:js|mjs|cjs|ts|tsx|py|go|rb)$/.test(name)&&!name.endsWith('.d.ts'))entries.push(`api/${name}`)}}walk(new URL('../api/',import.meta.url));
 if(entries.length>12)fail(`Vercel Hobby function budget exceeded: ${entries.length}`);
-console.log(`Phase 19 version convergence PASS · one Study OS Home · one red-answer bank Update · Gemini Study · Gemini Research · task-only assistant · V20 clinic · release-aware PWA · ${entries.length}/12 functions`);
+console.log(`Phase 19.1 version convergence PASS · one Study OS Home · one subject-folder red-answer bank Update · resilient Gemini-first Study quiz · Gemini Research · task-only assistant · V20 clinic · release-aware PWA · ${entries.length}/12 functions`);
