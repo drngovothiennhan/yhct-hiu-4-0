@@ -48,12 +48,13 @@ need(studyHandler,['createGeminiWebSearch','conversationContext','giảng viên 
 need(aiCenter,['slice(-6400)','Giảng viên & cố vấn YHCT hệ đại học','câu hỏi hiện tại luôn được ưu tiên cao nhất','Nếu chưa xác định được chủ đề'],'AI Center must preserve recent context and avoid guessing missing study context');
 need(exam,["import PracticeBankQuiz from './PracticeBankQuiz'","openBankSource('ai')",'<DailyDrivePractice onChooseGemini',"<PracticeBankQuiz key={bankSource} preferredSource={bankSource} onSourceChange={setBankSource}/>",'Đề HIU hoặc Gemini A.I'],'Quick Review Gemini source must route to real generated quiz mode');
 
-need(adaptive,['Ôn tập ngắt quãng','selectedSubject','selectedCount','5','10','20','QuestionReasoningGuide'],'adaptive review supports content/count selection and contextual reasoning');
-need(reasoning,['A.I hướng dẫn suy luận','askStudyGemini','stem','options','subject','topic','selectedIndex'],'reasoning tutor must receive current question context and route to Study AI');
+need(adaptive,['Ôn tập ngắt quãng','subject','count','REVIEW_COUNTS=[5,10,20]','getPracticeQuizConfig','QuestionReasoningGuide'],'adaptive review supports subject/content filtering, 5/10/20 count selection and contextual reasoning');
+need(reasoning,['A.I hướng dẫn suy luận','askServerAi','stem','options','subject','topic','selectedIndex',"askServerAi(prompt,'exam'"],'reasoning tutor must receive current question context and route through the shared exam-safe AI gateway');
+need(reasoning,['KHÔNG tiết lộ đáp án đúng','Dữ kiện quyết định','Loại trừ','Điểm cần nhớ'],'reasoning tutor must remain non-answer-leaking before selection');
 
 need(mini,['AssistantMascot','guideOpen','avatarStyle','Trợ lý tác vụ','Câu hỏi học tập sẽ tự chuyển sang Gemini Study.','app-assistant-guide-toggle'],'task-only A.I Mini compact/collapsible guide and avatar preference');
 need(mascot,["'default'|'eagle'|'viet'|'minimal'",'assistant-mascot__beak'],'selectable eagle/Vietnam presentation layer');
 forbid(mascot,['fetch(','askServerAi','askXiaoZhiMini'],'mascot must remain presentation-only');
 
 if(fail.length){console.error('QUIZ LEARNING PIPELINE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('Quiz learning pipeline contract PASS: one-step trusted subject-folder bank + data-first HIU practice + resilient grounded Gemini-first quiz + contextual reasoning + subject-aware adaptive review + task-only assistant.');
+console.log('Quiz learning pipeline contract PASS: one-step trusted subject-folder bank + data-first HIU practice + resilient grounded Gemini-first quiz + contextual non-answer-leaking reasoning + subject-aware adaptive review + task-only assistant.');
