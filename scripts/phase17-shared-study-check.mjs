@@ -1,8 +1,15 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import ts from 'typescript';
 import handler from '../api/ai/assistant.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
+const navigation=ts.transpileModule(read('src/services/aiNavigation.ts'),{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText;
+const {aiNavigationTarget}=await import(`data:text/javascript;base64,${Buffer.from(navigation).toString('base64')}`);
+assert.equal(aiNavigationTarget('Mở lịch học')?.path,'/schedule');
+assert.equal(aiNavigationTarget('Giải thích âm dương ngũ hành'),null);
+assert.match(read('src/components/ai/AiCenter.tsx'),/researchQuery:text/);
+assert.match(read('src/components/ai/AiCenter.tsx'),/localStorage.setItem\(RESEARCH_PENDING_KEY,seed\)/);
 const client=read('src/services/studyAiService.ts');
 assert.match(client,/fetch\('\/api\/ai\/assistant'/);
 assert.match(client,/JSON\.stringify\(\{mode:'study',query,conversationContext,pageContext\}\)/);
