@@ -42,7 +42,7 @@ export async function generateStudyGeminiQuiz(topic:string,count:number,signal?:
   const requested=Math.max(5,Math.min(20,Math.trunc(Number(count)||10)));
   const token=await memberToken();
   ensureActive(signal);
-  const deadline=requestDeadline(45000,signal);
+  const deadline=requestDeadline(60000,signal);
   try{
     const response=await fetch('/api/ai/assistant',{
       method:'POST',
@@ -56,7 +56,7 @@ export async function generateStudyGeminiQuiz(topic:string,count:number,signal?:
       const correct=Number(question?.correctIndex);
       return Boolean(question&&typeof question.stem==='string'&&Array.isArray(question.options)&&question.options.length===4&&Number.isInteger(correct)&&correct>=0&&correct<4&&typeof question.explanation==='string');
     }).slice(0,requested):[];
-    if(!questions.length)throw new Error('Gemini chưa tạo được câu hỏi hợp lệ. Vui lòng thử lại.');
+    if(questions.length!==requested)throw new Error('Gemini chưa tạo đủ số câu hợp lệ. Vui lòng thử lại.');
     const sources=Array.isArray(payload?.sources)?payload.sources.filter(source=>source&&typeof source.url==='string'&&source.url.startsWith('https://')).slice(0,6):[];
     if(!sources.length)throw new Error('Đề A.I chưa có nguồn web xác minh nên không được phát hành.');
     return{
