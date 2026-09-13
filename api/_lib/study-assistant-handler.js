@@ -5,6 +5,7 @@ const TIMEOUT_MS=20000;
 const MAX_QUERY=2200;
 const MAX_CONTEXT=6500;
 const clean=(value,max=2000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
+const answerText=value=>String(value??'').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').trim().slice(0,7000);
 const researchIntent=value=>/\b(pubmed|openalex|doi|pmid|systematic|meta[- ]?analysis|clinical trials?|rct|cohort|case[- ]?control|guideline|evidence)\b|nghiên\s*cứu|y\s*văn|bài\s*báo\s*khoa\s*học|tổng\s*quan\s*hệ\s*thống|thử\s*nghiệm\s*lâm\s*sàng|bằng\s*chứng|trích\s*dẫn|tài\s*liệu\s*tham\s*khảo|đề\s*cương\s*nghiên\s*cứu/i.test(clean(value,MAX_QUERY));
 
 export async function handleStudyAssistant(req,res){
@@ -29,6 +30,7 @@ export async function handleStudyAssistant(req,res){
     'PAGE_CONTEXT chỉ cho biết người dùng đang ở khu vực nào của ứng dụng; không được suy đoán dữ liệu cá nhân hay dữ liệu Drive.',
     'Nếu câu hỏi là kiến thức học tập, ưu tiên cấu trúc: kết luận ngắn → giải thích cốt lõi → mẹo nhớ hoặc ví dụ khi hữu ích.',
     'Nếu người dùng yêu cầu so sánh, trình bày khác biệt theo tiêu chí rõ ràng. Nếu yêu cầu ôn tập/quiz, tạo câu hỏi có đáp án và giải thích ngắn.',
+    'Không tự truy xuất Drive hay tài liệu nội bộ. Nội dung ôn tập được tạo chỉ là tài liệu tạm thời, không sửa đáp án chính thức của ngân hàng quiz.',
     'Không chẩn đoán, kê đơn hay thay thế bác sĩ. Với nội dung lâm sàng cá nhân hóa, chuyển sang giải thích học thuật an toàn.',
     'Khi dùng Google Search, chỉ nêu nguồn thực sự tìm thấy; không bịa URL. Nếu nguồn mâu thuẫn hoặc chưa chắc chắn, nói rõ giới hạn.',
     'Trả lời bằng tiếng Việt tự nhiên, tránh văn phong máy móc, tránh lặp lại câu hỏi và tránh markdown phức tạp.'
@@ -42,7 +44,7 @@ export async function handleStudyAssistant(req,res){
       res.setHeader('Server-Timing',`study-ai;dur=${latencyMs}`);
       res.setHeader('X-AI-Provider','gemini-web');
       res.setHeader('X-AI-Model',output.model||geminiAiModel());
-      return res.status(200).json({answer:clean(output.text,7000),sources:Array.isArray(output.citations)?output.citations.slice(0,6):[],provider:'gemini-web',degraded:false,route:null,latencyMs});
+      return res.status(200).json({answer:answerText(output.text),sources:Array.isArray(output.citations)?output.citations.slice(0,6):[],provider:'gemini-web',degraded:false,route:null,latencyMs});
     }catch(primaryError){
       if(controller.signal.aborted)throw primaryError;
       const fallback=await createGeminiText({systemInstruction:instructions,prompt,maxOutputTokens:1800,signal:controller.signal,mode:'default'});
@@ -50,7 +52,7 @@ export async function handleStudyAssistant(req,res){
       res.setHeader('Server-Timing',`study-ai;dur=${latencyMs}`);
       res.setHeader('X-AI-Provider','gemini');
       res.setHeader('X-AI-Model',fallback.model||geminiAiModel());
-      return res.status(200).json({answer:clean(fallback.text,7000),sources:[],provider:'gemini',degraded:true,route:null,latencyMs});
+      return res.status(200).json({answer:answerText(fallback.text),sources:[],provider:'gemini',degraded:true,route:null,latencyMs});
     }
   }catch(error){
     const latencyMs=Date.now()-started;

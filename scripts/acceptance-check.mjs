@@ -20,7 +20,7 @@ const required=[
   'src/components/drl/DrlCenter.tsx','src/components/schedule/ScheduleCenter.tsx','src/components/notifications/NotificationsCenter.tsx',
   'src/components/system/AppSettingsDialog.tsx','src/components/system/ViewportModeToggle.tsx',
   'src/exam-v2.css','src/research-ai-upgrade.css','src/module-isolation.css','src/garden-v6.css','src/garden-sky-v8.css','src/hiu-y-quan.css','src/xiaozhi-mini.css',
-  'api/_lib/drive-rag.js','api/_lib/xiaozhi-mini-handler.js','api/ai/drive-rag.js','api/ai/assistant.js','api/ai/study-assistant.js','api/translate.js','api/manifest.js',
+  'api/_lib/drive-rag.js','api/_lib/xiaozhi-mini-handler.js','api/ai/drive-rag.js','api/ai/assistant.js','api/_lib/study-assistant-handler.js','api/translate.js','api/manifest.js',
   'public/service-worker.js','public/manifest.webmanifest','public/pwa-icon-192.png','public/pwa-icon-512.png','public/pwa-maskable-512.png','public/garden-decor-sprite.svg',
   'vite.config.ts','vercel.json','scripts/role-ui-audit.mjs','scripts/module-isolation-check.mjs','scripts/platform-upgrade-check.mjs',
   'supabase/migrations/202609080630_admin_news_retention_and_garden_grid_v6.sql',
@@ -53,10 +53,10 @@ for(const stale of ['AiMiniFeedbackDock member={member}','PersonalCopilotWidget 
 need(main,['requestAnimationFrame(()=>requestAnimationFrame(revealStableApp))','delete root.dataset.appBooting','yhct-prepaint','./exam-v2.css'],'stable first paint');
 need(theme,["link.setAttribute('href','/api/manifest')",'system_theme_get_v1','theme-color'],'system theme + root manifest');
 
-const mini=read('src/components/ai/UnifiedAiMini.tsx'),xiaozhiService=read('src/services/xiaozhiMiniService.ts'),xiaozhiHandler=read('api/_lib/xiaozhi-mini-handler.js'),assistantGateway=read('api/ai/assistant.js'),studyService=read('src/services/studyAiService.ts'),studyGateway=read('api/ai/study-assistant.js'),aiCenter=read('src/components/ai/AiCenter.tsx'),research=read('src/components/research/ResearchCenter.tsx'),researchMini=read('src/components/research/ResearchAiMini.tsx'),proposal=read('src/components/research/ResearchProposalBuilder.tsx'),translation=read('src/services/academicTranslationService.ts'),driveRag=read('src/services/driveRagService.ts');
+const mini=read('src/components/ai/UnifiedAiMini.tsx'),xiaozhiService=read('src/services/xiaozhiMiniService.ts'),xiaozhiHandler=read('api/_lib/xiaozhi-mini-handler.js'),assistantGateway=read('api/ai/assistant.js'),studyService=read('src/services/studyAiService.ts'),studyGateway=read('api/_lib/study-assistant-handler.js'),aiCenter=read('src/components/ai/AiCenter.tsx'),research=read('src/components/research/ResearchCenter.tsx'),researchMini=read('src/components/research/ResearchAiMini.tsx'),proposal=read('src/components/research/ResearchProposalBuilder.tsx'),translation=read('src/services/academicTranslationService.ts'),driveRag=read('src/services/driveRagService.ts');
 need(mini,['checkDrlConversation','fetchSchedules','researchIntent','SpeechSynthesisUtterance','SpeechRecognition','Giọng nói: bật','openResearch(text)','openStudyAi(text)'],'XiaoZhi task/navigation voice routing');
 if(mini.includes('askXiaoZhiMini'))errors.push('XiaoZhi task assistant must not answer ordinary study questions');
-need(studyService,["fetch('/api/ai/study-assistant'",'conversationContext','Authorization:`Bearer ${token}`'],'Gemini Study client');
+need(studyService,["fetch('/api/ai/assistant'",'conversationContext','Authorization:`Bearer ${token}`'],'Gemini Study client');
 need(studyGateway,['createGeminiWebSearch','createGeminiText','conversationContext','Gemini Study'],'Gemini Study server gateway');
 need(aiCenter,['askStudyGemini','AI STUDY OS · GEMINI','ai-center__conversation'],'dedicated Gemini Study workspace');
 need(xiaozhiService,["fetch('/api/ai/assistant'","mode:'xiaozhi-mini'",'Authorization:`Bearer ${token}`'],'legacy XiaoZhi shared gateway client');

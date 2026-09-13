@@ -18,7 +18,7 @@ need(researchMini,['searchPubMed(text,6)','searchOpenAlex(text,6)','searchClinic
 need(mini,['researchIntent','VOICE_KEY','startListening','openResearch(text)','openStudyAi(text)','Trợ lý tác vụ'],'global task assistant routing');
 forbid(mini,['askXiaoZhiMini','searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge','centralKnowledgeService','askAcademicUnified','feedback_submit_v1'],'global task assistant academic separation');
 need(aiCenter,['askStudyGemini','AI STUDY OS · GEMINI','ai-center__conversation','ai-center__composer'],'dedicated Gemini Study workspace');
-need(studyService,["fetch('/api/ai/study-assistant'",'conversationContext','Authorization:`Bearer ${token}`'],'Gemini Study authenticated client');
+need(studyService,["fetch('/api/ai/assistant'",'conversationContext','Authorization:`Bearer ${token}`'],'Gemini Study authenticated client');
 need(miniService,["fetch('/api/ai/assistant'","mode:'xiaozhi-mini'",'Authorization:`Bearer ${token}`','hiu.vn'],'legacy XiaoZhi gateway remains isolated');
 need(vite,['manualChunks:productionChunk','vendor-react','vendor-supabase','vendor-icons','vendor-documents'],'vendor chunk boundaries');
 forbid(vite,['module-feed','module-ai','module-research','module-profile','module-profile-inbox','module-garden','module-notifications','module-schedule','module-drl','module-exam','module-admin','module-acc'],'manual application chunks');

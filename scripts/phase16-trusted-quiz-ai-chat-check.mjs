@@ -22,7 +22,7 @@ const aiCenter=read('src/components/ai/AiCenter.tsx');
 const aiMini=read('src/components/ai/UnifiedAiMini.tsx');
 const aiMiniCss=read('src/app-assistant-ai.css');
 const studyService=read('src/services/studyAiService.ts');
-const studyRoute=read('api/ai/study-assistant.js');
+const studyRoute=read('api/_lib/study-assistant-handler.js');
 
 for(const pattern of [/FF0000/,/word-font-color-red-v1/,/uniqueMarked\.length!==1/,/trustedApprovedSource:true/,/reviewStatus='source_verified'/])need(parser,pattern,`DOCX parser missing ${pattern}`);
 forbid(parser,/gemini|openai|createGemini|fetch\(/i,'trusted DOCX parser must not use AI or network inference');
@@ -78,7 +78,7 @@ need(aiCenter,/ai-center__suggestions/,'AI Center compact suggestion row missing
 need(aiCenter,/ai-center__composer/,'AI Center composer missing');
 need(aiCenter,/askStudyGemini/,'AI Center must use dedicated Gemini Study service');
 forbid(aiCenter,/askXiaoZhiMini/,'AI Center must not reuse XiaoZhi Q&A after the Study OS split');
-need(studyService,/\/api\/ai\/study-assistant/,'Gemini Study client route missing');
+need(studyService,/\/api\/ai\/assistant/,'Gemini Study client route missing');
 need(studyRoute,/createGeminiWebSearch/,'Gemini Study must use Gemini grounded search as primary answer path');
 need(studyRoute,/conversationContext/,'Gemini Study must receive conversational context');
 forbid(aiMini,/askXiaoZhiMini/,'floating assistant must remain task/navigation-only');

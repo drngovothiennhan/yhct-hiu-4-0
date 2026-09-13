@@ -1,6 +1,7 @@
 import {cloudAiEnabled,cloudAiModel,memberAccess} from '../_lib/member-access.js';
 import {aiToolsForRole,executeAiTool} from '../_lib/ai-tools.js';
 import {createGeminiJson,geminiAiConfigured,geminiAiModel} from '../_lib/gemini-provider.js';
+import {handleStudyAssistant} from '../_lib/study-assistant-handler.js';
 import {handleXiaoZhiMini} from '../_lib/xiaozhi-mini-handler.js';
 
 const MAX_QUERY=4000;
@@ -130,6 +131,7 @@ async function runGemini({developer,user,sources,started,res,mode}){
 }
 
 export default async function handler(req,res){
+  if(req.body?.mode==='study')return handleStudyAssistant(req,res);
   if(req.body?.mode==='xiaozhi-mini')return handleXiaoZhiMini(req,res);
   const started=Date.now();
   res.setHeader('Cache-Control','no-store');
