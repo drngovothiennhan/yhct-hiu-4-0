@@ -16,7 +16,8 @@ for(const marker of ['Thi thử 50 câu','A.I hướng dẫn suy luận','server
 assert.ok(legacy.includes('National Exam Prep')&&legacy.includes('startExamSessionV2')&&legacy.includes('submitExamSessionV2'));
 assert.ok(legacy.includes('<DailyDrivePractice/>')&&legacy.includes('<PracticeBankQuiz/>')&&legacy.includes('<AdaptiveReview identity={identity}/>'));
 assert.ok(css.includes('.learning-hub__legacy-exam>.daily-drive')&&css.includes('.learning-hub__legacy-exam>.practice-bank')&&css.includes('.learning-hub__legacy-exam>.adaptive-review'));
-assert.ok(css.includes('[role=tabpanel][hidden]')&&css.includes('@media(max-width:480px)'));
+assert.ok(css.includes('[role=tabpanel][hidden]')&&css.includes('@media(max-width:520px)'));
+assert.ok(css.includes('grid-template-columns:repeat(2,minmax(0,1fr))!important')&&css.includes('max-height:76px!important'));
 assert.ok(contract.includes("export type ModuleId='feed'|'ai'|'research'|'profile'|'garden'|'notifications'|'schedule'|'drl'|'exam'|'admin'|'acc'"));
 assert.ok(contract.includes("ai:{id:'ai',title:'Trợ lý A.I',path:'/ai'"));
 assert.ok(contract.includes("exam:{id:'exam',title:'Luyện thi ĐGNL',path:'/exam'"));
