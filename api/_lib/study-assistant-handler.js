@@ -106,7 +106,7 @@ export async function handleStudyAssistant(req,res){
     'Khi dùng Google Search, chỉ nêu nguồn thực sự tìm thấy; không bịa URL. Nếu nguồn mâu thuẫn hoặc chưa chắc chắn, nói rõ giới hạn.',
     'Trả lời bằng tiếng Việt tự nhiên. Không dùng ký hiệu markdown như **, *, # trong câu trả lời; nếu cần liệt kê dùng dấu •. Tránh văn phong máy móc và tránh lặp lại câu hỏi.'
   ].join(' ');
-  const prompt=`CÂU HỎI HIỆN TẠI (ưu tiên cao nhất): ${query}\n\nMẠCH HỘI THOẠI GẦN NHẤT:\n${conversationContext||'không có'}\n\nNGỮ CẢNH TRANG/VIỆC HỌC (ưu tiên thấp hơn): ${pageContext||'không rõ'}\n\nHãy trả lời trực tiếp câu hỏi hiện tại. Chỉ nối với mạch trước khi thực sự liên quan; không tự thêm mục tiêu, kỳ thi hoặc chủ đề mà người dùng chưa nói.`;
+  const prompt=`CÂU HỎI HIỆN TẠI: ${query}\nƯU TIÊN CAO NHẤT: trả lời đúng yêu cầu hiện tại trước mọi ngữ cảnh cũ.\n\nMẠCH HỘI THOẠI GẦN NHẤT:\n${conversationContext||'không có'}\n\nNGỮ CẢNH TRANG/VIỆC HỌC (ưu tiên thấp hơn): ${pageContext||'không rõ'}\n\nHãy trả lời trực tiếp câu hỏi hiện tại. Chỉ nối với mạch trước khi thực sự liên quan; không tự thêm mục tiêu, kỳ thi hoặc chủ đề mà người dùng chưa nói.`;
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),TIMEOUT_MS);
   try{
     try{
