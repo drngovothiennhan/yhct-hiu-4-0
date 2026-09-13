@@ -54,7 +54,7 @@ requireText(surfaceMigration,'revoke all on function public.ai_knowledge_stats_v
 requireText(surfaceMigration,'grant execute on function public.ai_knowledge_search_v3','v3 search remains the sole public RAG search surface');
 requireText(surfaceMigration,'grant execute on function public.ai_knowledge_stats_v3','v3 stats remains the sole public RAG stats surface');
 
-requireText(service,"supabase.rpc('ai_knowledge_search_v3'",'client searches authority-enriched Supabase RAG first');
+requireText(service,"supabase.rpc('ai_knowledge_search_v3'",'client searches authority-enriched Supabase RAG first inside the central service');
 requireText(service,'searchLocalKnowledge','client retains IndexedDB knowledge fallback');
 requireText(service,"source:'central'",'client labels centralized results');
 requireText(service,"source:'local'",'client labels offline fallback results');
@@ -79,15 +79,17 @@ if(memberTools.includes('search_yhct_knowledge'))ok('approved member receives ce
 if(!guestTools.includes('search_yhct_knowledge'))ok('guest cannot receive authenticated AI knowledge tool');else fail('guest must not receive central AI tool through cloud gateway');
 
 requireText(researchMini,"from '../../services/centralKnowledgeService'",'Research A.I Mini uses centralized academic knowledge service');
-requireText(researchMini,"searchKnowledge(text,'all',5)",'Research A.I Mini executes central-first knowledge search before cloud escalation');
+requireText(researchMini,"internalEnabled?searchKnowledge(text,'all',4)",'Research A.I queries Central RAG only after explicit per-request opt-in');
 requireText(researchMini,'centralSources','Research A.I Mini maps central evidence into bounded AI sources');
 requireText(researchMini,'h.evidence','Research A.I Mini includes publication evidence in source context');
 requireText(researchMini,'h.authoritySources','Research A.I Mini includes WHO/NCCIH/Cochrane authority evidence in source context');
-requireText(researchMini,'Dùng tài liệu nội bộ','Research A.I visibly exposes explicit internal-context opt-in');
-requireText(researchMini,'Nguồn công khai','Research A.I presents public evidence without exposing provider selection as product UX');
+requireText(researchMini,'Dùng tài liệu nội bộ cho lượt này','Research A.I visibly exposes explicit one-request internal-context opt-in');
+requireText(researchMini,'Mặc định chỉ dùng PubMed · OpenAlex · ClinicalTrials.gov','Research A.I clearly states its default public-evidence scope without provider-choice UX');
 requireText(researchMini,'setUseInternal(false)','Research A.I consumes internal-context consent after each request');
-requireText(researchMini,'Nguồn đã truy xuất:','Research A.I Mini visibly exposes source-backed provenance when cloud AI degrades');
+requireText(researchMini,'result.citations','Research A.I visibly renders server-validated source-backed provenance');
+requireText(researchMini,'các nguồn đã tìm vẫn được giữ bên dưới','Research A.I fails closed without fabricating a local answer while preserving independently retrieved evidence');
 requireText(research,'searchOpenAlex(query,12)','Research Center retains academic OpenAlex retrieval');
+requireText(research,'Bằng chứng công khai','Research Center independently exposes public evidence for verification');
 if(!mini.includes('centralKnowledgeService')&&!mini.includes('searchKnowledge(')&&!mini.includes('searchOpenAlex')&&!mini.includes('searchDriveRag'))ok('Global A.I Mini is cleanly separated from academic RAG');else fail('Global A.I Mini must not load academic RAG providers');
 
 requireText(access,'export async function publicRpc','server provides bounded public RPC transport for readiness checks');
@@ -100,4 +102,4 @@ requireText(health,"evidenceSources:['pubmed','doi','google_scholar','who','ncci
 requireText(health,'offlineFallback:true','AI health advertises offline fallback');
 requireText(health,'authority>=8&&who>=3&&nccih>=4&&cochrane>=1','AI health requires live authority-source minimums');
 
-if(!process.exitCode)ok('Central RAG acceptance passed with academic retrieval isolated to Research Center');
+if(!process.exitCode)ok('Central RAG acceptance passed with public evidence default, request-scoped internal RAG and academic retrieval isolated to Research Center');
