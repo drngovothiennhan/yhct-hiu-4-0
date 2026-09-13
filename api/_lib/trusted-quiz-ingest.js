@@ -92,8 +92,8 @@ export async function handleTrustedQuizIngest(req,res){
     if(action!=='trusted-quiz-sync')return res.status(400).json({error:'Ngân hàng đề thi chỉ nhận nguồn từ thư mục Thêm thủ công qua nút Cập nhật.'});
     const listing=await listNewIntakeCandidates();
     if(!listing.configured)return res.status(200).json({ok:false,degraded:true,reason:listing.reason,processed:[]});
-    const ids=listing.files.map(file=>String(file.id)),known=ids.length?await memberRpc(req,'practice_source_sync_state_v1',{p_file_ids:ids}):[],knownById=new Map((Array.isArray(known)?known:[]).map(row=>[String(row?.fileId||''),row]));
-    const pending=listing.files.filter(file=>needsProcessing(file,knownById.get(String(file.id)))),maxFiles=Math.max(1,Math.min(10,Number(req.body?.maxFiles)||10)),selected=pending.slice(0,maxFiles).reverse(),processed=[];
+    const ids=listing.files.map(file=>String(file.id)),known=ids.length?await memberRpc(req,'practice_source_sync_state_v1',{p_file_ids:ids}):[],knownById=new Map((Array.isArray(known)?known:[]).map(row=>[String(row?.fileId||''),row])),knownIds=new Set(knownById.keys());
+    const pending=listing.files.filter(file=>!knownIds.has(String(file.id))||needsProcessing(file,knownById.get(String(file.id)))),maxFiles=Math.max(1,Math.min(10,Number(req.body?.maxFiles)||10)),selected=pending.slice(0,maxFiles).reverse(),processed=[];
     for(const file of selected){try{processed.push(await importRedAnswerDocx(req,file,await downloadDocx(file)))}catch(error){processed.push({ok:false,status:'error',subject:sourceSubject(file),message:clean(error?.message||'Không xử lý được DOCX',300)})}}
     const remaining=Math.max(0,pending.length-selected.length),errors=processed.filter(x=>x.status==='error').length;
     return res.status(200).json({ok:true,intake:MANUAL_INTAKE_FOLDER,parserRevision:PARSER_REVISION,subjects:listing.subjects,filesSeen:listing.files.length,alreadySynced:listing.files.length-pending.length,pending:pending.length,remaining,errors,processed});
