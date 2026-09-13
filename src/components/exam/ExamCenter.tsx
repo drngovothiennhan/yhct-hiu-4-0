@@ -30,7 +30,7 @@ export default function ExamCenter(){
     <nav className="learning-hub__tabs" role="tablist" aria-label="Chọn chế độ học">{HUB_ITEMS.map(([id,label,note,Icon])=><button key={id} type="button" role="tab" aria-selected={tab===id} aria-controls={`learning-panel-${id}`} id={`learning-tab-${id}`} className={tab===id?'active':''} onClick={()=>select(id)}><Icon aria-hidden="true"/><span><b>{label}</b><small>{note}</small></span></button>)}</nav>
     <div className="learning-hub__body">
       {visited.has('quick')&&<div id="learning-panel-quick" role="tabpanel" aria-labelledby="learning-tab-quick" hidden={tab!=='quick'}><DailyDrivePractice onChooseGemini={()=>openBankSource('ai')}/></div>}
-      {visited.has('bank')&&<div id="learning-panel-bank" role="tabpanel" aria-labelledby="learning-tab-bank" hidden={tab!=='bank'}><PracticeBankQuiz preferredSource={bankSource} onSourceChange={setBankSource}/></div>}
+      {visited.has('bank')&&<div id="learning-panel-bank" role="tabpanel" aria-labelledby="learning-tab-bank" hidden={tab!=='bank'}><PracticeBankQuiz key={bankSource} preferredSource={bankSource} onSourceChange={setBankSource}/></div>}
       {visited.has('adaptive')&&<div id="learning-panel-adaptive" role="tabpanel" aria-labelledby="learning-tab-adaptive" hidden={tab!=='adaptive'}><AdaptiveReview identity={identity}/></div>}
       {visited.has('exam')&&<div id="learning-panel-exam" role="tabpanel" aria-labelledby="learning-tab-exam" hidden={tab!=='exam'} className="learning-hub__legacy-exam"><NationalExamPrepLegacy/></div>}
     </div>
