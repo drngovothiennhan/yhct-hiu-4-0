@@ -26,17 +26,19 @@ requireText(v2Css,/\.study-os-v2/,'V2 styles must remain isolated under the stud
 
 requireText(router,/destination:'research'/,'router must preserve dedicated Research destination');
 requireText(router,/destination:'exam'/,'router must preserve canonical exam destination');
-requireText(router,/destination:'assistant'/,'router must preserve single App Assistant destination for normal learning');
+requireText(router,/destination:'assistant'/,'router must preserve a provider-agnostic normal-learning destination');
 forbidText(router,/fetch\s*\(/,'intent routing must remain deterministic and must not call an LLM/provider');
 forbidText(router,/gemini|openai/i,'intent routing must remain provider-agnostic');
 
 requireText(studyHub,/MY HIU YHCT · AI STUDY OS/,'production Home must identify the unified Study OS surface');
 forbidText(studyHub,/CANARY/,'production Home must not show canary labeling');
-requireText(studyHub,/yhct:ai:open/,'ordinary study requests must reuse the canonical App Assistant launcher');
+requireText(studyHub,/yhct-ai-center-pending-query-v1/,'ordinary study requests must seed the dedicated AI Center');
+requireText(studyHub,/onNavigate\(['"]ai['"]\)/,'ordinary study requests must route to the dedicated AI Center');
+forbidText(studyHub,/yhct:ai:open/,'Study OS Home must not reopen the overlapping floating assistant for normal learning');
 requireText(studyHub,/yhct-research-pending-query-v1/,'research requests must reuse the existing Research handoff contract');
 requireText(studyHub,/onNavigate\(['"]research['"]\)/,'research intent must route to the existing Research module');
 requireText(studyHub,/onNavigate\(['"]exam['"]\)/,'quiz intent must route to the canonical exam module');
 forbidText(studyHub,/drive\.google\.com|GEMINI_API_KEY|GOOGLE_AI_API_KEY|OPENAI_API_KEY/,'student V2 must not expose Drive URLs or provider secrets');
-forbidText(studyHub,/Gemini|OpenAI|provider/i,'student V2 must not expose provider branding/jargon');
+forbidText(studyHub,/OpenAI|provider/i,'student V2 must not expose backend jargon or alternate provider branding');
 
 console.log('AI Study OS V2 contracts: PASS');

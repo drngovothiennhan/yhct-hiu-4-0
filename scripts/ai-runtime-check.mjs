@@ -86,7 +86,8 @@ requireText(miniService,"fetch('/api/ai/assistant'",'XiaoZhi client reuses share
 requireText(miniService,"mode:'xiaozhi-mini'",'XiaoZhi client selects dedicated gateway mode');
 requireText(miniService,'Authorization:`Bearer ${token}`','XiaoZhi client authenticates shared gateway');
 requireText(miniService,'hiu.vn','application assistant prioritizes official HIU web sources');
-requireText(mini,'askXiaoZhiMini','global A.I Mini calls XiaoZhi service');
+forbidText(mini,'askXiaoZhiMini','global task assistant no longer answers learning questions through XiaoZhi');
+requireText(mini,'openStudyAi(text)','global task assistant hands ordinary questions to Gemini Study');
 requireText(mini,'researchIntent','global A.I Mini detects research intent for explicit handoff');
 requireText(mini,'openResearch(text)','global A.I Mini hands research questions to Research A.I');
 requireText(mini,'speechSynthesis','global A.I Mini supports speech output');
@@ -157,4 +158,4 @@ const srcFiles=[];
 function walk(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const full=path.join(dir,entry.name);if(entry.isDirectory())walk(full);else if(/\.(ts|tsx|js|jsx)$/.test(entry.name))srcFiles.push(full)}}
 walk(path.join(root,'src'));
 for(const file of srcFiles){const text=fs.readFileSync(file,'utf8');if(text.includes('OPENAI_API_KEY'))fail(`server secret name leaked into browser source: ${path.relative(root,file)}`)}
-if(!process.exitCode)ok(`AI runtime acceptance passed across ${srcFiles.length} browser source files with application-assistant Mini, Gemini-first public search, Gemini Research leader and opt-in internal RAG`);
+if(!process.exitCode)ok(`AI runtime acceptance passed across ${srcFiles.length} browser source files with task-only assistant, Gemini Study handoff, Gemini-first public search, Gemini Research leader and opt-in internal RAG`);
