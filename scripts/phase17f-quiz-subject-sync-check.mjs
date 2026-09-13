@@ -12,15 +12,22 @@ const folderRegistry=read('supabase/migrations/202609131920_phase18c_quiz_folder
 
 assert.match(ingest,/MANUAL_INTAKE_FOLDER='Thêm thủ công'/);
 assert.match(ingest,/BANK_FOLDER_NAME='NGÂN HÀNG TRẮC NGHIỆM'/,'canonical Drive bank name missing');
-assert.match(ingest,/for\(const file of root\.filter\(isDocx\)\)addDirect\(file\)/,'DOCX directly in the quiz-bank root must be scanned by Update');
-assert.match(ingest,/parentName:MANUAL_INTAKE_FOLDER/,'direct DOCX in the legacy manual intake must remain compatible');
+assert.match(ingest,/const isSupportedSource=file=>isDocx\(file\)\|\|isPdf\(file\)\|\|isText\(file\)\|\|isGoogleDoc\(file\)/,'one-step bank must recognize all approved document formats');
+assert.match(ingest,/for\(const file of root\.filter\(isSupportedSource\)\)addDirect\(file\)/,'supported files directly in the quiz-bank root must be scanned by Update');
+assert.match(ingest,/parentName:MANUAL_INTAKE_FOLDER/,'direct files in the legacy manual intake must remain compatible');
 assert.match(ingest,/parentName:clean\(child\.name,160\)/,'subject-folder name must flow into the source identity');
 assert.match(ingest,/subjects\.add\(subjectFromName\(file\.name\)\)/,'direct files must derive a member subject without requiring folder setup');
 assert.match(ingest,/Math\.min\(1000,pageSize\)/,'bank scan should not be artificially capped at 100 Drive children');
 assert.match(ingest,/dedup\.slice\(0,1000\)/,'one bank scan must expose a materially larger candidate pool');
-assert.match(ingest,/parseTrustedDeterministicDocx/,'trusted ingest must use deterministic answer recognition');
+assert.match(ingest,/parseTrustedDeterministicSource/,'trusted ingest must use deterministic multi-format answer recognition');
 assert.match(ingest,/explicit-answer-key-v1/,'explicit Đáp án/Bảng đáp án evidence must be accepted without AI guessing');
 assert.match(ingest,/parseTrustedMarkedDocx/,'red-answer Word evidence must remain supported');
+assert.match(ingest,/PDFParse/,'PDF text extraction must use the installed server-side parser');
+assert.match(ingest,/PDF_MIME='application\/pdf'/,'PDF source support missing');
+assert.match(ingest,/TEXT_MIME='text\/plain'/,'TXT source support missing');
+assert.match(ingest,/GDOC_MIME='application\/vnd\.google-apps\.document'/,'Google Docs source support missing');
+assert.match(ingest,/uploadedSource/,'ACC upload must use the multi-format trusted source path');
+assert.match(ingest,/\(docx\|pdf\|txt\)/,'ACC upload must accept DOCX PDF and TXT');
 assert.match(ingest,/practice_subject_folders_sync_admin_v1/,'every successful Admin update must synchronize the canonical subject registry');
 assert.match(ingest,/subjectChanged=.*subjectHint/,'moving a file between subjects must trigger resync');
 assert.match(ingest,/modifiedChanged=!sameTime/,'a modified waiting file must be scanned again');
@@ -33,9 +40,11 @@ assert.doesNotMatch(ingest,/practice_drive_ingest_admin_v1/,'trusted determinist
 assert.match(service,/while\(rounds\+\+<40\)/,'one Update action should continue bounded serverless batches');
 assert.match(service,/hasTransportError/,'automatic batching must stop on transport errors rather than loop forever');
 assert.match(manager,/File từ ACC/,'ACC must expose the direct file intake beside the single Update action');
-assert.match(manager,/tryTrustedQuizUpload\(file\.name,base64,subject\.trim\(\)\|\|subjectFromFileName\(file\.name\)\)/,'ACC Update must immediately evaluate a selected DOCX');
+assert.match(manager,/DOCX · PDF · TXT/,'primary ACC intake must expose the universal supported formats');
+assert.match(manager,/tryTrustedQuizUpload\(file\.name,base64,subject\.trim\(\)\|\|subjectFromFileName\(file\.name\)\)/,'ACC Update must immediately evaluate a selected source');
 assert.match(manager,/driveReady\?await syncQuizBank\(10\)/,'the same Update action must synchronize Drive after checking the ACC file');
 assert.match(manager,/Xử lý nâng cao \/ tài liệu ngoại lệ/,'legacy conversion may remain only as an explicit exception path');
+assert.match(manager,/không được dùng A\.I suy đoán/,'non-deterministic PDF/TXT must fail closed rather than enter AI answer guessing');
 
 assert.match(migration,/subjectHint/,'sync registry must expose canonical subject');
 assert.match(migration,/practice_source_pending_admin_v1/,'waiting-source RPC missing');
@@ -58,4 +67,4 @@ assert.match(bank,/Học cùng Gemini/,'contextual Gemini study action missing')
 assert.match(hubCss,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/,'mobile Learning Hub modes must use compact 2x2 layout');
 assert.match(hubCss,/max-height:76px!important/,'mobile Learning Hub mode cards must stay compact');
 
-console.log('Phase 18E one-step quiz-bank Update + deterministic source answers + mobile Learning Hub contract: PASS');
+console.log('Phase 18F universal one-step quiz-bank Update + deterministic source answers + mobile Learning Hub contract: PASS');
