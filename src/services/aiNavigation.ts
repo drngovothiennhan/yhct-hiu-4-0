@@ -6,6 +6,7 @@ export function aiNavigationTarget(raw:string):{path:string;label:string}|null{
   'game':{path:'/garden',label:'Game YHCT'},'gia vien':{path:'/garden',label:'Gia Viên'},
   'hiu y quan':{path:'/garden',label:'khu Game HIU Y Quán'},'gia vien duoc thao':{path:'/garden',label:'Gia Viên Dược Thảo'},
   'luyen thi':{path:'/exam',label:'Luyện thi'},'trung tam nghien cuu':{path:'/research',label:'Trung tâm nghiên cứu'},
+  'lich hoc':{path:'/schedule',label:'Lịch học'},'lich':{path:'/schedule',label:'Lịch'},
   'lich clb':{path:'/schedule',label:'Lịch CLB'},'ca nhan':{path:'/profile',label:'Cá nhân'},
   'thong bao':{path:'/notifications',label:'Thông báo'},'bang tin':{path:'/',label:'Bảng tin'}
  };return routes[match[1].replace(/\s*[-–]\s*/g,' ').replace(/\s+/g,' ')]||null;
