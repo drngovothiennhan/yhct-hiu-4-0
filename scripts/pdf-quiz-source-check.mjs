@@ -40,7 +40,7 @@ test('PDF upload fails closed for invalid signature and image-only/no-text sourc
  await assert.rejects(readUploadedPdfFile('lesson.txt',b64(makePdf('text'))),/không phải PDF/i);
 });
 
-test('PDF upload wiring remains inside resumable human-reviewed pipeline',async()=>{
+test('PDF upload wiring remains inside the single canonical resumable human-reviewed pipeline',async()=>{
  const fs=await import('node:fs');
  const api=fs.readFileSync('api/_lib/quiz-pipeline-v2.js','utf8');
  const service=fs.readFileSync('src/services/quizWorkspaceService.ts','utf8');
@@ -50,6 +50,6 @@ test('PDF upload wiring remains inside resumable human-reviewed pipeline',async(
  assert.equal(pkg.dependencies['pdf-parse'],'2.4.5');
  assert.ok(api.includes('readUploadedPdfFile')&&api.includes("/\\.pdf$/i.test(fileName)")&&api.includes("rpc('save',id,payload)"));
  assert.ok(service.includes('docx|txt|pdf'));
- assert.ok(learning.includes('.docx,.txt,.pdf')&&acc.includes('.docx,.txt,.pdf'));
- assert.ok(learning.includes('quiz-commit')&&acc.includes("quizWorkspace('quiz-commit'"));
+ assert.ok(learning.includes('.docx,.txt,.pdf')&&acc.includes('LearningContentManagerPanel')&&!acc.includes('.docx,.txt,.pdf'));
+ assert.ok(learning.includes('quiz-commit')&&!acc.includes("quizWorkspace('quiz-commit'"));
 });

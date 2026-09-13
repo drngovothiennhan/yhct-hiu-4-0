@@ -5,13 +5,13 @@ import {parseTrustedMarkedDocx} from './docx-marked-quiz.js';
 const DOCX_MIME='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const FOLDER_MIME='application/vnd.google-apps.folder';
 const DEFAULT_QUIZ_BANK_FOLDER='1_VvupTkvHvWKLLehVQt_JNA15qfKnIvO';
-const QUIZ_BANK_ARCHIVE_FOLDERS=new Set(['01_ĐÃ_TRÍCH_XUẤT_CÂU_HỎI','02_TÀI_LIỆU_ĐÃ_XỬ_LÝ','99_CẦN_DUYỆT_THỦ_CÔNG']);
-const QUIZ_BANK_INTAKE_FOLDERS=new Set(['00_DOCX_MỚI_CHỜ_XỬ_LÝ','Thêm thủ công']);
+const MANUAL_INTAKE_FOLDER='Thêm thủ công';
 const MAX_UPLOAD_BYTES=2_000_000,MAX_DRIVE_BYTES=5_000_000,HTTP_MS=9000;
 const clean=(value,max=1000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 const sha256=value=>createHash('sha256').update(value).digest('hex');
 const quizBankFolderId=()=>String(process.env.YHCT_DRIVE_QUIZ_BANK_FOLDER_ID||DEFAULT_QUIZ_BANK_FOLDER).trim();
 const apiKey=()=>String(process.env.GOOGLE_DRIVE_API_KEY||'').trim();
+const normalizedName=value=>clean(value,180).normalize('NFC').toLocaleLowerCase('vi-VN');
 let tokenCache={token:'',expiresAt:0};
 
 function serviceAccount(){
@@ -30,7 +30,7 @@ async function driveFetch(url,init={},ms=HTTP_MS){
 const driveConfigured=()=>Boolean(serviceAccount()||apiKey());
 const isDocx=file=>String(file?.mimeType||'')===DOCX_MIME||/\.docx$/i.test(String(file?.name||''));
 const subjectFromName=name=>clean(String(name||'').replace(/\.docx$/i,'').replace(/^\s*\d+[._ -]*/,'').replace(/[_-]+/g,' '),160)||'Chưa phân loại';
-const subjectForFile=file=>{const parent=clean(file?.parentName,160);return !parent||QUIZ_BANK_INTAKE_FOLDERS.has(parent)?subjectFromName(file?.name):parent};
+const subjectForFile=file=>normalizedName(file?.parentName)===normalizedName(MANUAL_INTAKE_FOLDER)?subjectFromName(file?.name):(clean(file?.parentName,160)||subjectFromName(file?.name));
 
 async function listChildren(parent,pageSize=100){
   const url=new URL('https://www.googleapis.com/drive/v3/files');url.searchParams.set('q',`'${parent}' in parents and trashed=false`);url.searchParams.set('fields','files(id,name,mimeType,createdTime,modifiedTime,size,parents)');url.searchParams.set('pageSize',String(Math.max(1,Math.min(100,pageSize))));url.searchParams.set('orderBy','createdTime desc');url.searchParams.set('supportsAllDrives','true');url.searchParams.set('includeItemsFromAllDrives','true');
@@ -38,19 +38,21 @@ async function listChildren(parent,pageSize=100){
 }
 
 async function listQuizBankDocxCandidates(){
-  const folder=quizBankFolderId();if(!driveConfigured())return{configured:false,folder,files:[],reason:'missing_google_drive_credential'};
-  const root=await listChildren(folder,100),files=root.filter(isDocx).map(file=>({...file,parentName:''}));
-  const folders=root.filter(x=>x.mimeType===FOLDER_MIME&&!QUIZ_BANK_ARCHIVE_FOLDERS.has(String(x.name||'').trim())).slice(0,40);
-  for(const child of folders){const rows=await listChildren(child.id,100).catch(()=>[]);for(const file of rows.filter(isDocx))files.push({...file,parentName:child.name})}
+  const folder=quizBankFolderId();if(!driveConfigured())return{configured:false,folder,folderName:MANUAL_INTAKE_FOLDER,files:[],reason:'missing_google_drive_credential'};
+  const root=await listChildren(folder,100),manual=root.find(x=>x.mimeType===FOLDER_MIME&&normalizedName(x.name)===normalizedName(MANUAL_INTAKE_FOLDER));
+  if(!manual)return{configured:true,folder,folderName:MANUAL_INTAKE_FOLDER,files:[],reason:'manual_intake_folder_missing'};
+  const rows=await listChildren(manual.id,100),files=rows.filter(isDocx).map(file=>({...file,parentName:MANUAL_INTAKE_FOLDER}));
+  const subjectFolders=rows.filter(x=>x.mimeType===FOLDER_MIME).slice(0,40);
+  for(const child of subjectFolders){const nested=await listChildren(child.id,100).catch(()=>[]);for(const file of nested.filter(isDocx))files.push({...file,parentName:child.name})}
   const dedup=[...new Map(files.map(file=>[file.id,file])).values()];dedup.sort((a,b)=>Date.parse(b.createdTime||0)-Date.parse(a.createdTime||0));
-  return{configured:true,folder,files:dedup.slice(0,400)};
+  return{configured:true,folder,folderName:MANUAL_INTAKE_FOLDER,files:dedup.slice(0,400)};
 }
 
 async function downloadDocx(file){
   const url=new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}`);url.searchParams.set('alt','media');const response=await driveFetch(url,{},12000);if(!response.ok)throw new Error(`Google Drive download ${response.status}`);const len=Number(response.headers.get('content-length')||file.size||0);if(len>MAX_DRIVE_BYTES)throw new Error('DOCX exceeds 5 MB ingestion limit');const buffer=Buffer.from(await response.arrayBuffer());if(!buffer.length||buffer.length>MAX_DRIVE_BYTES)throw new Error('DOCX exceeds 5 MB ingestion limit');return buffer;
 }
 
-const documentMeta=(file,sourceHash,questionCount,subjectHint=subjectForFile(file))=>({driveFileId:String(file.id),fileName:clean(file.name,300),mimeType:DOCX_MIME,modifiedTime:file.modifiedTime||null,sourceHash,subjectHint, syncStatus:'ready',syncMessage:`Trusted DOCX: ${questionCount} câu có đúng một đáp án tô đỏ.`});
+const documentMeta=(file,sourceHash,questionCount,subjectHint=subjectForFile(file))=>({driveFileId:String(file.id),fileName:clean(file.name,300),mimeType:DOCX_MIME,modifiedTime:file.modifiedTime||null,sourceHash,subjectHint,syncStatus:'ready',syncMessage:`Trusted DOCX: ${questionCount} câu có đúng một đáp án tô đỏ.`});
 
 async function importTrusted(req,file,buffer){
   const sourceHash=sha256(buffer),subjectHint=subjectForFile(file),sourceFile={...file,parentName:subjectHint},parsed=parseTrustedMarkedDocx(buffer,sourceFile,sourceHash);
@@ -71,11 +73,13 @@ export async function handleTrustedQuizIngest(req,res){
       const {file,buffer}=uploadedDocx(req.body||{}),result=await importTrusted(req,file,buffer);return res.status(result.ok?200:422).json(result);
     }
     if(action==='trusted-quiz-sync'){
-      const listing=await listQuizBankDocxCandidates();if(!listing.configured)return res.status(200).json({ok:false,degraded:true,reason:listing.reason,folderId:listing.folder,folderName:'NGÂN HÀNG TRẮC NGHIỆM',processed:[]});
+      const listing=await listQuizBankDocxCandidates();
+      if(!listing.configured)return res.status(200).json({ok:false,degraded:true,reason:listing.reason,folderId:listing.folder,folderName:MANUAL_INTAKE_FOLDER,bankFolderName:'NGÂN HÀNG TRẮC NGHIỆM',processed:[]});
+      if(listing.reason==='manual_intake_folder_missing')return res.status(200).json({ok:false,degraded:true,reason:listing.reason,folderId:listing.folder,folderName:MANUAL_INTAKE_FOLDER,bankFolderName:'NGÂN HÀNG TRẮC NGHIỆM',processed:[]});
       const ids=listing.files.map(file=>String(file.id)),known=ids.length?await memberRpc(req,'practice_source_sync_state_v1',{p_file_ids:ids}):[],knownIds=new Set((Array.isArray(known)?known:[]).map(row=>String(row?.fileId||'')));
-      const pending=listing.files.filter(file=>!knownIds.has(String(file.id))),maxFiles=Math.max(1,Math.min(10,Number(req.body?.maxFiles)||5)),selected=pending.slice(0,maxFiles).reverse(),processed=[];
+      const pending=listing.files.filter(file=>!knownIds.has(String(file.id))),maxFiles=Math.max(1,Math.min(10,Number(req.body?.maxFiles)||10)),selected=pending.slice(0,maxFiles).reverse(),processed=[];
       for(const file of selected){try{processed.push(await importTrusted(req,file,await downloadDocx(file)))}catch(error){processed.push({ok:false,status:'error',fileName:file.name,message:clean(error?.message||'Không xử lý được DOCX',300)})}}
-      return res.status(200).json({ok:true,folderId:listing.folder,folderName:'NGÂN HÀNG TRẮC NGHIỆM',filesSeen:listing.files.length,alreadySynced:knownIds.size,pending:pending.length,processed});
+      return res.status(200).json({ok:true,folderId:listing.folder,folderName:MANUAL_INTAKE_FOLDER,bankFolderName:'NGÂN HÀNG TRẮC NGHIỆM',filesSeen:listing.files.length,alreadySynced:knownIds.size,pending:pending.length,processed});
     }
     return res.status(400).json({error:'Unsupported trusted quiz action'});
   }catch(error){return res.status(400).json({error:clean(error?.message||'Trusted quiz ingest failed',400)})}

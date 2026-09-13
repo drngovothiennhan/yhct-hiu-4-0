@@ -79,9 +79,9 @@ test('direct TXT uploads remain UTF-8 only and bounded after PDF source support'
  assert.ok(api.includes("replace(/\\r\\n?/g,'\\n')")&&api.includes("replace(/\\u0000/g,'')")&&api.includes('sourceText:String(source.text||\'\')'));
  assert.ok(service.includes('sourceFileBase64')&&service.includes('/\\.(?:docx|txt|pdf)$/i.test(file.name)')&&service.includes('file.size>2000000'));
  assert.ok(learning.includes('sourceFileBase64')&&learning.includes('accept=".docx,.txt,.pdf,text/plain,application/pdf"')&&learning.includes('TXT'));
- assert.ok(acc.includes('sourceFileBase64')&&acc.includes('accept=".docx,.txt,.pdf,text/plain,application/pdf"')&&acc.includes('TXT UTF-8'));
+ assert.ok(acc.includes('LearningContentManagerPanel')&&!acc.includes('sourceFileBase64')&&!acc.includes('TXT UTF-8'));
 });
-test('pipeline v2 persistence contract uses revision CAS and shared resumable UI orchestration',()=>{
+test('pipeline v2 persistence contract uses revision CAS and one canonical resumable UI orchestration',()=>{
  const sql=fs.readFileSync('ops/sql/20260911_quiz_pipeline_v2_cas.sql','utf8');
  const api=fs.readFileSync('api/_lib/quiz-pipeline-v2.js','utf8');
  const route=fs.readFileSync('api/ai/drive-rag.js','utf8');
@@ -93,7 +93,7 @@ test('pipeline v2 persistence contract uses revision CAS and shared resumable UI
  assert.ok(route.includes('isQuizPipelineV2Action')&&route.includes('handleQuizPipelineV2'));
  assert.ok(service.includes('continueQuizPipeline')&&service.includes('startQuizPipeline')&&service.includes('retryQuizPipeline')&&service.includes("'quiz-start'")&&service.includes("'quiz-process-chunk'")&&service.includes("'quiz-retry'"));
  assert.ok(learning.includes('startQuizPipeline')&&learning.includes('retryQuizPipeline')&&learning.includes('<progress'));
- assert.ok(acc.includes('startQuizPipeline')&&acc.includes('continueQuizPipeline')&&acc.includes('retryQuizPipeline')&&acc.includes('<progress')&&acc.includes('pipelineState')&&acc.includes('Bản nháp đã được giữ để tiếp tục/thử lại.'));
+ assert.ok(acc.includes('LearningContentManagerPanel')&&!acc.includes('startQuizPipeline')&&!acc.includes('continueQuizPipeline')&&!acc.includes('retryQuizPipeline')&&!acc.includes('pipelineState'));
  assert.ok(!acc.includes("quizWorkspace<QuizDraft>('quiz-preview'")&&!acc.includes("quizWorkspace<QuizDraft>(\"quiz-preview\""));
 });
 test('student UI delegates all imports to ACC and records flashcards',()=>{
