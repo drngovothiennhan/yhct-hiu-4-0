@@ -1,13 +1,14 @@
 import {useEffect,useRef,useState} from 'react';
-import {BookOpenCheck,FileCheck2} from 'lucide-react';
+import {BookOpenCheck,Bot,FileCheck2} from 'lucide-react';
 import {readCachedMember} from '../../services/authService';
 import {recordReview} from '../../services/adaptiveReview';
 import {answerDailyPractice,getDailyPracticeConfig,getTodayDailyPractice,type DailyPracticeAnswer,type DailyPracticeConfig,type DailyPracticeSession} from '../../services/dailyPracticeService';
 import '../../daily-drive-practice.css';
 
 const DAILY_COUNTS=[5,10,20] as const;
+type DailyDrivePracticeProps={onChooseGemini?:()=>void};
 
-export default function DailyDrivePractice(){
+export default function DailyDrivePractice({onChooseGemini}:DailyDrivePracticeProps){
   const member=readCachedMember(),answerLock=useRef(false);
   const [config,setConfig]=useState<DailyPracticeConfig|null>(null),[session,setSession]=useState<DailyPracticeSession|null>(null),[selectedCount,setSelectedCount]=useState<(typeof DAILY_COUNTS)[number]>(10),[idx,setIdx]=useState(0),[feedback,setFeedback]=useState<Record<string,DailyPracticeAnswer>>({}),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
   const current=session?.questions?.[idx],answers=session?.answers||{},selected=current?answers[current.id]:undefined,answeredCount=Object.keys(answers).length,total=session?.questionCount||session?.questions.length||0;
@@ -18,13 +19,19 @@ export default function DailyDrivePractice(){
   useEffect(()=>{if(!session?.sessionId||!current||selected===undefined||feedback[current.id]||busy)return;let alive=true;void answerDailyPractice(session.sessionId,current.id,selected).then(r=>{if(alive)setFeedback(x=>({...x,[current.id]:r}))}).catch(()=>{});return()=>{alive=false}},[session?.sessionId,current?.id,selected]);
 
   const choose=async(optionIndex:number)=>{if(!session?.sessionId||!current||selected!==undefined||busy||answerLock.current)return;answerLock.current=true;setBusy(true);setMsg('');try{const r=await answerDailyPractice(session.sessionId,current.id,optionIndex);if(!r.accepted)throw new Error('Chưa ghi nhận đáp án. Hãy thử lại.');recordReview(member?.id||null,{...current,id:'practice:'+current.id},current.options[r.correctIndex]+' — '+r.explanation,r.sourceFileName,r.correct,session.sessionId+':'+current.id);const nextAnswers={...answers,[current.id]:r.selectedIndex};setFeedback(x=>({...x,[current.id]:r}));setSession(s=>s?{...s,answers:nextAnswers,status:Object.keys(nextAnswers).length>=(s.questionCount||s.questions.length)?'completed':s.status}:s)}catch(e){setMsg((e as Error).message)}finally{answerLock.current=false;setBusy(false)}};
-  return <section className="daily-drive panel" aria-label="Ôn tập nhanh hằng ngày từ Ngân hàng đề HIU">
-    <header className="daily-drive__head"><div><span className="daily-drive__kicker"><BookOpenCheck/> ÔN TẬP NHANH</span><h2>5 · 10 · 20 câu mỗi ngày</h2><p>Chọn nhịp học phù hợp. Bộ hôm nay lấy tự động từ Ngân hàng đề HIU và ưu tiên câu chưa gặp hoặc từng làm sai.</p></div></header>
-    <div className="daily-drive__stats"><span><FileCheck2/><small>Nguồn</small><b>Ngân hàng đề HIU</b></span><span><BookOpenCheck/><small>Bộ hôm nay</small><b>{session?`${total} câu`:'Chưa tạo'}</b></span></div>
+  const chooseHiu=()=>{if(busy)return;setMsg('')};
+  const chooseGemini=()=>{if(busy)return;onChooseGemini?.()};
+  return <section className="daily-drive panel" aria-label="Ôn tập nhanh hằng ngày từ Đề HIU hoặc Đề Gemini">
+    <header className="daily-drive__head"><div><span className="daily-drive__kicker"><BookOpenCheck/> ÔN TẬP NHANH</span><h2>5 · 10 · 20 câu mỗi ngày</h2><p>Chọn nguồn đề bằng nút bên dưới. Đề HIU dùng ngân hàng đã duyệt; Đề Gemini sẽ chuyển sang trình tạo đề A.I theo chủ đề bạn chọn.</p></div></header>
+    <div className="daily-drive__source-switch" role="group" aria-label="Chọn nguồn đề ôn tập">
+      <button type="button" className="active" aria-pressed="true" disabled={busy} onClick={chooseHiu}><FileCheck2/><span><b>Đề HIU</b><small>Ngân hàng đã duyệt</small></span></button>
+      <button type="button" className="ai" aria-pressed="false" disabled={busy} onClick={chooseGemini}><Bot/><span><b>Đề Gemini <em>A.I</em></b><small>Gemini soạn theo chủ đề</small></span></button>
+    </div>
+    <div className="daily-drive__stats"><span><BookOpenCheck/><small>Bộ hôm nay</small><b>{session?`${total} câu`:'Chưa tạo'}</b></span></div>
     {guest&&!msg&&<div className="daily-drive__message" role="status">Đăng nhập thành viên để mở Ôn tập nhanh và đồng bộ tiến độ theo tài khoản.</div>}
     {msg&&<div className="daily-drive__message" role="status">{msg}</div>}
 
-    {!session?<div className="daily-drive__start daily-drive__start--choice"><div><b>{guest?'Đăng nhập để ôn tập':config?.ready?'Chọn số câu cho hôm nay':'Chưa có câu đã xác minh'}</b><span>{guest?'Ngân hàng đề HIU chỉ mở sau khi xác thực thành viên.':config?.ready?'Sau khi bắt đầu, bộ hôm nay được cố định theo tài khoản và ngày để tránh đổi câu khi tải lại.':'Các câu đã được admin xác nhận sẽ tự xuất hiện tại đây.'}</span><div className="daily-drive__count-picker" role="group" aria-label="Số câu ôn tập nhanh">{DAILY_COUNTS.map(count=><button key={count} type="button" className={selectedCount===count?'active':''} disabled={busy||!config?.ready} onClick={()=>setSelectedCount(count)}><b>{count}</b><small>câu</small></button>)}</div></div><button disabled={busy||!config?.ready} onClick={()=>void openToday(selectedCount)}><BookOpenCheck/>{guest?'Cần đăng nhập':`Bắt đầu ${selectedCount} câu`}</button></div>:session.ready&&current?<div className="daily-drive__practice">
+    {!session?<div className="daily-drive__start daily-drive__start--choice"><div><b>{guest?'Đăng nhập để ôn tập':config?.ready?'Chọn số câu cho hôm nay':'Chưa có câu đã xác minh'}</b><span>{guest?'Đề HIU chỉ mở sau khi xác thực thành viên.':config?.ready?'Sau khi bắt đầu, bộ hôm nay được cố định theo tài khoản và ngày để tránh đổi câu khi tải lại.':'Các câu đã được admin xác nhận sẽ tự xuất hiện tại đây.'}</span><div className="daily-drive__count-picker" role="group" aria-label="Số câu ôn tập nhanh">{DAILY_COUNTS.map(count=><button key={count} type="button" className={selectedCount===count?'active':''} disabled={busy||!config?.ready} onClick={()=>setSelectedCount(count)}><b>{count}</b><small>câu</small></button>)}</div></div><button disabled={busy||!config?.ready} onClick={()=>void openToday(selectedCount)}><BookOpenCheck/>{guest?'Cần đăng nhập':`Bắt đầu ${selectedCount} câu`}</button></div>:session.ready&&current?<div className="daily-drive__practice">
       <div className="daily-drive__progress"><span><b>Câu {idx+1}/{total}</b><small>{current.subject} · {current.topic}</small></span><div><i style={{width:`${progress}%`}}/></div><em>{answeredCount}/{total} đã làm</em></div>
       <article className="daily-drive__question"><header><span>{current.generationMethod==='parsed'?'Từ tài liệu gốc':'A.I tạo · đã duyệt'}</span><small>Nguồn: {current.sourceFileName}</small></header><h3>{current.stem}</h3><div className="daily-drive__options">{current.options.map((option,i)=><button key={`${current.id}-${i}`} disabled={busy||selected!==undefined} className={`${selected===i?'selected':''}${currentFeedback&&i===currentFeedback.correctIndex?' correct':''}${currentFeedback&&selected===i&&!currentFeedback.correct?' wrong':''}`} onClick={()=>void choose(i)}><b>{String.fromCharCode(65+i)}</b><span>{option}</span></button>)}</div>{currentFeedback&&<div className={`daily-drive__feedback ${currentFeedback.correct?'ok':'bad'}`}><b>{currentFeedback.correct?'Chính xác':'Chưa chính xác'} · đáp án {String.fromCharCode(65+currentFeedback.correctIndex)}</b><p>{currentFeedback.explanation}</p><small>Đối chiếu: {currentFeedback.sourceFileName}</small></div>}</article>
       <div className="daily-drive__nav"><button disabled={idx===0||busy} onClick={()=>setIdx(x=>x-1)}>← Trước</button><span>{session.status==='completed'?'Đã hoàn tất bộ hôm nay':'Mỗi câu chỉ ghi nhận lần trả lời đầu tiên'}</span><button disabled={idx>=total-1||busy} onClick={()=>setIdx(x=>x+1)}>Tiếp →</button></div>
