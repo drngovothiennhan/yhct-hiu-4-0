@@ -5,6 +5,7 @@ const root=process.cwd(),errors=[];
 const file=p=>path.join(root,p);
 const read=p=>fs.readFileSync(file(p),'utf8');
 const need=(body,tokens,label)=>{for(const token of tokens)if(!body.includes(token))errors.push(`${label} missing ${token}`)};
+const forbid=(body,tokens,label)=>{for(const token of tokens)if(body.includes(token))errors.push(`${label} must not contain ${token}`)};
 
 const required=[
   'src/App.tsx','src/main.tsx','src/theme.ts','src/types/index.ts',
@@ -19,8 +20,8 @@ const required=[
   'src/components/admin/AdminControlCenter.tsx','src/components/admin/SystemAdminCenter.tsx','src/components/admin/ModerationOpsPanel.tsx',
   'src/components/drl/DrlCenter.tsx','src/components/schedule/ScheduleCenter.tsx','src/components/notifications/NotificationsCenter.tsx',
   'src/components/system/AppSettingsDialog.tsx','src/components/system/ViewportModeToggle.tsx',
-  'src/exam-v2.css','src/research-ai-upgrade.css','src/module-isolation.css','src/garden-v6.css','src/garden-sky-v8.css','src/hiu-y-quan.css','src/xiaozhi-mini.css',
-  'api/_lib/drive-rag.js','api/_lib/xiaozhi-mini-handler.js','api/ai/drive-rag.js','api/ai/assistant.js','api/_lib/study-assistant-handler.js','api/translate.js','api/manifest.js',
+  'src/exam-v2.css','src/research-ai-upgrade.css','src/research-ai-leader.css','src/module-isolation.css','src/garden-v6.css','src/garden-sky-v8.css','src/hiu-y-quan.css','src/xiaozhi-mini.css',
+  'api/_lib/drive-rag.js','api/_lib/xiaozhi-mini-handler.js','api/ai/drive-rag.js','api/ai/assistant.js','api/_lib/study-assistant-handler.js','api/ai/research-proposal.js','api/translate.js','api/manifest.js',
   'public/service-worker.js','public/manifest.webmanifest','public/pwa-icon-192.png','public/pwa-icon-512.png','public/pwa-maskable-512.png','public/garden-decor-sprite.svg',
   'vite.config.ts','vercel.json','scripts/role-ui-audit.mjs','scripts/module-isolation-check.mjs','scripts/platform-upgrade-check.mjs',
   'supabase/migrations/202609080630_admin_news_retention_and_garden_grid_v6.sql',
@@ -29,7 +30,10 @@ const required=[
   'supabase/migrations/20260908171054_fix_exam_session_stratified_fill_v2.sql',
   'supabase/migrations/20260908171730_index_ai_exam_foreign_keys_v1.sql',
   'supabase/migrations/20260908171805_index_garden_trade_foreign_keys_v1.sql',
-  'supabase/migrations/202609092248_hiu_y_quan_game_v1.sql'
+  'supabase/migrations/202609092248_hiu_y_quan_game_v1.sql',
+  'supabase/migrations/202609132110_phase19_research_proposal_gemini_quota.sql',
+  'supabase/migrations/202609132120_phase19_quiz_bank_data_first.sql',
+  'docs/PHASE19_STUDY_OS_RESEARCH_AI_ARCHITECTURE.md'
 ];
 for(const p of required)if(!fs.existsSync(file(p)))errors.push(`missing ${p}`);
 
@@ -53,21 +57,38 @@ for(const stale of ['AiMiniFeedbackDock member={member}','PersonalCopilotWidget 
 need(main,['requestAnimationFrame(()=>requestAnimationFrame(revealStableApp))','delete root.dataset.appBooting','yhct-prepaint','./exam-v2.css'],'stable first paint');
 need(theme,["link.setAttribute('href','/api/manifest')",'system_theme_get_v1','theme-color'],'system theme + root manifest');
 
-const mini=read('src/components/ai/UnifiedAiMini.tsx'),xiaozhiService=read('src/services/xiaozhiMiniService.ts'),xiaozhiHandler=read('api/_lib/xiaozhi-mini-handler.js'),assistantGateway=read('api/ai/assistant.js'),studyService=read('src/services/studyAiService.ts'),studyGateway=read('api/_lib/study-assistant-handler.js'),aiCenter=read('src/components/ai/AiCenter.tsx'),research=read('src/components/research/ResearchCenter.tsx'),researchMini=read('src/components/research/ResearchAiMini.tsx'),proposal=read('src/components/research/ResearchProposalBuilder.tsx'),translation=read('src/services/academicTranslationService.ts'),driveRag=read('src/services/driveRagService.ts');
-need(mini,['checkDrlConversation','fetchSchedules','researchIntent','SpeechSynthesisUtterance','SpeechRecognition','Giọng nói: bật','openResearch(text)','openStudyAi(text)'],'XiaoZhi task/navigation voice routing');
-if(mini.includes('askXiaoZhiMini'))errors.push('XiaoZhi task assistant must not answer ordinary study questions');
+const mini=read('src/components/ai/UnifiedAiMini.tsx'),xiaozhiService=read('src/services/xiaozhiMiniService.ts'),xiaozhiHandler=read('api/_lib/xiaozhi-mini-handler.js'),assistantGateway=read('api/ai/assistant.js'),studyService=read('src/services/studyAiService.ts'),studyGateway=read('api/_lib/study-assistant-handler.js'),aiCenter=read('src/components/ai/AiCenter.tsx'),research=read('src/components/research/ResearchCenter.tsx'),researchMini=read('src/components/research/ResearchAiMini.tsx'),proposal=read('src/components/research/ResearchProposalBuilder.tsx'),proposalApi=read('api/ai/research-proposal.js'),proposalQuota=read('supabase/migrations/202609132110_phase19_research_proposal_gemini_quota.sql'),translation=read('src/services/academicTranslationService.ts'),driveRag=read('src/services/driveRagService.ts');
+need(mini,['checkDrlConversation','fetchSchedules','researchIntent','SpeechSynthesisUtterance','SpeechRecognition','Giọng nói: bật','openResearch(text)','openStudyAi(text)'],'task/navigation voice routing');
+if(mini.includes('askXiaoZhiMini'))errors.push('task assistant must not answer ordinary study questions');
 need(studyService,["fetch('/api/ai/assistant'",'conversationContext','Authorization:`Bearer ${token}`'],'Gemini Study client');
 need(studyGateway,['createGeminiWebSearch','createGeminiText','conversationContext','Gemini Study'],'Gemini Study server gateway');
 need(aiCenter,['askStudyGemini','AI STUDY OS · GEMINI','ai-center__conversation'],'dedicated Gemini Study workspace');
 need(xiaozhiService,["fetch('/api/ai/assistant'","mode:'xiaozhi-mini'",'Authorization:`Bearer ${token}`'],'legacy XiaoZhi shared gateway client');
-need(xiaozhiHandler,['createGeminiWebSearch','geminiAiConfigured','web_search_preview','handleXiaoZhiMini','Trợ lý ứng dụng HIU YHCT 4.0','isResearchIntent',"route:'research'",'tuyệt đối không tự giả định rằng kho Drive/tài liệu nội bộ đã được bật'],'legacy XiaoZhi public-search gateway remains isolated from task UI');
+need(xiaozhiHandler,['createGeminiWebSearch','geminiAiConfigured','web_search_preview','handleXiaoZhiMini','Trợ lý ứng dụng HIU YHCT 4.0','isResearchIntent',"route:'research'",'tuyệt đối không tự giả định rằng kho Drive/tài liệu nội bộ đã được bật'],'legacy XiaoZhi gateway remains isolated from task UI');
 need(assistantGateway,["req.body?.mode==='xiaozhi-mini'",'handleXiaoZhiMini'],'shared AI function routing');
 for(const stale of ['searchOpenAlex','searchDriveRag','searchKnowledge','buildResearchLinks'])if(mini.includes(stale))errors.push(`academic retrieval must not remain in UnifiedAiMini: ${stale}`);
-need(research,['searchOpenAlex(query,12)','ragInternalConsent','Research A.I tổng hợp nguồn vừa tìm','summarizeOpenAlex'],'research public retrieval');
-need(researchMini,['searchPubMed(text,6)','searchOpenAlex(text,6)','searchClinicalTrials(text,4)','Dùng tài liệu nội bộ','setUseInternal(false)','translateAcademic','searchDriveRag',"searchKnowledge(text,'all',5)"],'research mini canonical retrieval');
-need(proposal,['Lưu ý trước khi chốt đề cương','PubMed/OpenAlex','CONSORT extension/STRICTA','PMID, DOI'],'research proposal methodology guardrails');
+
+need(research,['searchPubMed(query,12)','searchOpenAlex(query,12)','searchClinicalTrials(query,8)','<ResearchAiMini','Khách: không dùng Gemini','Trích xuất ý chính (không A.I)'],'Research Center evidence/AI separation');
+forbid(research,['summarizeOpenAlex','Research A.I tổng hợp nguồn vừa tìm','ragInternalConsent','tổng hợp local 0đ'],'retired duplicate Research surfaces');
+need(researchMini,['RESEARCH_ROLE=GEMINI_MEDICAL_RESEARCH_LEAD','searchPubMed(text,8)','searchOpenAlex(text,8)','searchClinicalTrials(text,5)','Dùng tài liệu nội bộ cho lượt này','translateAcademic','searchDriveRag',"searchKnowledge(text,'all',4)",'Bằng chứng','PICO','Khoảng trống','Phương pháp','Không tạo câu trả lời local thay thế'],'Gemini medical Research workbench');
+forbid(researchMini,['buildAcademicFallback','Fallback học thuật cục bộ','A.I local 0đ'],'Research fake-local-answer path');
+if((research.match(/<ResearchAiMini\b/g)||[]).length!==1)errors.push('Research Center must mount exactly one Research A.I surface');
+
+need(proposal,['Gemini tạo đề cương','quota.remaining','6 giờ','/api/ai/research-proposal'],'member proposal quota UX');
+forbid(proposal,['A.I local 0đ','Tinh chỉnh A.I cloud','buildLocalProposalSections'],'proposal duplicate/local AI paths');
+need(proposalApi,['createGeminiJson','geminiAiConfigured','geminiAiModel',"mode:'research'",'research_proposal_quota_v1','PMID','DOI','Không dùng bản nháp local thay thế'],'Gemini proposal safety and quota');
+forbid(proposalApi,['api.openai.com','OPENAI_API_KEY','localFallback'],'proposal provider sprawl');
+need(proposalQuota,["interval '6 hours'",'v_used >= 3',"'remaining',3",'Approved member required','grant execute on function public.research_proposal_quota_v1(boolean) to authenticated'],'server-authoritative 3/6h quota');
 need(translation,['translateAcademic','/api/translate'],'academic translation gateway');
 need(driveRag,['searchDriveRag','/api/ai/drive-rag'],'shared Drive RAG client');
+
+const quizManager=read('src/components/admin/LearningContentManagerPanel.tsx'),trustedIngest=read('api/_lib/trusted-quiz-ingest.js'),bankMigration=read('supabase/migrations/202609132120_phase19_quiz_bank_data_first.sql');
+need(quizManager,['Ngân hàng đề thi','syncQuizBank','Thêm thủ công → Cập nhật → dùng ngay','đáp án tô đỏ','Tên tệp không dùng để đặt môn, không hiển thị cho thành viên'],'canonical one-step bank UX');
+forbid(quizManager,['sourceFileBase64','tryTrustedQuizUpload','startQuizPipeline','publishQuizDraft','Xử lý nâng cao','Duyệt Drive thủ công','File từ ACC'],'alternate quiz-bank ingestion UI');
+need(trustedIngest,["MANUAL_INTAKE_FOLDER='Thêm thủ công'","MEMBER_SUBJECT='Ngân hàng HIU'",'rows.filter(isDocx)','parseTrustedMarkedDocx','practice_source_sync_state_v1','practice_trusted_quiz_ingest_v1','!knownIds.has'],'new red-answer DOCX intake');
+forbid(trustedIngest,['parseMcqDocument','explicit-answer-key-v1','trusted-quiz-upload','subjectFromName'],'non-canonical bank input/answer paths');
+need(bankMigration,['practice_quiz_config_v1','practice_quiz_page_v1',"then 'Ngân hàng HIU'","q.review_status in('source_verified','expert_approved')"],'data-first member bank');
+forbid(bankMigration,['sourceFileName'],'member-facing source filename leakage');
 
 const garden=read('src/components/game/HerbGardenGame.tsx'),clinic=read('src/components/game/HiuYQuanGame.tsx'),clinicMigration=read('supabase/migrations/202609092248_hiu_y_quan_game_v1.sql'),gardenSocial=read('src/components/game/HerbGardenSocialHub.tsx'),gardenMigration=read('supabase/migrations/202609080630_admin_news_retention_and_garden_grid_v6.sql');
 need(garden,['herb_garden_state_v3','herb_garden_select_initial_plots_v3','herb_garden_plant_v3','herb_garden_water_v4','herb_garden_fertilize_v3','herb_garden_harvest_v3','garden-nine-grid','Đã mở {unlockedCount}/9 ô','garden-world-viewport','HiuYQuanGame'],'garden v8 world + stable v7 contracts');
@@ -110,4 +131,4 @@ if(!String(pkg.scripts?.prebuild||'').includes('audit:modules'))errors.push('pre
 if(!String(pkg.scripts?.prebuild||'').includes('audit:performance'))errors.push('prebuild must run performance source boundary audit');
 
 if(errors.length){console.error('ACCEPTANCE CHECK FAILED');errors.forEach(e=>console.error(`- ${e}`));process.exit(1)}
-console.log(`acceptance-ok: ${sourceFiles.length} application source files scanned; dedicated Gemini Study workspace + task-only XiaoZhi + explicit Research handoff + opt-in internal research AI + garden v8/HIU Y Quan + exam integrity + root PWA + anti-flash boot gates clean`);
+console.log(`acceptance-ok: ${sourceFiles.length} application source files scanned; canonical Study OS routing + Gemini Study + Gemini medical Research + one-step red-answer quiz bank + server quota + garden/clinic + exam integrity + PWA gates clean`);
