@@ -9,6 +9,8 @@ const research=read('src/components/research/ResearchAiMini.tsx');
 const researchCenter=read('src/components/research/ResearchCenter.tsx');
 const quiz=read('api/_lib/quiz-workspace.js');
 const acc=read('src/components/admin/QuizImportCenter.tsx');
+const quizManager=read('src/components/admin/LearningContentManagerPanel.tsx');
+const trustedIngest=read('api/_lib/trusted-quiz-ingest.js');
 const xz=read('src/services/xiaozhiMiniService.ts');
 const xzServer=read('api/_lib/xiaozhi-mini-handler.js');
 const assistant=read('api/ai/assistant.js');
@@ -36,8 +38,11 @@ forbid(assistant,['GEMINI_ALLOW_PRIVATE_CONTEXT'],'server private-context gate')
 need(geminiProvider,['geminiPrivateContextAllowed=()=>false','process.env.GEMINI_API_KEY'],'server-only Gemini provider');
 
 need(quiz,['createGeminiJson','geminiAiConfigured','gemini-quiz-designer-v1','Chỉ được dùng thông tin nằm trong SOURCE',"reviewStatus:'expert_approved'",'adminConfirmed:true','sourceEvidence.includes(evidence.toLowerCase())','!explanation',"driveConfigured:credentialMode!=='none'",'clean(body.subjectName,160)'],'Gemini quiz designer and Drive readiness');
-need(acc,['Tài liệu → Ngân hàng trắc nghiệm','conversionMode','Gemini thiết kế trắc nghiệm từ tài liệu','Tải tài liệu trực tiếp tại ACC','Tự chuyển đổi','Cập nhật vào ngân hàng','setChecked(new Set())','Tất cả kết quả chỉ ở trạng thái bản nháp','driveConfigured===false','manualSubject.trim()','subjectName','Drive tạm chưa khả dụng'],'ACC Drive-to-quiz UX with direct-upload fallback');
-forbid(acc,['selection:ready','setChecked(new Set(d.questions'],'ACC explicit admin review');
+need(acc,['LearningContentManagerPanel'],'ACC canonical quiz manager entry');
+forbid(acc,['conversionMode','pendingUpload','setChecked(new Set())','Tất cả kết quả chỉ ở trạng thái bản nháp','Drive tạm chưa khả dụng','Tài liệu → Ngân hàng trắc nghiệm'],'ACC duplicate quiz workflow');
+need(quizManager,['Ngân hàng câu hỏi','syncQuizBank','updateQuizBank','Cập nhật','processUpload','sourceFileBase64','conversionMode:\'auto\'','DOCX, TXT hoặc PDF','Nhận diện & cập nhật','publishAll','Duyệt & phát hành','driveReady','subject.trim()','AnswerReviewQueue'],'canonical ACC quiz-bank manager with direct-upload fallback and explicit review');
+forbid(quizManager,['selection:ready','setChecked(new Set(d.questions'],'canonical ACC explicit admin review');
+need(trustedIngest,["MANUAL_INTAKE_FOLDER='Thêm thủ công'",'practice_trusted_quiz_ingest_v1','practice_source_sync_state_v1','parseTrustedMarkedDocx'],'trusted manual-folder direct bank update');
 
 need(aiOps,['fetchAiHealth','cấu hình · provider/model · live probe · privacy gate · contract','Cấu hình không được xem là bằng chứng liveness','Live probe Gemini',"?'CONFIG':'OFF'"],'Admin A.I Operations truthful observability');
 forbid(aiOps,['readiness · model/provider · latency · degraded mode · privacy gate · contract','candidateZeroCostProviders','Adapter 0đ có thể tích hợp tiếp','GEMINI_ALLOW_PRIVATE_CONTEXT'],'Admin A.I Operations anti-sprawl and no false readiness');
@@ -48,4 +53,4 @@ for(const core of ["id:'gemini-server'","id:'central-rag'","id:'drive-rag'","id:
 
 if(vercel?.git?.deploymentEnabled!==false)fail.push('Vercel Git auto-deploy must be disabled so production is gated by Web CI');
 if(fail.length){console.error('AI ROLE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('AI role contract PASS: one task assistant, one Gemini Study role, one Research A.I role, module capabilities, request-scoped internal consent, provenance/admin review, truthful configured-vs-live observability and anti-sprawl boundaries are enforced.');
+console.log('AI role contract PASS: one task assistant, one Gemini Study role, one Research A.I role, one canonical ACC quiz-bank manager, request-scoped internal consent, trusted manual-folder updates, provenance/admin review, truthful configured-vs-live observability and anti-sprawl boundaries are enforced.');
