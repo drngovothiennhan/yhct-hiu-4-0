@@ -57,7 +57,8 @@ need(widgets,['apparentSolarLongitude','drl_deadline_public_v1','member_profile_
 if(/openai|gemini|generateContent|chat\.completions/i.test(widgets))errors.push('medical interaction widget must not call generative AI');
 
 const researchMini=read('src/components/research/ResearchAiMini.tsx'),exam=read('src/components/exam/ExamCenter.tsx'),examService=read('src/services/examSessionService.ts');
-need(researchMini,['Dùng tài liệu nội bộ','Nguồn công khai','setUseInternal(false)','searchPubMed(text,6)','searchOpenAlex(text,6)','searchClinicalTrials(text,4)','searchDriveRag',"searchKnowledge(text,'all',5)",'translateAcademic'],'Research AI canonical retrieval and request-scoped privacy');
+need(researchMini,['Dùng tài liệu nội bộ cho lượt này','setUseInternal(false)','RESEARCH_ROLE=GEMINI_MEDICAL_RESEARCH_LEAD','searchPubMed(text,8)','searchOpenAlex(text,8)','searchClinicalTrials(text,5)','searchDriveRag',"searchKnowledge(text,'all',4)",'translateAcademic','PUBLIC_SOURCE_BUDGET=2','CENTRAL_SOURCE_BUDGET=2','DRIVE_SOURCE_BUDGET=2','balancedResearchSources(literature,knowledge,drive.sources,internalEnabled)','Không tạo câu trả lời local thay thế'],'Research AI canonical retrieval, evidence balance and request-scoped privacy');
+if(researchMini.includes('buildAcademicFallback')||researchMini.includes('A.I local 0đ'))errors.push('Research AI must not restore local pseudo-answer fallback');
 need(exam,['Thi thử 50 câu','A.I hướng dẫn suy luận','server integrity','getExamConfigV2'],'exam v2 UI');
 need(examService,['exam_config_v2','exam_session_start_v2','exam_session_answer_v2','exam_session_submit_v2'],'exam v2 RPC client');
 
@@ -79,4 +80,4 @@ if(!String(pkg.scripts?.prebuild||'').includes('audit:roles'))errors.push('prebu
 if(!String(pkg.scripts?.prebuild||'').includes('audit:modules'))errors.push('prebuild must enforce module isolation');
 
 if(errors.length){console.error('FINAL 4 ACCEPTANCE CHECK FAILED');for(const error of errors)console.error(`- ${error}`);process.exit(1)}
-console.log(`final4-acceptance-ok: ${sourceFiles.length} source files scanned; modular routing, rolling two-up TCM news carousel, embedded inbox, ACC-only theme, root installable PWA, anti-flash boot, offline and RBAC gates passed`);
+console.log(`final4-acceptance-ok: ${sourceFiles.length} source files scanned; modular routing, Research AI evidence balance, rolling TCM news carousel, embedded inbox, ACC-only theme, root installable PWA, anti-flash boot, offline and RBAC gates passed`);
