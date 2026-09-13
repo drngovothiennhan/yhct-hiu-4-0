@@ -1,7 +1,6 @@
 import fs from 'node:fs';
-
 const read=path=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
-const fail=message=>{throw new Error(`[Phase 17 version convergence] ${message}`)};
+const fail=message=>{throw new Error(`[Version convergence] ${message}`)};
 const need=(text,pattern,message)=>{if(!pattern.test(text))fail(message)};
 const forbid=(text,pattern,message)=>{if(pattern.test(text))fail(message)};
 
@@ -10,6 +9,7 @@ const app=read('src/App.tsx');
 const aiCenter=read('src/components/ai/AiCenter.tsx');
 const mini=read('src/components/ai/UnifiedAiMini.tsx');
 const assistant=read('api/ai/assistant.js');
+const research=read('src/components/research/ResearchAiMini.tsx');
 const game=read('src/components/game/HerbGardenGame.tsx');
 const sw=read('public/service-worker.js');
 const main=read('src/main.tsx');
@@ -19,48 +19,38 @@ const quizBankManager=read('src/components/admin/LearningContentManagerPanel.tsx
 const trustedQuizIngest=read('api/_lib/trusted-quiz-ingest.js');
 
 if(fs.existsSync(new URL('../src/v2/study-os/canary.ts',import.meta.url)))fail('legacy Home canary still exists');
-need(home,/StudyHubV2/,'StudentHome must use the canonical StudyHubV2');
-forbid(home,/StudentHomeLegacy|studyOsV2CanaryEnabled|studyos=legacy|student-home\.css|yhct:ai:open/i,'legacy Home runtime or overlapping assistant path detected');
+need(home,/StudyHubV2/,'StudentHome must use canonical StudyHubV2');
+forbid(home,/StudentHomeLegacy|studyOsV2CanaryEnabled|studyos=legacy|student-home\.css|yhct:ai:open/i,'legacy Home runtime detected');
 need(app,/tab==='ai'&&member&&<AiCenter/,'dedicated AI Center must remain canonical');
-need(aiCenter,/askStudyGemini/,'Gemini Study must remain the learning answer path');
-forbid(mini,/askXiaoZhiMini/,'XiaoZhi must not regain academic answering');
-need(mini,/openStudyAi\(text\)/,'XiaoZhi task assistant must hand academic questions to Study');
-need(assistant,/mode==='study'.*handleStudyAssistant/s,'Study must share the existing assistant gateway');
+need(aiCenter,/askStudyGemini/,'Gemini Study must remain learning answer path');
+forbid(mini,/askXiaoZhiMini/,'task assistant must not regain academic answering');
+need(mini,/openStudyAi\(text\)/,'task assistant must hand study intent to Gemini Study');
+need(assistant,/mode==='study'.*handleStudyAssistant/s,'Study must share existing assistant gateway');
 if(fs.existsSync(new URL('../api/ai/study-assistant.js',import.meta.url)))fail('standalone Study serverless endpoint must remain removed');
-need(game,/import HiuYQuanGameV20 from/,'V20 must remain the canonical HIU Y Quan runtime');
+need(research,/GEMINI_MEDICAL_RESEARCH_LEAD/,'Research must have one specialist Gemini leader');
+forbid(research,/buildAcademicFallback/,'Research must not expose fake local answer path');
+need(game,/import HiuYQuanGameV20 from/,'V20 must remain canonical HIU Y Quan runtime');
 forbid(game,/^import HiuYQuanGame from/m,'legacy HIU Y Quan UI must not be imported at runtime');
 
-need(quizAccEntry,/LearningContentManagerPanel/,'ACC learning entry must use the canonical quiz-bank manager');
-forbid(quizAccEntry,/qi-flow|Chọn nguồn|Chia phần & xử lý|Xem & đối chiếu|Chọn thư mục Drive hoặc tải DOCX\/TXT\/PDF/i,'legacy ACC quiz workflow/copy must not return');
-need(quizBankManager,/syncQuizBank/,'canonical ACC quiz manager must retain the bank update action');
-need(quizBankManager,/>Cập nhật<|:'Cập nhật'/,'canonical ACC quiz manager must expose the Update button');
-need(quizBankManager,/File từ ACC/,'canonical ACC quiz manager must expose direct DOCX intake beside Update');
-need(trustedQuizIngest,/BANK_FOLDER_NAME='NGÂN HÀNG TRẮC NGHIỆM'/,'quiz-bank Update must target the canonical exam bank');
-need(trustedQuizIngest,/MANUAL_INTAKE_FOLDER='Thêm thủ công'/,'legacy manual intake must remain compatible');
-need(trustedQuizIngest,/for\(const file of root\.filter\(isDocx\)\)addDirect\(file\)/,'quiz-bank root DOCX files must be scanned directly');
-need(trustedQuizIngest,/const rows=await listChildren\(manual\.id,1000\)/,'legacy manual intake folder must still be scanned directly');
-need(trustedQuizIngest,/parseTrustedDeterministicDocx/,'one-step update must require deterministic answer evidence');
-need(trustedQuizIngest,/practice_trusted_quiz_ingest_v1/,'one-step Update must use the trusted direct-bank RPC');
-forbid(trustedQuizIngest,/practice_drive_ingest_admin_v1/,'one-step Update must not use the generic draft ingest path');
+need(quizAccEntry,/LearningContentManagerPanel/,'ACC must use canonical quiz-bank manager');
+forbid(quizAccEntry,/qi-flow|Chọn nguồn|Chia phần & xử lý|Xem & đối chiếu|Chọn thư mục Drive hoặc tải DOCX\/TXT\/PDF/i,'legacy ACC quiz workflow must not return');
+need(quizBankManager,/syncQuizBank/,'canonical bank Update service missing');
+need(quizBankManager,/Thêm thủ công → Cập nhật → dùng ngay/,'canonical one-step UX missing');
+forbid(quizBankManager,/File từ ACC|Duyệt Drive thủ công|Xử lý nâng cao|startQuizPipeline|publishQuizDraft/,'alternate user-addressable bank workflows must stay removed');
+need(trustedQuizIngest,/MANUAL_INTAKE_FOLDER='Thêm thủ công'/,'canonical intake folder missing');
+need(trustedQuizIngest,/rows\.filter\(isDocx\)/,'only direct DOCX children may enter fast path');
+need(trustedQuizIngest,/parseTrustedMarkedDocx/,'red-answer parser missing');
+need(trustedQuizIngest,/practice_trusted_quiz_ingest_v1/,'trusted direct-bank RPC missing');
+forbid(trustedQuizIngest,/root\.filter\(isDocx\)|subjectFolders|parseMcqDocument|trusted-quiz-upload/,'alternate intake/answer paths must stay removed');
 
-need(sw,/key=>key!==CACHE&&key\.startsWith\('yhct-hiu-4-'\)/,'service worker must evict prior app cache generations');
+need(sw,/key=>key!==CACHE&&key\.startsWith\('yhct-hiu-4-'\)/,'service worker must evict old caches');
 need(sw,/url\.pathname\.startsWith\('\/api\/'\)/,'service worker must bypass API responses');
 need(main,/__YHCT_RELEASE_ID__/,'PWA registration must stay release-aware');
-need(main,/updateViaCache:'none'/,'service worker updates must bypass browser HTTP cache');
-need(deployment,/workflow_run/,'production deployment must remain tied to completed Web CI');
-need(deployment,/workflow_run\.conclusion == 'success'/,'production deployment must fail closed unless Web CI succeeds');
-need(deployment,/workflow_run\.head_branch == 'main'/,'production deployment must target main only');
+need(main,/updateViaCache:'none'/,'service worker updates must bypass browser cache');
+need(deployment,/workflow_run/,'production deploy must remain tied to Web CI');
+need(deployment,/workflow_run\.conclusion == 'success'/,'production must fail closed unless Web CI succeeds');
+need(deployment,/workflow_run\.head_branch == 'main'/,'production must target main only');
 
-const entries=[];
-function walk(dir,relative=''){
-  for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
-    if(entry.name.startsWith('_')||entry.name.startsWith('.'))continue;
-    const name=relative+entry.name;
-    if(entry.isDirectory())walk(new URL(`${entry.name}/`,dir),`${name}/`);
-    else if(/\.(?:js|mjs|cjs|ts|tsx|py|go|rb)$/.test(name)&&!name.endsWith('.d.ts'))entries.push(`api/${name}`);
-  }
-}
-walk(new URL('../api/',import.meta.url));
+const entries=[];function walk(dir,relative=''){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){if(entry.name.startsWith('_')||entry.name.startsWith('.'))continue;const name=relative+entry.name;if(entry.isDirectory())walk(new URL(`${entry.name}/`,dir),`${name}/`);else if(/\.(?:js|mjs|cjs|ts|tsx|py|go|rb)$/.test(name)&&!name.endsWith('.d.ts'))entries.push(`api/${name}`)}}walk(new URL('../api/',import.meta.url));
 if(entries.length>12)fail(`Vercel Hobby function budget exceeded: ${entries.length}`);
-
-console.log(`Phase 17/18E version convergence: PASS · sole Study OS Home · one-step ACC/Drive quiz bank · shared Study gateway · task-only XiaoZhi · V20 clinic · release-aware PWA · ${entries.length}/12 functions`);
+console.log(`Phase 19 version convergence PASS · one Study OS Home · one red-answer bank Update · Gemini Study · Gemini Research · task-only assistant · V20 clinic · release-aware PWA · ${entries.length}/12 functions`);
