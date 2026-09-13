@@ -81,9 +81,30 @@ function parseLabeledQuestions(paragraphs){
   flush();return questions;
 }
 
-// Some faculty-approved banks use "2. question" followed by four unlabeled option
-// paragraphs, with the correct option colored red. This layout is still deterministic:
-// we accept it only when there are exactly four option paragraphs and exactly one red one.
+function parseSplitLabelQuestions(paragraphs){
+  const starts=[];
+  for(let index=0;index+2<paragraphs.length;index++){
+    if(!/^\d{1,4}$/.test(paragraphs[index].text))continue;
+    if(/^(?:\d{1,4}|[A-D])$/i.test(paragraphs[index+1].text))continue;
+    if(!/^A$/i.test(paragraphs[index+2].text))continue;
+    starts.push({index,number:paragraphs[index].text});
+  }
+  const questions=[];
+  for(let at=0;at<starts.length;at++){
+    const start=starts[at],end=at+1<starts.length?starts[at+1].index:paragraphs.length,segment=paragraphs.slice(start.index+1,end);
+    if(!segment.length)continue;
+    const q={number:start.number,stem:clean(segment[0].text,4000),options:['','','',''],marked:[],raw:[paragraphs[start.index].text,...segment.map(x=>x.text)],layout:'split-label-paragraphs-v1'};
+    for(let pos=1;pos<segment.length;pos++){
+      const label=segment[pos].text.match(/^([A-D])(?:\s*[.)：:]\s*(.*))?$/i);if(!label)continue;
+      const optionIndex=letters.indexOf(label[1].toUpperCase()),inline=clean(label[2]||'',1500);
+      if(inline){q.options[optionIndex]=inline;if(segment[pos].red)q.marked.push(optionIndex);continue}
+      const value=segment[pos+1];if(!value)continue;q.options[optionIndex]=clean(value.text,1500);if(segment[pos].red||value.red)q.marked.push(optionIndex);pos++;
+    }
+    questions.push(q);
+  }
+  return questions;
+}
+
 function parseNumberedUnlabeledQuestions(paragraphs){
   const starts=[];
   for(let index=0;index<paragraphs.length;index++){
@@ -100,10 +121,21 @@ function parseNumberedUnlabeledQuestions(paragraphs){
   return questions;
 }
 
+function parseFiveParagraphBlocks(paragraphs){
+  const questions=[];let index=0,number=1;
+  while(index+4<paragraphs.length){
+    const block=paragraphs.slice(index,index+5),optionParagraphs=block.slice(1),marked=[];
+    optionParagraphs.forEach((x,optionIndex)=>{if(x.red)marked.push(optionIndex)});
+    const structurallyPossible=!block[0].red&&clean(block[0].text,4000).length>=4&&optionParagraphs.every(x=>clean(x.text,1500))&&new Set(optionParagraphs.map(x=>clean(x.text,1500).toLowerCase())).size===4&&marked.length===1;
+    if(structurallyPossible){questions.push({number:String(number++),stem:clean(block[0].text,4000),options:optionParagraphs.map(x=>clean(x.text,1500)),marked,raw:block.map(x=>x.text),layout:'unlabeled-five-paragraph-block-v1'});index+=5}else index++;
+  }
+  return questions;
+}
+
 export function parseTrustedMarkedDocx(buffer,file,sourceHash=''){
   const paragraphs=inspectMarkedDocx(buffer);
-  const labeled=parseLabeledQuestions(paragraphs);
-  const sourceQuestions=labeled.length?labeled:parseNumberedUnlabeledQuestions(paragraphs);
+  const labeled=parseLabeledQuestions(paragraphs),split=labeled.length?[]:parseSplitLabelQuestions(paragraphs),numbered=labeled.length||split.length?[]:parseNumberedUnlabeledQuestions(paragraphs),blocks=labeled.length||split.length||numbered.length?[]:parseFiveParagraphBlocks(paragraphs);
+  const sourceQuestions=labeled.length?labeled:split.length?split:numbered.length?numbered:blocks;
   const valid=[],invalid=[];
   for(const q of sourceQuestions){
     if(q.options.length!==4){invalid.push({number:q.number,reason:'invalid_option_count',optionCount:q.options.length,marked:q.marked.map(i=>letters[i]||String(i+1))});continue}
