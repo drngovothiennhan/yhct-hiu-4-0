@@ -9,6 +9,7 @@ const app=read('src/App.tsx');
 const aiCenter=read('src/components/ai/AiCenter.tsx');
 const mini=read('src/components/ai/UnifiedAiMini.tsx');
 const assistant=read('api/ai/assistant.js');
+const study=read('api/_lib/study-assistant-handler.js');
 const research=read('src/components/research/ResearchAiMini.tsx');
 const game=read('src/components/game/HerbGardenGame.tsx');
 const sw=read('public/service-worker.js');
@@ -17,7 +18,6 @@ const deployment=read('.github/workflows/vercel-production.yml');
 const quizAccEntry=read('src/components/admin/QuizImportCenter.tsx');
 const quizBankManager=read('src/components/admin/LearningContentManagerPanel.tsx');
 const trustedQuizIngest=read('api/_lib/trusted-quiz-ingest.js');
-const studyQuiz=read('api/ai/study-quiz.js');
 
 if(fs.existsSync(new URL('../src/v2/study-os/canary.ts',import.meta.url)))fail('legacy Home canary still exists');
 need(home,/StudyHubV2/,'StudentHome must use canonical StudyHubV2');
@@ -26,8 +26,16 @@ need(app,/tab==='ai'&&member&&<AiCenter/,'dedicated AI Center must remain canoni
 need(aiCenter,/askStudyGemini/,'Gemini Study must remain learning answer path');
 forbid(mini,/askXiaoZhiMini/,'task assistant must not regain academic answering');
 need(mini,/openStudyAi\(text\)/,'task assistant must hand study intent to Gemini Study');
-need(assistant,/mode==='study'.*handleStudyAssistant/s,'Study chat must share existing assistant gateway');
+need(assistant,/mode==='study'.*handleStudyAssistant/s,'Study chat and generated quiz must share existing assistant gateway');
 if(fs.existsSync(new URL('../api/ai/study-assistant.js',import.meta.url)))fail('standalone Study chat endpoint must remain removed');
+if(fs.existsSync(new URL('../api/ai/study-quiz.js',import.meta.url)))fail('standalone Study quiz endpoint must remain removed');
+need(study,/task==='quiz'/,'shared Study handler must route quiz task');
+need(study,/createGroundedQuiz/,'shared grounded quiz orchestrator missing');
+need(study,/createGeminiWebSearch/,'Gemini Google Search quiz path missing');
+need(study,/runOpenAiQuiz/,'bounded web-grounded failover missing');
+need(study,/provider:'openai-web-fallback'/,'failover provider label missing');
+need(study,/Gemini quiz has no grounded web source/,'Gemini quiz must fail closed without sources');
+need(study,/OpenAI quiz has no grounded web source/,'fallback quiz must fail closed without sources');
 need(research,/GEMINI_MEDICAL_RESEARCH_LEAD/,'Research must have one specialist Gemini leader');
 forbid(research,/buildAcademicFallback/,'Research must not expose fake local answer path');
 need(game,/import HiuYQuanGameV20 from/,'V20 must remain canonical HIU Y Quan runtime');
@@ -45,9 +53,8 @@ need(trustedQuizIngest,/subjectFolders/,'one-level subject folders must be suppo
 need(trustedQuizIngest,/nestedGroups/,'one-level nested DOCX scanning missing');
 need(trustedQuizIngest,/parseTrustedMarkedDocx/,'red-answer parser missing');
 need(trustedQuizIngest,/practice_trusted_quiz_ingest_v1/,'trusted direct-bank RPC missing');
+need(trustedQuizIngest,/needsProcessing/,'parser revision retry path missing');
 forbid(trustedQuizIngest,/parseMcqDocument|trusted-quiz-upload|subjectFromName/,'alternate answer/file-name taxonomy paths must stay removed');
-need(studyQuiz,/runGemini\(topic,count,controller\.signal\)/,'Gemini-first generated quiz path missing');
-need(studyQuiz,/runOpenAi\(topic,count,controller\.signal\)/,'bounded web-grounded failover missing');
 
 need(sw,/key=>key!==CACHE&&key\.startsWith\('yhct-hiu-4-'\)/,'service worker must evict old caches');
 need(sw,/url\.pathname\.startsWith\('\/api\/'\)/,'service worker must bypass API responses');
@@ -59,4 +66,4 @@ need(deployment,/workflow_run\.head_branch == 'main'/,'production must target ma
 
 const entries=[];function walk(dir,relative=''){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){if(entry.name.startsWith('_')||entry.name.startsWith('.'))continue;const name=relative+entry.name;if(entry.isDirectory())walk(new URL(`${entry.name}/`,dir),`${name}/`);else if(/\.(?:js|mjs|cjs|ts|tsx|py|go|rb)$/.test(name)&&!name.endsWith('.d.ts'))entries.push(`api/${name}`)}}walk(new URL('../api/',import.meta.url));
 if(entries.length>12)fail(`Vercel Hobby function budget exceeded: ${entries.length}`);
-console.log(`Phase 19.1 version convergence PASS · one Study OS Home · one subject-folder red-answer bank Update · resilient Gemini-first Study quiz · Gemini Research · task-only assistant · V20 clinic · release-aware PWA · ${entries.length}/12 functions`);
+console.log(`Phase 19.1 version convergence PASS · one Study OS Home · one subject-folder red-answer bank Update · shared resilient Gemini-first Study quiz · Gemini Research · task-only assistant · V20 clinic · release-aware PWA · ${entries.length}/12 functions`);
