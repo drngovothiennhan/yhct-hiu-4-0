@@ -68,6 +68,8 @@ jobs:
         run: node scripts/learning-hub-contract-check.mjs
       - name: Phase 16 trusted quiz and AI chat regression
         run: npm run audit:phase16
+      - name: Phase 18D grounded quiz runtime regression
+        run: node scripts/phase18d-grounded-quiz-runtime-check.mjs
       - run: npm run build
       - name: Initial preload graph and CSS payload regression
         run: npm run audit:performance:dist

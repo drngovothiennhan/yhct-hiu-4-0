@@ -1,4 +1,5 @@
 import {cloudAiEnabled,cloudAiModel,memberAccess} from '../_lib/member-access.js';
+export const maxDuration=60;
 import {aiToolsForRole,executeAiTool} from '../_lib/ai-tools.js';
 import {createGeminiJson,geminiAiConfigured,geminiAiModel} from '../_lib/gemini-provider.js';
 import {handleStudyAssistant} from '../_lib/study-assistant-handler.js';
