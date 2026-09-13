@@ -39,14 +39,15 @@ async function listChildren(parent,pageSize=100){
 }
 
 async function listQuizBankDocxCandidates(){
-  const folder=quizBankFolderId();if(!driveConfigured())return{configured:false,folder,folderName:MANUAL_INTAKE_FOLDER,files:[],subjects:[],reason:'missing_google_drive_credential'};
+  const folder=quizBankFolderId();if(!driveConfigured())return{configured:false,folder,folderName:MANUAL_INTAKE_FOLDER,files:[],subjects:[],ungroupedFiles:0,reason:'missing_google_drive_credential'};
   const root=await listChildren(folder,100),manual=root.find(x=>x.mimeType===FOLDER_MIME&&normalizedName(x.name)===normalizedName(MANUAL_INTAKE_FOLDER));
-  if(!manual)return{configured:true,folder,folderName:MANUAL_INTAKE_FOLDER,files:[],subjects:[],reason:'manual_intake_folder_missing'};
-  const rows=await listChildren(manual.id,100),files=rows.filter(isDocx).map(file=>({...file,parentName:MANUAL_INTAKE_FOLDER}));
+  if(!manual)return{configured:true,folder,folderName:MANUAL_INTAKE_FOLDER,files:[],subjects:[],ungroupedFiles:0,reason:'manual_intake_folder_missing'};
+  const rows=await listChildren(manual.id,100),ungroupedFiles=rows.filter(isDocx).length,files=[];
   const subjectFolders=rows.filter(x=>x.mimeType===FOLDER_MIME).slice(0,40);
   for(const child of subjectFolders){const nested=await listChildren(child.id,100).catch(()=>[]);for(const file of nested.filter(isDocx))files.push({...file,parentName:clean(child.name,160)})}
   const dedup=[...new Map(files.map(file=>[file.id,file])).values()];dedup.sort((a,b)=>Date.parse(b.createdTime||0)-Date.parse(a.createdTime||0));
-  return{configured:true,folder,folderName:MANUAL_INTAKE_FOLDER,subjects:subjectFolders.map(x=>clean(x.name,160)).filter(Boolean),files:dedup.slice(0,400)};
+  const subjects=subjectFolders.map(x=>clean(x.name,160)).filter(Boolean).sort((a,b)=>a.localeCompare(b,'vi',{numeric:true,sensitivity:'base'}));
+  return{configured:true,folder,folderName:MANUAL_INTAKE_FOLDER,subjects,ungroupedFiles,files:dedup.slice(0,400)};
 }
 
 async function downloadDocx(file){
@@ -85,13 +86,14 @@ export async function handleTrustedQuizIngest(req,res){
     }
     if(action==='trusted-quiz-sync'){
       const listing=await listQuizBankDocxCandidates();
-      if(!listing.configured)return res.status(200).json({ok:false,degraded:true,reason:listing.reason,folderId:listing.folder,folderName:MANUAL_INTAKE_FOLDER,bankFolderName:'NGÂN HÀNG TRẮC NGHIỆM',subjects:listing.subjects||[],processed:[]});
-      if(listing.reason==='manual_intake_folder_missing')return res.status(200).json({ok:false,degraded:true,reason:listing.reason,folderId:listing.folder,folderName:MANUAL_INTAKE_FOLDER,bankFolderName:'NGÂN HÀNG TRẮC NGHIỆM',subjects:listing.subjects||[],processed:[]});
+      if(!listing.configured)return res.status(200).json({ok:false,degraded:true,reason:listing.reason,folderId:listing.folder,folderName:MANUAL_INTAKE_FOLDER,bankFolderName:'NGÂN HÀNG TRẮC NGHIỆM',subjects:listing.subjects||[],ungroupedFiles:listing.ungroupedFiles||0,processed:[]});
+      if(listing.reason==='manual_intake_folder_missing')return res.status(200).json({ok:false,degraded:true,reason:listing.reason,folderId:listing.folder,folderName:MANUAL_INTAKE_FOLDER,bankFolderName:'NGÂN HÀNG TRẮC NGHIỆM',subjects:listing.subjects||[],ungroupedFiles:listing.ungroupedFiles||0,processed:[]});
+      await memberRpc(req,'practice_subject_folders_sync_admin_v1',{p_subjects:listing.subjects||[]});
       const ids=listing.files.map(file=>String(file.id)),known=ids.length?await memberRpc(req,'practice_source_sync_state_v1',{p_file_ids:ids}):[],knownRows=Array.isArray(known)?known:[],knownById=new Map(knownRows.map(row=>[String(row?.fileId||''),row]));
       const pending=listing.files.filter(file=>needsSync(file,knownById.get(String(file.id)))),maxFiles=Math.max(1,Math.min(10,Number(req.body?.maxFiles)||10)),selected=pending.slice(0,maxFiles).reverse(),processed=[];
       for(const file of selected){try{processed.push(await importTrusted(req,file,await downloadDocx(file)))}catch(error){processed.push({ok:false,status:'error',fileName:file.name,subject:subjectForFile(file),message:clean(error?.message||'Không xử lý được DOCX',300)})}}
       const remaining=Math.max(0,pending.length-selected.length),errors=processed.filter(x=>x.status==='error').length;
-      return res.status(200).json({ok:true,folderId:listing.folder,folderName:MANUAL_INTAKE_FOLDER,bankFolderName:'NGÂN HÀNG TRẮC NGHIỆM',subjects:listing.subjects||[],filesSeen:listing.files.length,alreadySynced:listing.files.length-pending.length,pending:pending.length,remaining,errors,processed});
+      return res.status(200).json({ok:true,folderId:listing.folder,folderName:MANUAL_INTAKE_FOLDER,bankFolderName:'NGÂN HÀNG TRẮC NGHIỆM',subjects:listing.subjects||[],ungroupedFiles:listing.ungroupedFiles||0,filesSeen:listing.files.length,alreadySynced:listing.files.length-pending.length,pending:pending.length,remaining,errors,processed});
     }
     return res.status(400).json({error:'Unsupported trusted quiz action'});
   }catch(error){return res.status(400).json({error:clean(error?.message||'Trusted quiz ingest failed',400)})}
