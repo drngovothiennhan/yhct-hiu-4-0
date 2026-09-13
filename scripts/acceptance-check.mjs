@@ -68,7 +68,7 @@ need(adaptive,['REVIEW_COUNTS=[5,10,20]','getPracticeQuizConfig','QuestionReason
 need(reasoning,['KHÔNG tiết lộ đáp án đúng','Dữ kiện quyết định','Loại trừ','Điểm cần nhớ',"askServerAi(prompt,'exam'"],'contextual non-answer-leaking reasoning');
 
 const sw=read('public/service-worker.js'),pkg=JSON.parse(read('package.json'));
-need(sw,["url.pathname.startsWith('/api/')",'startsWith(\'yhct-hiu-4-\')'],'PWA cache safety');
+need(sw,["url.pathname.startsWith('/api/')","startsWith('yhct-hiu-4-')"],'PWA cache safety');
 if(!String(pkg.scripts?.prebuild||'').includes('audit:modules'))errors.push('prebuild must run module audit');
 if(!String(pkg.scripts?.prebuild||'').includes('audit:phase17'))errors.push('prebuild must run shared Study audit');
 if(!String(pkg.scripts?.prebuild||'').includes('audit:quiz-pipeline'))errors.push('prebuild must run quiz pipeline audit');
