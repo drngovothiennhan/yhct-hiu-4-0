@@ -44,11 +44,11 @@ export async function generateStudyGeminiQuiz(topic:string,count:number,signal?:
   ensureActive(signal);
   const deadline=requestDeadline(65000,signal);
   try{
-    const response=await fetch('/api/ai/study-quiz',{
+    const response=await fetch('/api/ai/assistant',{
       method:'POST',
       signal:deadline.signal,
       headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
-      body:JSON.stringify({topic:cleanTopic,count:requested})
+      body:JSON.stringify({mode:'study',task:'quiz',query:cleanTopic,count:requested})
     });
     const payload=await response.json().catch(()=>null) as Partial<StudyAiQuiz>&{error?:string}|null;
     if(!response.ok)throw new Error(payload?.error||`A.I tạo đề lỗi ${response.status}`);
