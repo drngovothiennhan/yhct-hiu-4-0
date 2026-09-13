@@ -51,8 +51,8 @@ requireText(admin,/canBulk&&<LearningContentManagerPanel\/>/,'learning-managemen
 requireText(student,/HIU_QUESTION_COUNTS=\[10,20,30,50\]/,'HIU bank must keep bounded member-selected question counts');
 requireText(student,/AI_QUESTION_COUNTS=\[5,10,20\]/,'Gemini-generated quiz must keep a tighter bounded count');
 requireText(student,/Chọn nguồn → nội dung → số câu → bắt đầu/,'student workflow must be source → content → count → start');
-requireText(student,/Ngân hàng đề HIU/,'canonical approved HIU bank must remain an explicit student source');
-requireText(student,/Đề do Gemini tạo/,'Gemini-generated quiz must remain explicitly separated from the HIU bank');
+requireText(student,/>Đề HIU</,'canonical approved HIU bank must remain an explicit actionable student source');
+requireText(student,/>Đề Gemini <em className="practice-bank__ai-label">A\.I<\/em></,'Gemini-generated quiz must remain an explicit actionable A.I-labelled source');
 requireText(student,/getPracticeQuizPage\(subject,0,seed\.current,count\)/,'selected HIU count must control the server-backed quiz page');
 forbidText(student,/Tải thêm/,'primary student quiz flow must not require pagination controls');
 requireText(student,/submitPracticeQuiz/,'server-side grading must remain authoritative for canonical HIU questions');

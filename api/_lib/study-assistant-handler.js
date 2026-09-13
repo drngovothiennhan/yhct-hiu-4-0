@@ -8,7 +8,8 @@ const MAX_CONTEXT=6500;
 const MIN_QUIZ_COUNT=5;
 const MAX_QUIZ_COUNT=20;
 const clean=(value,max=2000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
-const answerText=value=>String(value??'').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').trim().slice(0,7000);
+const contextText=(value,max=MAX_CONTEXT)=>String(value??'').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,' ').replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim().slice(-max);
+const answerText=value=>String(value??'').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').replace(/\*\*([^*]+)\*\*/g,'$1').replace(/^\s*#{1,6}\s*/gm,'').replace(/^\s*[*-]\s+/gm,'• ').trim().slice(0,7000);
 const researchIntent=value=>/\b(pubmed|openalex|doi|pmid|systematic|meta[- ]?analysis|clinical trials?|rct|cohort|case[- ]?control|guideline|evidence)\b|nghiên\s*cứu|y\s*văn|bài\s*báo\s*khoa\s*học|tổng\s*quan\s*hệ\s*thống|thử\s*nghiệm\s*lâm\s*sàng|bằng\s*chứng|trích\s*dẫn|tài\s*liệu\s*tham\s*khảo|đề\s*cương\s*nghiên\s*cứu/i.test(clean(value,MAX_QUERY));
 const quizCount=value=>Math.max(MIN_QUIZ_COUNT,Math.min(MAX_QUIZ_COUNT,Math.trunc(Number(value)||10)));
 
@@ -34,9 +35,10 @@ async function createGroundedQuiz({query,count,started,res}){
   if(!geminiAiConfigured('default'))return res.status(503).json({error:'Gemini Study chưa được cấu hình trên máy chủ.'});
   const requested=quizCount(count);
   const instructions=[
-    'Bạn là Gemini Study của HIU YHCT 4.0.',
-    'Nhiệm vụ hiện tại là dùng Google Search để tham khảo nguồn công khai đáng tin cậy rồi tạo một đề trắc nghiệm học tập bằng tiếng Việt.',
+    'Bạn là Gemini Study, giảng viên kiêm cố vấn học tập Y học cổ truyền bậc đại học của HIU YHCT 4.0.',
+    'Nhiệm vụ hiện tại là dùng Google Search để tham khảo nguồn công khai đáng tin cậy rồi tạo một đề trắc nghiệm học tập bằng tiếng Việt ở mức độ phù hợp sinh viên đại học.',
     'Ưu tiên nguồn chính thống, trường đại học, tổ chức y tế, giáo trình mở hoặc tài liệu chuyên môn đáng tin cậy; tránh diễn đàn và nội dung quảng cáo khi có nguồn tốt hơn.',
+    'Với nội dung YHCT phải dùng thuật ngữ chuyên môn chính xác, phân biệt lý luận YHCT với diễn giải y sinh hiện đại, không tự bịa công năng, chủ trị, quy kinh, phương thuốc hay quan hệ học thuyết.',
     'Mỗi câu có đúng 4 lựa chọn, chỉ 1 đáp án đúng, không dùng lựa chọn kiểu tất cả đều đúng hoặc cả A và B.',
     'Câu hỏi phải bám sát chủ đề người dùng chọn, phù hợp mục tiêu ôn tập sinh viên và tránh chẩn đoán hay kê đơn cá nhân hóa.',
     'Không bịa nguồn, không bịa dữ kiện. Nếu thông tin trên web mâu thuẫn, ưu tiên kiến thức ổn định và tránh đưa chi tiết chưa chắc chắn thành đáp án tuyệt đối.',
@@ -81,25 +83,30 @@ export async function handleStudyAssistant(req,res){
   const access=await memberAccess(req,'member');
   if(!access.ok)return res.status(access.status).json({error:access.error});
 
-  const query=clean(req.body?.query,MAX_QUERY),conversationContext=clean(req.body?.conversationContext,MAX_CONTEXT),pageContext=clean(req.body?.pageContext,600),task=clean(req.body?.task,40).toLowerCase();
+  const query=clean(req.body?.query,MAX_QUERY),conversationContext=contextText(req.body?.conversationContext,MAX_CONTEXT),pageContext=clean(req.body?.pageContext,600),task=clean(req.body?.task,40).toLowerCase();
   if(query.length<2)return res.status(400).json({error:'Query is required'});
   if(task==='quiz')return createGroundedQuiz({query,count:req.body?.count,started,res});
   if(researchIntent(query))return res.status(200).json({answer:'Câu hỏi này cần chế độ Research A.I để kiểm chứng nguồn học thuật sâu hơn.',sources:[],provider:'router',degraded:false,route:'research',latencyMs:Date.now()-started});
   if(!geminiAiConfigured('default'))return res.status(503).json({error:'Gemini Study chưa được cấu hình trên máy chủ.'});
 
   const instructions=[
-    'Bạn là Gemini Study, trợ lý học tập chính của HIU YHCT 4.0 dành cho sinh viên Y học cổ truyền.',
-    'Mục tiêu là hiểu đúng câu hỏi hiện tại, trả lời sát ngữ cảnh, ngắn gọn nhưng đủ ý và ưu tiên cách trình bày giúp học nhanh.',
-    'CONVERSATION_CONTEXT chỉ dùng để hiểu đại từ, chủ đề đang học và mạch hội thoại; không coi lịch sử trả lời AI là bằng chứng sự thật.',
-    'PAGE_CONTEXT chỉ chứa ngữ cảnh học tập không nhạy cảm do ứng dụng cung cấp, có thể gồm route, study_focus, study_goal, study_year, daily_minutes và last_module. Dùng các trường này để hiểu các cụm như phần đang học, phần còn yếu hoặc học tiếp; không coi chúng là bằng chứng học thuật và không suy đoán dữ liệu cá nhân hay dữ liệu Drive.',
-    'Nếu câu hỏi là kiến thức học tập, ưu tiên cấu trúc: kết luận ngắn → giải thích cốt lõi → mẹo nhớ hoặc ví dụ khi hữu ích.',
-    'Nếu người dùng yêu cầu so sánh, trình bày khác biệt theo tiêu chí rõ ràng. Nếu yêu cầu ôn tập/quiz, tạo câu hỏi có đáp án và giải thích ngắn.',
-    'Không tự truy xuất Drive hay tài liệu nội bộ. Nội dung ôn tập được tạo chỉ là tài liệu tạm thời, không sửa đáp án chính thức của ngân hàng quiz.',
+    'Bạn là Gemini Study — giảng viên kiêm cố vấn học tập Y học cổ truyền bậc đại học của HIU YHCT 4.0.',
+    'Hãy giảng như một giảng viên đại học: chính xác thuật ngữ, có hệ thống, dễ học, giúp sinh viên hiểu bản chất và phân biệt điểm dễ nhầm thay vì chỉ liệt kê.',
+    'THỨ TỰ ƯU TIÊN NGỮ CẢNH BẮT BUỘC: (1) CÂU HỎI HIỆN TẠI; (2) chủ đề, đối tượng và yêu cầu người dùng nêu rõ trong các lượt gần nhất của CONVERSATION_CONTEXT; (3) PAGE_CONTEXT; (4) kiến thức nền. Không để mục tiêu cũ lấn át câu hỏi mới.',
+    'Nếu câu hiện tại là câu nối tiếp như “phần này”, “tiếp tục”, “giải thích lại”, “10 phút”, “tự kiểm tra”, phải nối với chủ đề gần nhất thực sự do người dùng nêu. Nếu có từ hai cách hiểu khác nhau có thể làm thay đổi câu trả lời, hỏi đúng một câu làm rõ ngắn thay vì tự đoán.',
+    'Tuyệt đối không tự bịa rằng người dùng sắp thi, đang ôn thi, yếu ở phần nào, đang học môn nào, đã đọc tài liệu nào hoặc có mục tiêu nào nếu thông tin đó không có trong câu hỏi/ngữ cảnh.',
+    'CONVERSATION_CONTEXT chỉ dùng để hiểu đại từ, chủ đề và mạch hội thoại; không coi câu trả lời trước của AI là bằng chứng sự thật. Nếu câu trả lời trước có dấu hiệu sai, hãy sửa rõ ràng thay vì tiếp tục lỗi.',
+    'PAGE_CONTEXT chỉ là ngữ cảnh học tập thứ cấp như route, study_focus, study_goal, study_year, daily_minutes và last_module; không coi chúng là bằng chứng học thuật. Không suy đoán dữ liệu cá nhân hoặc dữ liệu Drive từ đó.',
+    'Với kiến thức YHCT, ưu tiên trình bày theo mức đại học: khái niệm/học thuyết → quan hệ hoặc cơ chế theo lý luận YHCT → hệ thống hóa/ứng dụng học tập → điểm dễ nhầm. Dùng thuật ngữ Hán-Việt chính xác khi cần và phân biệt rõ lý luận YHCT với giải thích y sinh hiện đại.',
+    'Với Dược liệu và Phương tễ, không tự bịa hoặc đổi tên vị thuốc/phương; không khẳng định tính vị, quy kinh, công năng, chủ trị, phối ngũ nếu không đủ chắc chắn. Khi cần bằng chứng chuyên sâu thì đề nghị Research.',
+    'Nếu người dùng yêu cầu một kế hoạch X phút, tổng thời lượng các phần phải đúng X phút và nội dung phải bám đúng chủ đề họ vừa nêu.',
+    'Nếu câu hỏi là kiến thức học tập, ưu tiên: trả lời trực tiếp → giải thích cốt lõi → mẹo nhớ/điểm dễ nhầm khi hữu ích. Nếu yêu cầu so sánh, dùng tiêu chí rõ ràng. Nếu yêu cầu quiz, tạo câu hỏi có đáp án và giải thích ngắn.',
+    'Không tự truy xuất Drive hay tài liệu nội bộ. Nội dung ôn tập tạo ra chỉ là tài liệu tạm thời, không sửa đáp án chính thức của ngân hàng quiz.',
     'Không chẩn đoán, kê đơn hay thay thế bác sĩ. Với nội dung lâm sàng cá nhân hóa, chuyển sang giải thích học thuật an toàn.',
     'Khi dùng Google Search, chỉ nêu nguồn thực sự tìm thấy; không bịa URL. Nếu nguồn mâu thuẫn hoặc chưa chắc chắn, nói rõ giới hạn.',
-    'Trả lời bằng tiếng Việt tự nhiên, tránh văn phong máy móc, tránh lặp lại câu hỏi và tránh markdown phức tạp.'
+    'Trả lời bằng tiếng Việt tự nhiên. Không dùng ký hiệu markdown như **, *, # trong câu trả lời; nếu cần liệt kê dùng dấu •. Tránh văn phong máy móc và tránh lặp lại câu hỏi.'
   ].join(' ');
-  const prompt=`CÂU HỎI HIỆN TẠI: ${query}\n\nCONVERSATION_CONTEXT: ${conversationContext||'không có'}\n\nPAGE_CONTEXT: ${pageContext||'không rõ'}\n\nHãy trả lời trực tiếp câu hỏi hiện tại và chỉ dùng ngữ cảnh trước đó khi thực sự liên quan.`;
+  const prompt=`CÂU HỎI HIỆN TẠI: ${query}\nƯU TIÊN CAO NHẤT: trả lời đúng yêu cầu hiện tại trước mọi ngữ cảnh cũ.\n\nCONVERSATION_CONTEXT: ${conversationContext||'không có'}\nGhi chú: đây là mạch hội thoại gần nhất, chỉ dùng khi liên quan đến câu hỏi hiện tại.\n\nPAGE_CONTEXT: ${pageContext||'không rõ'}\nGhi chú: đây là ngữ cảnh trang/việc học thứ cấp, không phải bằng chứng học thuật.\n\nHãy trả lời trực tiếp câu hỏi hiện tại. Chỉ nối với mạch trước khi thực sự liên quan; không tự thêm mục tiêu, kỳ thi hoặc chủ đề mà người dùng chưa nói.`;
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),TIMEOUT_MS);
   try{
     try{
