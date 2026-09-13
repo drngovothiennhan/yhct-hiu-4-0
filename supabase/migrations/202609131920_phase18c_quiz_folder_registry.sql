@@ -43,9 +43,9 @@ begin
   insert into private.practice_subject_folders_v1(folder_name,active,first_seen_at,last_seen_at)
   select s.folder_name,true,now(),now()
   from (
-    select distinct left(btrim(value),160) as folder_name
-    from unnest(coalesce(p_subjects,'{}'::text[])) value
-    where btrim(value)<>''
+    select distinct left(btrim(u.value),160) as folder_name
+    from unnest(coalesce(p_subjects,'{}'::text[])) as u(value)
+    where btrim(u.value)<>''
   ) s
   on conflict(folder_name) do update set active=true,last_seen_at=now();
 
