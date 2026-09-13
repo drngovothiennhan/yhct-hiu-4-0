@@ -78,7 +78,7 @@ test('direct TXT uploads remain UTF-8 only and bounded after PDF source support'
  assert.ok(api.includes("/\\.txt$/i.test(fileName)")&&api.includes("new TextDecoder('utf-8',{fatal:true})")&&api.includes('MAX_UPLOAD_BYTES=2_000_000')&&api.includes('MAX_SOURCE_TEXT=400_000')&&api.includes("mimeType:'text/plain'")&&api.includes('sourceHash=shaBuffer(buffer)'));
  assert.ok(api.includes("replace(/\\r\\n?/g,'\\n')")&&api.includes("replace(/\\u0000/g,'')")&&api.includes('sourceText:String(source.text||\'\')'));
  assert.ok(service.includes('sourceFileBase64')&&service.includes('/\\.(?:docx|txt|pdf)$/i.test(file.name)')&&service.includes('file.size>2000000'));
- assert.ok(learning.includes('sourceFileBase64')&&learning.includes('accept=".docx,.txt,.pdf,text/plain,application/pdf"')&&learning.includes('TXT'));
+ assert.ok(learning.includes('sourceFileBase64')&&learning.includes('.docx,.pdf,.txt')&&learning.includes('application/pdf')&&learning.includes('text/plain')&&learning.includes('DOCX · PDF · TXT'));
  assert.ok(acc.includes('LearningContentManagerPanel')&&!acc.includes('sourceFileBase64')&&!acc.includes('TXT UTF-8'));
 });
 test('pipeline v2 persistence contract uses revision CAS and one canonical resumable UI orchestration',()=>{
