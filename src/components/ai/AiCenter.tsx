@@ -1,7 +1,8 @@
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
-import {BookOpen,ExternalLink,FlaskConical,GraduationCap,Lightbulb,LoaderCircle,RotateCcw,Send,Square} from 'lucide-react';
+import {BookOpen,ExternalLink,FileSearch,FlaskConical,GraduationCap,Lightbulb,LoaderCircle,RotateCcw,Send,Square} from 'lucide-react';
 import type {Member} from '../../types';
 import {askStudyGemini,type StudyAiSource} from '../../services/studyAiService';
+import {findRelatedLearningResources,type LearningResourceHit} from '../../services/learningResourceService';
 import {readStudentJourney,recordAiUse} from '../../services/studentJourneyService';
 import '../../ai-center.css';
 
@@ -16,9 +17,11 @@ const prompts=[
 ] as const;
 const clean=(value:string)=>value.replace(/\s+/g,' ').trim();
 const contextOf=(messages:Message[])=>messages.slice(-8).map(item=>`${item.role==='user'?'NGƯỜI DÙNG':'GEMINI STUDY'}: ${clean(item.text).slice(0,900)}`).join('\n').slice(0,7000);
+const resourceTypeLabel=(type:string)=>type==='quiz_source'?'Bộ trắc nghiệm':type==='reference'?'Tài liệu tham khảo':'Tài liệu học';
 
 export default function AiCenter({member,onOpenResearch}:{member:Member;onOpenResearch:()=>void}){
   const [messages,setMessages]=useState<Message[]>([]),[query,setQuery]=useState(''),[busy,setBusy]=useState(false),[status,setStatus]=useState('');
+  const [resourceHits,setResourceHits]=useState<LearningResourceHit[]>([]),[resourceBusy,setResourceBusy]=useState(false);
   const request=useRef<AbortController|null>(null),turn=useRef(0);
   const displayName=useMemo(()=>member.herbalAlias||member.fullName,[member.herbalAlias,member.fullName]);
   const journey=useMemo(()=>readStudentJourney(member.id),[member.id]);
@@ -35,10 +38,10 @@ export default function AiCenter({member,onOpenResearch}:{member:Member;onOpenRe
     ].filter(Boolean).join(' | ').slice(0,600);
   },[journey]);
   const stop=()=>{turn.current++;request.current?.abort();request.current=null;setBusy(false);setStatus('Đã dừng yêu cầu.')};
-  const reset=()=>{stop();setMessages([]);setQuery('');setStatus('')};
+  const reset=()=>{stop();setMessages([]);setResourceHits([]);setQuery('');setStatus('')};
   const send=async(value=query)=>{
     const text=clean(value);if(!text||busy)return;
-    const id=++turn.current,controller=new AbortController();request.current=controller;setBusy(true);setStatus('');setQuery('');
+    const id=++turn.current,controller=new AbortController();request.current=controller;setBusy(true);setStatus('');setQuery('');setResourceHits([]);
     const user:Message={id:crypto.randomUUID(),role:'user',text};setMessages(current=>[...current,user]);
     try{
       const reply=await askStudyGemini(text,contextOf(messages),studyPageContext,controller.signal);if(id!==turn.current)return;
@@ -55,11 +58,22 @@ export default function AiCenter({member,onOpenResearch}:{member:Member;onOpenRe
   const openResearch=(seed:string)=>{try{localStorage.setItem(RESEARCH_PENDING_KEY,seed)}catch{}onOpenResearch()};
   const submit=(event:FormEvent)=>{event.preventDefault();void send()};
   const continueWith=(instruction:string)=>void send(instruction);
+  const latestUserSeed=()=>messages.slice().reverse().find(item=>item.role==='user')?.text||studyFocus||'';
+  const findResources=async()=>{
+    if(resourceBusy)return;
+    const seed=latestUserSeed();if(!seed){setStatus('Hãy hỏi một chủ đề trước khi tìm tài liệu liên quan.');return}
+    setResourceBusy(true);setStatus('');
+    try{
+      const hits=await findRelatedLearningResources(seed,6);setResourceHits(hits);
+      if(!hits.length)setStatus('Chưa có tài liệu đã phát hành khớp chủ đề này. Bạn vẫn có thể dùng Research để tra cứu nguồn công khai.');
+    }catch{setStatus('Chưa thể đọc danh mục tài liệu đã phát hành lúc này.')}
+    finally{setResourceBusy(false)}
+  };
   return <section className="ai-center" aria-label="AI Study OS HIU YHCT">
     <header className="ai-center__header"><div><small>AI STUDY OS · GEMINI</small><h2>Học cùng một trợ lý hiểu mạch câu hỏi</h2><p>Hỏi kiến thức, ôn nhanh, tự kiểm tra hoặc chuyển sang Research khi cần bằng chứng chuyên sâu.</p></div><div><button type="button" onClick={reset}><RotateCcw/>Mới</button>{busy&&<button type="button" className="danger" onClick={stop}><Square/>Dừng</button>}</div></header>
     <div className="ai-center__suggestions" aria-label="Công cụ học nhanh">{prompts.map(prompt=><button type="button" key={prompt.label} disabled={busy} onClick={()=>void send(prompt.text)}>{prompt.icon==='quiz'?<GraduationCap/>:prompt.icon==='learn'?<Lightbulb/>:<BookOpen/>}<span>{prompt.label}</span></button>)}<button type="button" className="research" onClick={onOpenResearch}><FlaskConical/><span>Research</span></button></div>
     <div className="ai-center__conversation" aria-live="polite">
-      {messages.length===0?<div className="ai-center__empty"><span className="ai-center__empty-icon"><Lightbulb/></span><h3>Chào {displayName}</h3><p>Nhập điều bạn đang chưa hiểu. AI sẽ bám theo các lượt trước và mục tiêu học tập đã chọn để trả lời đúng ngữ cảnh hơn.</p><small>{studyFocus?`Đang ưu tiên: ${studyFocus}. `:''}Gemini không tự đọc Drive; Research chỉ dùng tài liệu nội bộ khi bạn chủ động chọn.</small></div>:messages.map((item,index)=><article key={item.id} className={`ai-center__message ${item.role}`}><div>{item.text}</div>{item.sources?.length?<div className="ai-center__sources">{item.sources.map(source=><a key={source.url} href={source.url} target="_blank" rel="noreferrer"><ExternalLink/>{source.title}</a>)}</div>:null}{item.research&&item.role==='assistant'?<button type="button" className="ai-center__research" onClick={()=>openResearch(item.researchQuery||'')}><FlaskConical/>Mở Trung tâm nghiên cứu</button>:null}{item.role==='assistant'&&index===messages.length-1&&!item.research?<div className="ai-center__followups"><button type="button" disabled={busy} onClick={()=>continueWith('Tóm tắt câu trả lời ngay trước thành 5 ý phải nhớ.')}>5 ý phải nhớ</button><button type="button" disabled={busy} onClick={()=>continueWith('Giải thích lại câu trả lời ngay trước đơn giản hơn, dùng một ví dụ dễ nhớ.')}>Giải thích dễ hơn</button><button type="button" disabled={busy} onClick={()=>continueWith('Dựa trên nội dung ngay trước, tạo 5 câu trắc nghiệm có đáp án và giải thích ngắn để tôi tự kiểm tra.')}>Tạo 5 câu</button><button type="button" disabled={busy} onClick={()=>continueWith('Tiếp tục chủ đề ngay trước: chỉ ra 3 liên hệ quan trọng hoặc điểm dễ nhầm mà tôi nên học tiếp.')}>Học sâu hơn</button></div>:null}</article>)}
+      {messages.length===0?<div className="ai-center__empty"><span className="ai-center__empty-icon"><Lightbulb/></span><h3>Chào {displayName}</h3><p>Nhập điều bạn đang chưa hiểu. AI sẽ bám theo các lượt trước và mục tiêu học tập đã chọn để trả lời đúng ngữ cảnh hơn.</p><small>{studyFocus?`Đang ưu tiên: ${studyFocus}. `:''}Gemini không tự đọc Drive; Research chỉ dùng tài liệu nội bộ khi bạn chủ động chọn.</small></div>:messages.map((item,index)=><article key={item.id} className={`ai-center__message ${item.role}`}><div>{item.text}</div>{item.sources?.length?<div className="ai-center__sources">{item.sources.map(source=><a key={source.url} href={source.url} target="_blank" rel="noreferrer"><ExternalLink/>{source.title}</a>)}</div>:null}{item.research&&item.role==='assistant'?<button type="button" className="ai-center__research" onClick={()=>openResearch(item.researchQuery||'')}><FlaskConical/>Mở Trung tâm nghiên cứu</button>:null}{item.role==='assistant'&&index===messages.length-1&&!item.research?<><div className="ai-center__followups"><button type="button" disabled={busy} onClick={()=>continueWith('Tóm tắt câu trả lời ngay trước thành 5 ý phải nhớ.')}>5 ý phải nhớ</button><button type="button" disabled={busy} onClick={()=>continueWith('Giải thích lại câu trả lời ngay trước đơn giản hơn, dùng một ví dụ dễ nhớ.')}>Giải thích dễ hơn</button><button type="button" disabled={busy} onClick={()=>continueWith('Dựa trên nội dung ngay trước, tạo 5 câu trắc nghiệm có đáp án và giải thích ngắn để tôi tự kiểm tra.')}>Tạo 5 câu</button><button type="button" disabled={busy} onClick={()=>continueWith('Tiếp tục chủ đề ngay trước: chỉ ra 3 liên hệ quan trọng hoặc điểm dễ nhầm mà tôi nên học tiếp.')}>Học sâu hơn</button><button type="button" disabled={busy||resourceBusy} onClick={()=>void findResources()}><FileSearch/>{resourceBusy?'Đang tìm…':'Tài liệu liên quan'}</button></div>{resourceHits.length?<div className="ai-center__resources" aria-label="Tài liệu học tập liên quan"><b>Tài liệu đã phát hành trong HIU YHCT</b>{resourceHits.map(resource=><div key={resource.resourceKey}><FileSearch/><span><strong>{resource.title}</strong><small>{resourceTypeLabel(resource.resourceType)}</small></span></div>)}<small>Chỉ hiển thị metadata an toàn. Gemini không nhận nội dung hoặc đường dẫn Drive từ thao tác này.</small></div>:null}</>:null}</article>)}
       {busy&&<div className="ai-center__thinking"><LoaderCircle/>Gemini đang xử lý theo ngữ cảnh…</div>}
     </div>
     {status&&<div className="ai-center__status" role="status">{status}</div>}
