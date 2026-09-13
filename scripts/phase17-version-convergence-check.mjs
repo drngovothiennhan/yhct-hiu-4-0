@@ -34,12 +34,14 @@ need(quizAccEntry,/LearningContentManagerPanel/,'ACC learning entry must use the
 forbid(quizAccEntry,/qi-flow|Chọn nguồn|Chia phần & xử lý|Xem & đối chiếu|Chọn thư mục Drive hoặc tải DOCX\/TXT\/PDF/i,'legacy ACC quiz workflow/copy must not return');
 need(quizBankManager,/syncQuizBank/,'canonical ACC quiz manager must retain the bank update action');
 need(quizBankManager,/>Cập nhật<|:'Cập nhật'/,'canonical ACC quiz manager must expose the Update button');
-need(quizBankManager,/File từ ACC/,'canonical ACC quiz manager must expose direct DOCX intake beside Update');
+need(quizBankManager,/File từ ACC/,'canonical ACC quiz manager must expose direct source intake beside Update');
+need(quizBankManager,/DOCX · PDF · TXT/,'primary ACC Update must accept the supported source formats');
 need(trustedQuizIngest,/BANK_FOLDER_NAME='NGÂN HÀNG TRẮC NGHIỆM'/,'quiz-bank Update must target the canonical exam bank');
 need(trustedQuizIngest,/MANUAL_INTAKE_FOLDER='Thêm thủ công'/,'legacy manual intake must remain compatible');
-need(trustedQuizIngest,/for\(const file of root\.filter\(isDocx\)\)addDirect\(file\)/,'quiz-bank root DOCX files must be scanned directly');
+need(trustedQuizIngest,/for\(const file of root\.filter\(isSupportedSource\)\)addDirect\(file\)/,'quiz-bank root supported files must be scanned directly');
 need(trustedQuizIngest,/const rows=await listChildren\(manual\.id,1000\)/,'legacy manual intake folder must still be scanned directly');
-need(trustedQuizIngest,/parseTrustedDeterministicDocx/,'one-step update must require deterministic answer evidence');
+need(trustedQuizIngest,/parseTrustedDeterministicSource/,'one-step update must require deterministic answer evidence across formats');
+need(trustedQuizIngest,/PDFParse/,'PDF extraction must remain server-side inside the existing ingestion function');
 need(trustedQuizIngest,/practice_trusted_quiz_ingest_v1/,'one-step Update must use the trusted direct-bank RPC');
 forbid(trustedQuizIngest,/practice_drive_ingest_admin_v1/,'one-step Update must not use the generic draft ingest path');
 
@@ -63,4 +65,4 @@ function walk(dir,relative=''){
 walk(new URL('../api/',import.meta.url));
 if(entries.length>12)fail(`Vercel Hobby function budget exceeded: ${entries.length}`);
 
-console.log(`Phase 17/18E version convergence: PASS · sole Study OS Home · one-step ACC/Drive quiz bank · shared Study gateway · task-only XiaoZhi · V20 clinic · release-aware PWA · ${entries.length}/12 functions`);
+console.log(`Phase 17/18F version convergence: PASS · sole Study OS Home · universal one-step ACC/Drive quiz bank · shared Study gateway · task-only XiaoZhi · V20 clinic · release-aware PWA · ${entries.length}/12 functions`);
