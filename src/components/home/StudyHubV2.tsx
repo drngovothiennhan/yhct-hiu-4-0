@@ -7,6 +7,7 @@ import {routeStudyOsRequest} from '../../v2/study-os/intentRouter';
 import './study-hub-v2.css';
 
 const RESEARCH_PENDING_KEY='yhct-research-pending-query-v1';
+const AI_PENDING_KEY='yhct-ai-center-pending-query-v1';
 
 type Props={member:Member|null;onNavigate:(module:ModuleId)=>void;onLogin:()=>void};
 type QuickAction={label:string;seed:string;icon:'learn'|'quiz'|'research'};
@@ -36,7 +37,8 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
       return;
     }
     if(!member){onLogin();return}
-    window.dispatchEvent(new CustomEvent('yhct:ai:open',{detail:{query:plan.query,context:`study-hub-v2:${plan.intent}`}}));
+    try{localStorage.setItem(AI_PENDING_KEY,plan.query)}catch{}
+    onNavigate('ai');
   };
 
   const submit=(event:FormEvent)=>{event.preventDefault();execute(query)};
@@ -64,7 +66,7 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
       <article className="study-os-v2__card study-os-v2__card--focus">
         <div className="study-os-v2__card-icon"><Target/></div>
         <div><small>HỌC TIẾP</small><h3>{focus}</h3><p>Mục tiêu cá nhân hiện tại: {dailyMinutes} phút tập trung.</p></div>
-        <button onClick={()=>execute(`Giúp tôi học tiếp ${focus} trong ${dailyMinutes} phút`)}>Học cùng trợ lý <ArrowRight/></button>
+        <button onClick={()=>execute(`Giúp tôi học tiếp ${focus} trong ${dailyMinutes} phút`)}>Học cùng AI <ArrowRight/></button>
       </article>
 
       <article className="study-os-v2__card">
@@ -81,8 +83,8 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
     </div>
 
     <section className="study-os-v2__assistant">
-      <div><BookOpen/><span><b>Trợ lý riêng HIU YHCT</b><small>Một trợ lý thống nhất cho học tập, câu hỏi thường quy, điều hướng ứng dụng và kế hoạch cá nhân.</small></span></div>
-      <button onClick={()=>execute(`Giúp tôi lập kế hoạch học ${focus} hôm nay`)}>{member?'Mở trợ lý':'Đăng nhập để dùng'} <ArrowRight/></button>
+      <div><BookOpen/><span><b>AI học tập HIU YHCT</b><small>Gemini phụ trách hỏi đáp theo ngữ cảnh; trợ lý nổi chỉ giữ vai trò tác vụ và điều hướng hệ thống.</small></span></div>
+      <button onClick={()=>execute(`Giúp tôi lập kế hoạch học ${focus} hôm nay`)}>{member?'Mở AI học tập':'Đăng nhập để dùng'} <ArrowRight/></button>
     </section>
   </section>;
 }
