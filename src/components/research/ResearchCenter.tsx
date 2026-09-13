@@ -36,8 +36,8 @@ export default function ResearchCenter({member,onLogin}:Props){
       if(!merged.length)setErr(failures.length?failures.join(' · '):'Không tìm thấy kết quả phù hợp. Hãy thử từ khóa tiếng Anh hoặc câu hỏi ngắn hơn.');else if(failures.length)setErr(`Một nguồn chưa phản hồi: ${failures.join(' · ')}`);
     }finally{setBusy(false)}
   };
-  const importLocal=async(files:FileList|null)=>{if(!files)return;setBusy(true);try{setDocs(x=>dedupeDocs([...x,...await ingestLocalFiles(Array.from(files))]))}finally{setBusy(false)}};
-  const importDrive=async()=>{setBusy(true);setErr('');try{setDocs(x=>dedupeDocs([...x,...await listPublicDriveFolder()]))}catch(e){setErr((e as Error).message)}finally{setBusy(false)}};
+  const importLocal=async(files:FileList|null)=>{if(!files)return;setBusy(true);try{const incoming=await ingestLocalFiles(Array.from(files));setDocs(x=>dedupeDocs([...x,...incoming]))}finally{setBusy(false)}};
+  const importDrive=async()=>{setBusy(true);setErr('');try{const incoming=await listPublicDriveFolder();setDocs(x=>dedupeDocs([...x,...incoming]))}catch(e){setErr((e as Error).message)}finally{setBusy(false)}};
   const summarizeLocal=()=>{const text=ragResults.map(r=>r.document.text||r.snippet).join('\n');setSummary(extractiveSummary(text,6)||'Chưa có đủ lớp văn bản để trích xuất.')};
   const remaining=member?'∞':String(quota.remaining),countdown=formatQuotaCountdown(quota.msUntilReset-(Date.now()-now));
   const proposalQuotaLabel=!member?'':member.role==='admin'?'Research A.I + tạo đề cương Gemini không giới hạn':(['mod','super_mod','leader'].includes(member.role)?'Research A.I + 5 lượt tạo đề cương Gemini / 6 giờ':'Research A.I + 3 lượt tạo đề cương Gemini / 6 giờ');
