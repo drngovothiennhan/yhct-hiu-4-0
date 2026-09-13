@@ -11,8 +11,8 @@ const studyService=read('src/services/studyAiService.ts');
 const studyRoute=read('api/_lib/study-assistant-handler.js');
 const assistant=read('api/ai/assistant.js');
 
-need(bank,/Ngân hàng đề HIU/,'member UI must expose HIU approved bank as a source');
-need(bank,/Đề do Gemini tạo/,'member UI must expose Gemini-generated quiz source');
+need(bank,/>Đề HIU</,'member UI must expose the approved HIU bank as an actionable source');
+need(bank,/>Đề Gemini <em className="practice-bank__ai-label">A\.I<\/em></,'member UI must expose Gemini-generated quiz as an actionable A.I-labelled source');
 need(bank,/A\.I tạo/,'AI-generated questions must carry an explicit AI label');
 need(bank,/generateStudyGeminiQuiz/,'quiz UI must use the shared Gemini Study client');
 need(bank,/submitPracticeQuiz\(questions as PracticeQuizQuestion\[\]/,'HIU bank must preserve server-authoritative grading');
@@ -32,4 +32,4 @@ need(studyRoute,/aiGenerated:true/,'server response must label generated quiz co
 need(studyRoute,/MAX_QUIZ_COUNT=20/,'AI generation must stay bounded for serverless reliability');
 need(assistant,/req\.body\?\.mode==='study'\)return handleStudyAssistant/,'existing shared assistant gateway must remain the Study entry point');
 
-console.log('Phase 18A simplified quiz source + grounded Gemini web quiz contract: PASS');
+console.log('Phase 18A actionable quiz source + grounded Gemini web quiz contract: PASS');
