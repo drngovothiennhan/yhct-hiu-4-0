@@ -34,7 +34,7 @@ assert.match(folderRegistry,/create table if not exists private\.practice_subjec
 assert.match(folderRegistry,/practice_subject_folders_sync_admin_v1/,'folder registry sync RPC missing');
 assert.match(folderRegistry,/update private\.practice_subject_folders_v1 set active=false/,'Admin Update must replace stale folder visibility');
 assert.match(folderRegistry,/join private\.practice_subject_folders_v1 f on f\.active and f\.folder_name=q\.subject/g,'member config/page must read questions only through active folder names');
-assert.match(folderRegistry,/!~\* '\\\.(docx\|pdf\|txt\|xlsx\?\|pptx\?)\$'/,'bootstrap must reject historical file-name subjects');
+assert.ok(folderRegistry.includes("and btrim(q.subject) !~* '\\.(docx|pdf|txt|xlsx?|pptx?)$'"),'bootstrap must reject historical file-name subjects');
 assert.match(folderRegistry,/Nội dung HIU không còn trong lần cập nhật mới nhất/,'stale folder selections must fail closed');
 assert.match(folderRegistry,/private\.is_learning_content_manager\(\)/,'folder sync must remain learning-manager scoped');
 assert.match(folderRegistry,/revoke all on table private\.practice_subject_folders_v1 from public,anon,authenticated/,'raw folder registry must not be directly readable by members');
