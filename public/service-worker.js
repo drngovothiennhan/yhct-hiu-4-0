@@ -1,4 +1,4 @@
-const CACHE='yhct-hiu-4-final4-v5-atomic-theme-pwa-v21-adaptive-review';
+const CACHE='yhct-hiu-4-final4-v5-atomic-theme-pwa-v22-release-aware';
 const SCOPE_URL=new URL(self.registration.scope);
 const ROOT=SCOPE_URL.pathname.endsWith('/')?SCOPE_URL.pathname:`${SCOPE_URL.pathname}/`;
 const path=name=>new URL(name,self.registration.scope).pathname;
@@ -36,7 +36,7 @@ async function navigationResponse(request){
 
 async function staticResponse(request){
   const url=new URL(request.url);
-  const mustBeFresh=url.pathname.endsWith('/manifest.webmanifest')||url.pathname.endsWith('manifest.webmanifest')||url.pathname.endsWith('/version.json')||url.pathname.endsWith('version.json');
+  const mustBeFresh=url.pathname.endsWith('/manifest.webmanifest')||url.pathname.endsWith('manifest.webmanifest')||url.pathname.endsWith('/version.json')||url.pathname.endsWith('version.json')||url.pathname.endsWith('/service-worker.js')||url.pathname.endsWith('service-worker.js');
   if(mustBeFresh){
     try{return await fetch(request,{cache:'no-store'})}catch{return Response.error()}
   }
