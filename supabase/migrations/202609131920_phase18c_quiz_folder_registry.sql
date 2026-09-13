@@ -9,6 +9,7 @@ create table if not exists private.practice_subject_folders_v1 (
   constraint practice_subject_folders_v1_name_check check (char_length(btrim(folder_name)) between 1 and 160)
 );
 
+alter table private.practice_subject_folders_v1 enable row level security;
 revoke all on table private.practice_subject_folders_v1 from public,anon,authenticated;
 
 -- Safe bootstrap for the current production bank. Obvious historical file-derived
