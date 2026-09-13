@@ -8,6 +8,7 @@ const navigation=ts.transpileModule(read('src/services/aiNavigation.ts'),{compil
 const {aiNavigationTarget}=await import(`data:text/javascript;base64,${Buffer.from(navigation).toString('base64')}`);
 assert.equal(aiNavigationTarget('Mở lịch học')?.path,'/schedule');
 assert.equal(aiNavigationTarget('Giải thích âm dương ngũ hành'),null);
+
 const aiCenter=read('src/components/ai/AiCenter.tsx');
 assert.match(aiCenter,/researchQuery:text/);
 assert.match(aiCenter,/localStorage.setItem\(RESEARCH_PENDING_KEY,seed\)/);
@@ -20,22 +21,30 @@ assert.match(aiCenter,/Học sâu hơn/);
 assert.match(aiCenter,/Tài liệu liên quan/);
 assert.match(aiCenter,/findRelatedLearningResources\(seed,6\)/);
 assert.match(aiCenter,/Chỉ hiển thị metadata an toàn/);
+
 const researchCenter=read('src/components/research/ResearchCenter.tsx');
 assert.match(researchCenter,/yhct-research-pending-query-v1/);
 assert.match(researchCenter,/localStorage\.getItem\(RESEARCH_PENDING_KEY\)/);
 assert.match(researchCenter,/localStorage\.removeItem\(RESEARCH_PENDING_KEY\)/);
 assert.match(researchCenter,/setQ\(seed\)/);
 assert.match(researchCenter,/setRagQ\(seed\)/);
-assert.match(researchCenter,/const \[ragInternalConsent,setRagInternalConsent\]=useState\(false\)/);
-assert.doesNotMatch(researchCenter,/setRagInternalConsent\(true\)/);
+assert.match(researchCenter,/<ResearchAiMini/);
+assert.doesNotMatch(researchCenter,/ragInternalConsent|setRagInternalConsent/,'Research Center must not own a second AI consent/orchestration state');
+const researchMini=read('src/components/research/ResearchAiMini.tsx');
+assert.match(researchMini,/Dùng tài liệu nội bộ cho lượt này/);
+assert.match(researchMini,/setUseInternal\(false\)/,'internal context consent must be consumed after one request');
+assert.match(researchMini,/\{useInternal:internalEnabled\}/,'Research A.I must forward request-scoped consent to the gateway');
+
 const resourceService=read('src/services/learningResourceService.ts');
 assert.match(resourceService,/learning_resource_list_v1/);
 assert.match(resourceService,/p_include_drafts:false/);
 assert.match(resourceService,/row\.status==='published'&&row\.audience==='members'/);
 assert.doesNotMatch(resourceService,/source_locator|source_version|source_metadata|drive_file_id|webViewLink|drive\.google\.com/i);
+
 const client=read('src/services/studyAiService.ts');
 assert.match(client,/fetch\('\/api\/ai\/assistant'/);
 assert.match(client,/JSON\.stringify\(\{mode:'study',query,conversationContext,pageContext\}\)/);
+assert.match(client,/fetch\('\/api\/ai\/study-quiz'/,'generated quiz must use the dedicated resilient endpoint without changing Study chat');
 assert.match(read('api/ai/assistant.js'),/if\(req.body\?\.mode==='study'\)return handleStudyAssistant\(req,res\)/);
 assert.ok(!fs.existsSync(new URL('../api/ai/study-assistant.js',import.meta.url)));
 const studyHandler=read('api/_lib/study-assistant-handler.js');
@@ -46,7 +55,7 @@ assert.doesNotMatch(read('src/components/ai/UnifiedAiMini.tsx'),/askXiaoZhiMini/
 assert.match(read('src/components/ai/UnifiedAiMini.tsx'),/openStudyAi\(text\)/);
 assert.match(read('api/ai/assistant.js'),/internalContextConsent/);
 
-// Vite project: Vercel excludes underscore-prefixed files/directories in api/.
+// Keep the project within the Hobby function-source budget even after adding the dedicated quiz endpoint.
 const entries=[];
 function walk(dir,relative=''){
   for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
@@ -63,11 +72,11 @@ console.log(`Serverless source entrypoints: ${entries.length}/12\n${entries.join
 const originalFetch=globalThis.fetch;
 const originalKey=process.env.GEMINI_API_KEY,originalEnabled=process.env.ENABLE_GEMINI_AI;
 const calls=[];
-let role='member',approved=true,searchFails=false;
+let approved=true,searchFails=false;
 const response=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json'}});
-globalThis.fetch=async(url,options)=>{
-  calls.push({url:String(url),body:JSON.parse(options.body)});
-  if(String(url).endsWith('/rpc/current_member_access_v1'))return response({approved,role,memberId:'test-member'});
+globalThis.fetch=async(url,options={})=>{
+  const body=options.body?JSON.parse(options.body):null;calls.push({url:String(url),body});
+  if(String(url).endsWith('/rpc/current_member_access_v1'))return response({approved,role:'member',memberId:'test-member'});
   if(String(url).endsWith('/interactions'))return searchFails?response({error:{message:'search unavailable'}},503):response({output_text:'Kết luận ngắn\nGiải thích cốt lõi'});
   if(String(url).includes(':generateContent'))return response({candidates:[{content:{parts:[{text:'Gemini text fallback'}]}}]});
   throw new Error(`Unexpected external call: ${url}`);
@@ -106,7 +115,7 @@ try{
   delete process.env.GEMINI_API_KEY;
   assert.equal((await invoke({mode:'study',query:'Tạng tượng là gì?'})).code,503);
   for(const mode of ['fast','research','exam','xiaozhi-mini'])assert.equal((await invoke({mode,query:'test'},'POST',false)).code,401,`${mode} authentication preserved`);
-  console.log('Phase 17 shared Study gateway runtime + privacy + learner-context + safe-resource + research-handoff + fallback contracts: PASS');
+  console.log('Phase 19 shared Study chat gateway + privacy + learner context + Research handoff + isolated resilient quiz endpoint: PASS');
 }finally{
   globalThis.fetch=originalFetch;
   if(originalKey===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=originalKey;
