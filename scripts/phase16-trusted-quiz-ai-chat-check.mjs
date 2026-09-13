@@ -19,7 +19,10 @@ const service=read('src/services/dailyPracticeService.ts');
 const app=read('src/App.tsx');
 const modules=read('src/modules/moduleContract.ts');
 const aiCenter=read('src/components/ai/AiCenter.tsx');
+const aiMini=read('src/components/ai/UnifiedAiMini.tsx');
 const aiMiniCss=read('src/app-assistant-ai.css');
+const studyService=read('src/services/studyAiService.ts');
+const studyRoute=read('api/ai/study-assistant.js');
 
 for(const pattern of [/FF0000/,/word-font-color-red-v1/,/uniqueMarked\.length!==1/,/trustedApprovedSource:true/,/reviewStatus='source_verified'/])need(parser,pattern,`DOCX parser missing ${pattern}`);
 forbid(parser,/gemini|openai|createGemini|fetch\(/i,'trusted DOCX parser must not use AI or network inference');
@@ -73,9 +76,16 @@ need(app,/tab==='ai'&&member&&<AiCenter/,'AI Center route render missing');
 need(aiCenter,/ai-center__conversation/,'AI Center must prioritize transcript');
 need(aiCenter,/ai-center__suggestions/,'AI Center compact suggestion row missing');
 need(aiCenter,/ai-center__composer/,'AI Center composer missing');
-need(aiCenter,/askXiaoZhiMini/,'AI Center must reuse canonical XiaoZhi backend');
+need(aiCenter,/askStudyGemini/,'AI Center must use dedicated Gemini Study service');
+forbid(aiCenter,/askXiaoZhiMini/,'AI Center must not reuse XiaoZhi Q&A after the Study OS split');
+need(studyService,/\/api\/ai\/study-assistant/,'Gemini Study client route missing');
+need(studyRoute,/createGeminiWebSearch/,'Gemini Study must use Gemini grounded search as primary answer path');
+need(studyRoute,/conversationContext/,'Gemini Study must receive conversational context');
+forbid(aiMini,/askXiaoZhiMini/,'floating assistant must remain task/navigation-only');
+need(aiMini,/AI_PENDING_KEY/,'task assistant must hand ordinary questions to the AI Center');
 need(aiMiniCss,/app-assistant-role,.app-assistant-guide-toggle\{display:none!important\}/,'AI Mini intro must be hidden');
 need(aiMiniCss,/app-assistant-shortcuts\{display:flex!important/,'AI Mini suggestions must be a one-row scroller');
+need(aiMiniCss,/data-active-module="ai"[^\n]*app-assistant/,'floating task assistant must be hidden inside the dedicated AI workspace');
 
 const good=Buffer.from('UEsDBBQAAAAIAKRxLF0KymDdBAEAAJACAAARAAAAd29yZC9kb2N1bWVudC54bWyNkk1OxCAUx/ee4oW90HZhTNOPzEcaNyaz0AMgZWaaAI8AM3WO4tZruPQk3kSo40qTlsWDB3/+jx9Qta9awVk6P6CpSU4zAtII7AdzqMnzU3d7T8AHbnqu0MiaXKQnbXNTjWWP4qSlCRAdjC/HmhxDsCVjXhyl5p6ilSau7dFpHmLqDmxE11uHQnofC2jFiiy7Y5oPhjTR8gX7y+RtU+ZSCM3m8/0EOYXHr4+30FYszaXopmj/6FcUVvmczO2mTqBCB2N55qomXZfFRtjPtt3Vbk1hPWsXT0lhs0C2pbBd4paYCwoPfJglXo6SbqaYL56IF8gS8QJZIv5Xxq7vnQa/f6n5BlBLAQIUAxQAAAAIAKRxLF0KymDdBAEAAJACAAARAAAAAAAAAAAAAACAAQAAAAB3b3JkL2RvY3VtZW50LnhtbFBLBQYAAAAAAQABAD8AAAAzAQAAAAA=','base64');
 const goodResult=parseTrustedMarkedDocx(good,{id:'fixture-good',name:'fixture.docx',parentName:'Thuốc YHCT'},'fixture-hash');
@@ -86,4 +96,4 @@ const bad=Buffer.from('UEsDBBQAAAAIAKpxLF3yhyFZ6QAAAMYBAAARAAAAd29yZC9kb2N1bWVud
 const badResult=parseTrustedMarkedDocx(bad,{id:'fixture-bad',name:'fixture.docx',parentName:'Thuốc YHCT'},'fixture-hash');
 if(badResult.trusted||badResult.invalid[0]?.reason!=='multiple_red_answers')fail('ambiguous multiple-red DOCX fixture must be rejected without inference');
 
-console.log('Phase 16 trusted quiz bank update + answer review + AI Center contract: PASS');
+console.log('Phase 16 trusted quiz bank update + answer review + Gemini Study split contract: PASS');
