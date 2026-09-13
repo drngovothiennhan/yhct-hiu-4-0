@@ -8,14 +8,24 @@ const navigation=ts.transpileModule(read('src/services/aiNavigation.ts'),{compil
 const {aiNavigationTarget}=await import(`data:text/javascript;base64,${Buffer.from(navigation).toString('base64')}`);
 assert.equal(aiNavigationTarget('Mở lịch học')?.path,'/schedule');
 assert.equal(aiNavigationTarget('Giải thích âm dương ngũ hành'),null);
-assert.match(read('src/components/ai/AiCenter.tsx'),/researchQuery:text/);
-assert.match(read('src/components/ai/AiCenter.tsx'),/localStorage.setItem\(RESEARCH_PENDING_KEY,seed\)/);
+const aiCenter=read('src/components/ai/AiCenter.tsx');
+assert.match(aiCenter,/researchQuery:text/);
+assert.match(aiCenter,/localStorage.setItem\(RESEARCH_PENDING_KEY,seed\)/);
+assert.match(aiCenter,/readStudentJourney\(member\.id\)/);
+assert.match(aiCenter,/study_focus=/);
+assert.match(aiCenter,/study_goal=/);
+assert.match(aiCenter,/daily_minutes=/);
+assert.match(aiCenter,/last_module=/);
+assert.match(aiCenter,/Học sâu hơn/);
 const client=read('src/services/studyAiService.ts');
 assert.match(client,/fetch\('\/api\/ai\/assistant'/);
 assert.match(client,/JSON\.stringify\(\{mode:'study',query,conversationContext,pageContext\}\)/);
 assert.match(read('api/ai/assistant.js'),/if\(req.body\?\.mode==='study'\)return handleStudyAssistant\(req,res\)/);
 assert.ok(!fs.existsSync(new URL('../api/ai/study-assistant.js',import.meta.url)));
-assert.match(read('api/_lib/study-assistant-handler.js'),/export async function handleStudyAssistant/);
+const studyHandler=read('api/_lib/study-assistant-handler.js');
+assert.match(studyHandler,/export async function handleStudyAssistant/);
+assert.match(studyHandler,/study_focus/);
+assert.match(studyHandler,/không coi chúng là bằng chứng học thuật/);
 assert.doesNotMatch(read('src/components/ai/UnifiedAiMini.tsx'),/askXiaoZhiMini/);
 assert.match(read('src/components/ai/UnifiedAiMini.tsx'),/openStudyAi\(text\)/);
 assert.match(read('api/ai/assistant.js'),/internalContextConsent/);
@@ -62,14 +72,17 @@ try{
     const before=calls.length,result=await invoke({mode:'study',query});
     assert.equal(result.body.route,'research',query);assert.equal(calls.length,before+1,'Research handoff must not call an AI provider');
   }
+  const learnerContext='route=/ai | study_focus=Sinh lý nội tiết | study_goal=exam | study_year=2 | daily_minutes=20 | last_module=exam';
   for(const query of ['Tạng tượng là gì?','So sánh Tỳ khí hư và Tỳ dương hư','Vậy điểm khác nhau quan trọng nhất là gì?']){
-    const result=await invoke({mode:'study',query,conversationContext:'So sánh Tỳ khí hư và Tỳ dương hư',pageContext:'ai',sources:[{id:'drive:private',text:'PRIVATE_SOURCE_SENTINEL'}]});
+    const result=await invoke({mode:'study',query,conversationContext:'So sánh Tỳ khí hư và Tỳ dương hư',pageContext:learnerContext,sources:[{id:'drive:private',text:'PRIVATE_SOURCE_SENTINEL'}]});
     assert.equal(result.code,200);assert.equal(result.body.provider,'gemini-web');assert.equal(result.body.route,null);
     assert.ok(result.body.answer.includes('\n'),'Preserve readable answer paragraphs');
     const prompt=calls.at(-1).body.input;
     assert.ok(prompt.includes(`CÂU HỎI HIỆN TẠI: ${query}`));
     assert.ok(prompt.includes('CONVERSATION_CONTEXT: So sánh Tỳ khí hư và Tỳ dương hư'));
-    assert.ok(prompt.includes('PAGE_CONTEXT: ai'));assert.ok(!prompt.includes('PRIVATE_SOURCE_SENTINEL'));
+    assert.ok(prompt.includes(`PAGE_CONTEXT: ${learnerContext}`));
+    assert.ok(prompt.includes('study_focus=Sinh lý nội tiết'));
+    assert.ok(!prompt.includes('PRIVATE_SOURCE_SENTINEL'));
   }
   searchFails=true;const fallback=await invoke({mode:'study',query:'Tạo câu hỏi ôn tập'});
   assert.equal(fallback.code,200);assert.equal(fallback.body.provider,'gemini');assert.equal(fallback.body.degraded,true);
@@ -77,7 +90,7 @@ try{
   delete process.env.GEMINI_API_KEY;
   assert.equal((await invoke({mode:'study',query:'Tạng tượng là gì?'})).code,503);
   for(const mode of ['fast','research','exam','xiaozhi-mini'])assert.equal((await invoke({mode,query:'test'},'POST',false)).code,401,`${mode} authentication preserved`);
-  console.log('Phase 17 shared Study gateway runtime + privacy + fallback contracts: PASS');
+  console.log('Phase 17 shared Study gateway runtime + privacy + learner-context + fallback contracts: PASS');
 }finally{
   globalThis.fetch=originalFetch;
   if(originalKey===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=originalKey;
