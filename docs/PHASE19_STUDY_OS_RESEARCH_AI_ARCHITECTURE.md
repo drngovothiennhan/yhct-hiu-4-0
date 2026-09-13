@@ -10,6 +10,14 @@ Phase 19 intentionally stops expanding overlapping workflows. New work must conv
 
 File names are provenance for administrators only. They are not member subjects and are not returned by the member quiz-page RPC. Invalid questions/files never block valid data. Unchanged/previously-seen Drive file IDs are not rescanned; re-uploading a corrected document creates a new intake item.
 
+## Execution discipline lock
+
+1. Do not create extra phases, features, code paths, interactions, or scope beyond accepted requirements merely to increase coding or conversation turns.
+2. Before changing code, analyze the failure and select the smallest production-safe change that fixes the root cause while reusing stable existing architecture.
+3. Do not rebuild completed phases or reintroduce parallel workflows when an existing canonical path can satisfy the requirement.
+4. Prefer deterministic source-grounded processing over AI inference whenever source data already contains an authoritative answer or state.
+5. Declare handover only after data reconciliation, full PR and main CI, exact-SHA production READY, and production smoke/release gates are verified.
+
 ## Five Research Center UI directions
 
 1. **One inline AI workbench, no floating duplicate.** Gemini Research is placed directly after the Research hero and before evidence/RAG utilities. Mobile never opens a second full-height assistant over the page.
