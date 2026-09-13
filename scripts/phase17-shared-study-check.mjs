@@ -17,6 +17,14 @@ assert.match(aiCenter,/study_goal=/);
 assert.match(aiCenter,/daily_minutes=/);
 assert.match(aiCenter,/last_module=/);
 assert.match(aiCenter,/Học sâu hơn/);
+assert.match(aiCenter,/Tài liệu liên quan/);
+assert.match(aiCenter,/findRelatedLearningResources\(seed,6\)/);
+assert.match(aiCenter,/Chỉ hiển thị metadata an toàn/);
+const resourceService=read('src/services/learningResourceService.ts');
+assert.match(resourceService,/learning_resource_list_v1/);
+assert.match(resourceService,/p_include_drafts:false/);
+assert.match(resourceService,/row\.status==='published'&&row\.audience==='members'/);
+assert.doesNotMatch(resourceService,/source_locator|source_version|source_metadata|drive_file_id|webViewLink|drive\.google\.com/i);
 const client=read('src/services/studyAiService.ts');
 assert.match(client,/fetch\('\/api\/ai\/assistant'/);
 assert.match(client,/JSON\.stringify\(\{mode:'study',query,conversationContext,pageContext\}\)/);
@@ -90,7 +98,7 @@ try{
   delete process.env.GEMINI_API_KEY;
   assert.equal((await invoke({mode:'study',query:'Tạng tượng là gì?'})).code,503);
   for(const mode of ['fast','research','exam','xiaozhi-mini'])assert.equal((await invoke({mode,query:'test'},'POST',false)).code,401,`${mode} authentication preserved`);
-  console.log('Phase 17 shared Study gateway runtime + privacy + learner-context + fallback contracts: PASS');
+  console.log('Phase 17 shared Study gateway runtime + privacy + learner-context + safe-resource + fallback contracts: PASS');
 }finally{
   globalThis.fetch=originalFetch;
   if(originalKey===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=originalKey;
