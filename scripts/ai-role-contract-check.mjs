@@ -18,13 +18,13 @@ const systemOps=read('src/components/admin/AdminOpsAssistant.tsx');
 const providerRegistry=read('src/modules/ai/providers/registry.ts');
 const vercel=JSON.parse(read('vercel.json'));
 
-need(mini,['Trợ lý ứng dụng','herb_garden_wallet_v1',"from('notifications')",'researchIntent','openResearch(text)','askXiaoZhiMini'],'AI Mini application assistant');
-forbid(mini,['askAcademicUnified','searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge'],'AI Mini research boundary');
+need(mini,['Trợ lý tác vụ','herb_garden_wallet_v1',"from('notifications')",'researchIntent','openResearch(text)','openStudyAi(text)'],'AI Mini task assistant');
+forbid(mini,['askXiaoZhiMini','askAcademicUnified','searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge'],'AI Mini task/research boundary');
 for(const basic of ['tạng\\s*tượng','bát\\s*cương','âm\\s*dương','ngũ\\s*hành','huyệt\\s*vị','vị\\s*thuốc'])forbid(mini,[basic],`AI Mini must not route ordinary study topic ${basic}`);
-if((app.match(/<UnifiedAiMini\b/g)||[]).length!==1)fail.push('App must render exactly one global A.I Mini launcher');
+if((app.match(/<UnifiedAiMini\b/g)||[]).length!==1)fail.push('App must render exactly one global task assistant launcher');
 
 need(xz,['hiu.vn','fanpage chính thức','appAssistantQuery'],'official HIU source policy');
-need(xzServer,['isResearchIntent',"answer:'Học thuật → Trung tâm nghiên cứu'","route:'research'",'Gemini với Google Search','Nội dung nghiên cứu/y văn/lâm sàng chuyên sâu phải chuyển sang Trung tâm nghiên cứu'],'AI Mini server research handoff');
+need(xzServer,['isResearchIntent',"answer:'Học thuật → Trung tâm nghiên cứu'","route:'research'",'Gemini với Google Search','Nội dung nghiên cứu/y văn/lâm sàng chuyên sâu phải chuyển sang Trung tâm nghiên cứu'],'legacy XiaoZhi server research handoff');
 
 need(research,['RESEARCH_LEADER=GEMINI','searchOpenAlex(text,6)','searchPubMed(text,6)','searchClinicalTrials(text,4)','Dùng tài liệu nội bộ','internalEnabled?searchDriveRag','internalEnabled?searchKnowledge','setUseInternal(false)','{useInternal:internalEnabled}'],'Research A.I canonical workers and request-scoped consent');
 need(researchCenter,['searchPubMed(query,12)','searchOpenAlex(query,12)','searchClinicalTrials(query,8)','ragInternalConsent','setRagInternalConsent(false)','Dùng tài liệu nội bộ cho lượt này','{useInternal:true}'],'Research Center public sources and one-shot internal consent');
@@ -48,4 +48,4 @@ for(const core of ["id:'gemini-server'","id:'central-rag'","id:'drive-rag'","id:
 
 if(vercel?.git?.deploymentEnabled!==false)fail.push('Vercel Git auto-deploy must be disabled so production is gated by Web CI');
 if(fail.length){console.error('AI ROLE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('AI role contract PASS: one App Assistant, one Research A.I role, module capabilities, request-scoped internal consent, provenance/admin review, truthful configured-vs-live observability and anti-sprawl boundaries are enforced.');
+console.log('AI role contract PASS: one task assistant, one Gemini Study role, one Research A.I role, module capabilities, request-scoped internal consent, provenance/admin review, truthful configured-vs-live observability and anti-sprawl boundaries are enforced.');
