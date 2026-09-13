@@ -2,11 +2,74 @@ import {memberAccess} from './member-access.js';
 import {createGeminiText,createGeminiWebSearch,geminiAiConfigured,geminiAiModel} from './gemini-provider.js';
 
 const TIMEOUT_MS=20000;
+const QUIZ_TIMEOUT_MS=35000;
 const MAX_QUERY=2200;
 const MAX_CONTEXT=6500;
+const MIN_QUIZ_COUNT=5;
+const MAX_QUIZ_COUNT=20;
 const clean=(value,max=2000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 const answerText=value=>String(value??'').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').trim().slice(0,7000);
 const researchIntent=value=>/\b(pubmed|openalex|doi|pmid|systematic|meta[- ]?analysis|clinical trials?|rct|cohort|case[- ]?control|guideline|evidence)\b|nghiên\s*cứu|y\s*văn|bài\s*báo\s*khoa\s*học|tổng\s*quan\s*hệ\s*thống|thử\s*nghiệm\s*lâm\s*sàng|bằng\s*chứng|trích\s*dẫn|tài\s*liệu\s*tham\s*khảo|đề\s*cương\s*nghiên\s*cứu/i.test(clean(value,MAX_QUERY));
+const quizCount=value=>Math.max(MIN_QUIZ_COUNT,Math.min(MAX_QUIZ_COUNT,Math.trunc(Number(value)||10)));
+
+function parseQuizJson(raw){
+  let text=String(raw??'').trim();
+  text=text.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
+  const start=text.indexOf('{'),end=text.lastIndexOf('}');
+  if(start<0||end<=start)throw new Error('Gemini quiz JSON missing');
+  let parsed;
+  try{parsed=JSON.parse(text.slice(start,end+1))}catch{throw new Error('Gemini quiz JSON invalid')}
+  const seen=new Set(),questions=[];
+  for(const item of Array.isArray(parsed?.questions)?parsed.questions:[]){
+    const stem=clean(item?.stem,700),options=Array.isArray(item?.options)?item.options.map(x=>clean(x,360)).filter(Boolean).slice(0,4):[],correctIndex=Number(item?.correctIndex),explanation=clean(item?.explanation,900);
+    const key=stem.toLocaleLowerCase('vi');
+    if(!stem||seen.has(key)||options.length!==4||!Number.isInteger(correctIndex)||correctIndex<0||correctIndex>3||!explanation)continue;
+    seen.add(key);questions.push({stem,options,correctIndex,explanation});
+  }
+  if(questions.length<3)throw new Error('Gemini quiz returned too few valid questions');
+  return{title:clean(parsed?.title,180)||'Đề ôn tập do Gemini tạo',questions:questions.slice(0,MAX_QUIZ_COUNT)};
+}
+
+async function createGroundedQuiz({query,count,started,res}){
+  if(!geminiAiConfigured('default'))return res.status(503).json({error:'Gemini Study chưa được cấu hình trên máy chủ.'});
+  const requested=quizCount(count);
+  const instructions=[
+    'Bạn là Gemini Study của HIU YHCT 4.0.',
+    'Nhiệm vụ hiện tại là dùng Google Search để tham khảo nguồn công khai đáng tin cậy rồi tạo một đề trắc nghiệm học tập bằng tiếng Việt.',
+    'Ưu tiên nguồn chính thống, trường đại học, tổ chức y tế, giáo trình mở hoặc tài liệu chuyên môn đáng tin cậy; tránh diễn đàn và nội dung quảng cáo khi có nguồn tốt hơn.',
+    'Mỗi câu có đúng 4 lựa chọn, chỉ 1 đáp án đúng, không dùng lựa chọn kiểu tất cả đều đúng hoặc cả A và B.',
+    'Câu hỏi phải bám sát chủ đề người dùng chọn, phù hợp mục tiêu ôn tập sinh viên và tránh chẩn đoán hay kê đơn cá nhân hóa.',
+    'Không bịa nguồn, không bịa dữ kiện. Nếu thông tin trên web mâu thuẫn, ưu tiên kiến thức ổn định và tránh đưa chi tiết chưa chắc chắn thành đáp án tuyệt đối.',
+    'Chỉ trả về JSON thuần, không markdown, theo đúng cấu trúc: {"title":"...","questions":[{"stem":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"..."}]}.',
+    'correctIndex là số nguyên 0-3. explanation giải thích ngắn vì sao đáp án đúng.'
+  ].join(' ');
+  const prompt=`CHỦ ĐỀ: ${query}\nSỐ CÂU MỤC TIÊU: ${requested}\nHãy tìm thông tin trên web trước, sau đó tạo tối đa ${requested} câu trắc nghiệm chất lượng cao đúng cấu trúc JSON.`;
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),QUIZ_TIMEOUT_MS);
+  try{
+    const output=await createGeminiWebSearch({systemInstruction:instructions,prompt,signal:controller.signal,mode:'default'});
+    const sources=Array.isArray(output.citations)?output.citations.filter(item=>item?.url?.startsWith('https://')).slice(0,6):[];
+    if(!sources.length)throw new Error('Gemini quiz has no grounded web source');
+    const quiz=parseQuizJson(output.text),latencyMs=Date.now()-started;
+    res.setHeader('Server-Timing',`study-quiz;dur=${latencyMs}`);
+    res.setHeader('X-AI-Provider','gemini-web');
+    res.setHeader('X-AI-Model',output.model||geminiAiModel());
+    return res.status(200).json({
+      aiGenerated:true,
+      topic:query,
+      title:quiz.title,
+      questions:quiz.questions.slice(0,requested),
+      sources,
+      provider:'gemini-web',
+      degraded:false,
+      generatedAt:new Date().toISOString(),
+      latencyMs
+    });
+  }catch(error){
+    const latencyMs=Date.now()-started;
+    console.warn(JSON.stringify({event:'gemini_study_quiz',ok:false,latencyMs,error:clean(error?.message||'provider error',180)}));
+    return res.status(error?.name==='AbortError'?504:502).json({error:error?.name==='AbortError'?'Gemini mất quá nhiều thời gian để tạo đề. Vui lòng thử lại với chủ đề ngắn hơn.':'Gemini chưa thể tạo đề có nguồn web xác minh. Vui lòng thử lại.'});
+  }finally{clearTimeout(timer)}
+}
 
 export async function handleStudyAssistant(req,res){
   const started=Date.now();
@@ -18,8 +81,9 @@ export async function handleStudyAssistant(req,res){
   const access=await memberAccess(req,'member');
   if(!access.ok)return res.status(access.status).json({error:access.error});
 
-  const query=clean(req.body?.query,MAX_QUERY),conversationContext=clean(req.body?.conversationContext,MAX_CONTEXT),pageContext=clean(req.body?.pageContext,600);
+  const query=clean(req.body?.query,MAX_QUERY),conversationContext=clean(req.body?.conversationContext,MAX_CONTEXT),pageContext=clean(req.body?.pageContext,600),task=clean(req.body?.task,40).toLowerCase();
   if(query.length<2)return res.status(400).json({error:'Query is required'});
+  if(task==='quiz')return createGroundedQuiz({query,count:req.body?.count,started,res});
   if(researchIntent(query))return res.status(200).json({answer:'Câu hỏi này cần chế độ Research A.I để kiểm chứng nguồn học thuật sâu hơn.',sources:[],provider:'router',degraded:false,route:'research',latencyMs:Date.now()-started});
   if(!geminiAiConfigured('default'))return res.status(503).json({error:'Gemini Study chưa được cấu hình trên máy chủ.'});
 
