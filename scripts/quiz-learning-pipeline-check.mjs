@@ -30,9 +30,9 @@ forbid(practice,['Tải thêm','hasMore'],'primary Practice Quiz must not expose
 need(service,['practice_quiz_page_v1','practice_quiz_submit_v1','for(let at=0;at<questions.length;at+=500)'],'client submit remains chunked and server-authoritative');
 need(exam,["import PracticeBankQuiz from './PracticeBankQuiz'",'<PracticeBankQuiz/>'],'approved bank Practice Quiz is integrated in Exam Center');
 
-need(mini,['AssistantMascot','guideOpen','avatarStyle','Hỏi nhanh, tìm tin hoặc mở tính năng.','app-assistant-guide-toggle'],'A.I Mini compact/collapsible guide and avatar preference');
+need(mini,['AssistantMascot','guideOpen','avatarStyle','Trợ lý tác vụ','Câu hỏi học tập sẽ tự chuyển sang Gemini Study.','app-assistant-guide-toggle'],'task-only A.I Mini compact/collapsible guide and avatar preference');
 need(mascot,["'default'|'eagle'|'viet'|'minimal'",'assistant-mascot__beak'],'selectable eagle/Vietnam presentation layer');
 forbid(mascot,['fetch(','askServerAi','askXiaoZhiMini'],'mascot must remain presentation-only');
 
 if(fail.length){console.error('QUIZ LEARNING PIPELINE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('Quiz learning pipeline contract PASS: SOURCE-backed human review -> approved bank -> 5/10/20 quick review -> content/count/start Practice Quiz -> compact selectable A.I Mini presentation.');
+console.log('Quiz learning pipeline contract PASS: SOURCE-backed human review -> approved bank -> 5/10/20 quick review -> content/count/start Practice Quiz -> compact task-only A.I Mini presentation.');
