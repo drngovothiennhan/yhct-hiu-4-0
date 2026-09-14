@@ -55,13 +55,13 @@ function scoreCase(item,payload){
 
 const requestBody=(item,index)=>JSON.stringify({mode:'study',query:item.prompt,conversationContext:'',pageContext:'AI Golden Medical Eval',variationMode:index%6});
 
-async function requestCase(baseUrl,memberToken,gateKey,bypassSecret,item,index){
+async function requestCase(baseUrl,memberToken,gateKey,trustedOidc,item,index){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
   try{
     const headers={'Content-Type':'application/json'};
     if(memberToken)headers.Authorization=`Bearer ${memberToken}`;
     if(gateKey)headers['x-yhct-golden-eval']=gateKey;
-    if(bypassSecret){headers['x-vercel-protection-bypass']=bypassSecret;headers['x-vercel-set-bypass-cookie']='true'}
+    if(trustedOidc)headers['x-vercel-trusted-oidc-idp-token']=trustedOidc;
     const response=await fetch(`${baseUrl.replace(/\/$/,'')}/api/ai/assistant`,{method:'POST',signal:controller.signal,headers,body:requestBody(item,index)});
     const payload=await response.json().catch(()=>null);
     if(!response.ok)throw new Error(`${response.status} ${String(payload?.error||payload?.message||'request failed').slice(0,180)}`);
@@ -70,30 +70,22 @@ async function requestCase(baseUrl,memberToken,gateKey,bypassSecret,item,index){
 }
 
 async function runRuntime(data){
-  const baseUrl=String(process.env.AI_GOLDEN_TARGET||'').trim(),memberToken=String(process.env.AI_GOLDEN_MEMBER_TOKEN||'').trim(),gateKey=String(process.env.AI_GOLDEN_EPHEMERAL_KEY||'').trim(),bypassSecret=String(process.env.AI_GOLDEN_VERCEL_BYPASS||process.env.VERCEL_AUTOMATION_BYPASS_SECRET||'').trim();
+  const baseUrl=String(process.env.AI_GOLDEN_TARGET||'').trim(),memberToken=String(process.env.AI_GOLDEN_MEMBER_TOKEN||'').trim(),gateKey=String(process.env.AI_GOLDEN_EPHEMERAL_KEY||'').trim(),trustedOidc=String(process.env.AI_GOLDEN_VERCEL_OIDC||'').trim();
   if(!baseUrl){fail('runtime mode requires AI_GOLDEN_TARGET');return}
   if(!memberToken&&!gateKey){fail('runtime mode requires AI_GOLDEN_MEMBER_TOKEN or deployment-scoped AI_GOLDEN_EPHEMERAL_KEY');return}
   if(gateKey&&gateKey.length<32){fail('AI_GOLDEN_EPHEMERAL_KEY must contain at least 32 characters');return}
-  if(bypassSecret&&bypassSecret.length<32){fail('Vercel automation bypass secret must contain at least 32 characters');return}
   const results=[];
   for(let index=0;index<data.cases.length;index++){
     const item=data.cases[index];
     try{
-      const payload=await requestCase(baseUrl,memberToken,gateKey,bypassSecret,item,index),score=scoreCase(item,payload);
+      const payload=await requestCase(baseUrl,memberToken,gateKey,trustedOidc,item,index),score=scoreCase(item,payload);
       results.push({id:item.id,domain:item.domain,critical:Boolean(item.critical),...score});
       console.log(`${score.pass?'PASS':'FAIL'} ${item.id} route=${score.route} provider=${score.provider||'unknown'} latency=${score.latencyMs}ms`);
     }catch(error){results.push({id:item.id,domain:item.domain,critical:Boolean(item.critical),pass:false,requestError:String(error?.message||error)});console.error(`FAIL ${item.id}: ${error?.message||error}`)}
   }
   const ratio=(rows,predicate)=>rows.length?rows.filter(predicate).length/rows.length:1;
   const critical=results.filter(result=>result.critical),citationCases=data.cases.map((item,index)=>({item,result:results[index]})).filter(row=>row.item.citationRequired),routeRows=results.filter(result=>typeof result.routePass==='boolean');
-  const summary={
-    version:data.version,total:results.length,
-    passRate:ratio(results,result=>result.pass===true),
-    criticalSafetyPassRate:ratio(critical,result=>result.pass===true),
-    citationPassRate:ratio(citationCases,row=>row.result?.citationPass===true),
-    routePassRate:ratio(routeRows,result=>result.routePass===true),
-    generatedAt:new Date().toISOString(),results
-  };
+  const summary={version:data.version,total:results.length,passRate:ratio(results,result=>result.pass===true),criticalSafetyPassRate:ratio(critical,result=>result.pass===true),citationPassRate:ratio(citationCases,row=>row.result?.citationPass===true),routePassRate:ratio(routeRows,result=>result.routePass===true),generatedAt:new Date().toISOString(),results};
   const reportPath=path.resolve(root,process.env.AI_GOLDEN_REPORT||'ai-golden-medical-report.json');
   fs.writeFileSync(reportPath,JSON.stringify(summary,null,2));
   console.log(JSON.stringify({...summary,results:undefined},null,2));
