@@ -13,6 +13,13 @@ const clean=(value,max=2000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').
 const contextText=(value,max=MAX_CONTEXT)=>String(value??'').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,' ').replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim().slice(-max);
 const answerText=value=>String(value??'').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').replace(/\*\*([^*]+)\*\*/g,'$1').replace(/^\s*#{1,6}\s*/gm,'').replace(/^\s*[*-]\s+/gm,'• ').trim().slice(0,7000);
 const researchIntent=value=>/\b(pubmed|openalex|doi|pmid|systematic|meta[- ]?analysis|clinical trials?|rct|cohort|case[- ]?control|guideline|evidence)\b|nghiên\s*cứu|y\s*văn|bài\s*báo\s*khoa\s*học|tổng\s*quan\s*hệ\s*thống|thử\s*nghiệm\s*lâm\s*sàng|bằng\s*chứng|trích\s*dẫn|tài\s*liệu\s*tham\s*khảo|đề\s*cương\s*nghiên\s*cứu/i.test(clean(value,MAX_QUERY));
+const followupIntent=value=>/^(?:tiếp tục|giải thích lại|nói lại|phần này|cái này|đoạn này|ý này|so sánh|tóm tắt|chốt lại|tự kiểm tra|ôn\s*\d+\s*phút)|\b(gần nhất|vừa rồi|ở trên|phần trên|nội dung trên|như trên)\b/i.test(clean(value,MAX_QUERY));
+export const needsStudyWebSearch=value=>/\b(hôm nay|mới nhất|cập nhật mới|hiện hành|website|trang web|google|who|bộ y tế|bộ giáo dục|thông báo mới|tin mới)\b/i.test(clean(value,MAX_QUERY));
+export function selectStudyConversationContext(query,value){
+  const raw=contextText(value,MAX_CONTEXT);if(!raw)return'';
+  const lines=raw.split('\n').map(line=>line.trim()).filter(Boolean),followup=followupIntent(query),maxLines=followup?6:4,maxChars=followup?3600:2600;
+  return lines.slice(-maxLines).join('\n').slice(-maxChars);
+}
 const quizCount=value=>Math.max(MIN_QUIZ_COUNT,Math.min(MAX_QUIZ_COUNT,Math.trunc(Number(value)||10)));
 const failureClass=error=>{const text=String(error?.message||'');if(error?.name==='AbortError'||/timeout/i.test(text))return'timeout';if(/\b429\b|rate.?limit|quota/i.test(text))return'rate_limit';if(/\b5\d\d\b/.test(text))return'provider_5xx';if(/401/.test(text))return'auth';if(/403/.test(text))return'access';if(/JSON|invalid|empty|too few/i.test(text))return'invalid_response';return'provider_error'};
 
@@ -167,7 +174,7 @@ export async function handleStudyAssistant(req,res){
   const access=await memberAccess(req,'member');
   if(!access.ok)return res.status(access.status).json({error:access.error});
 
-  const query=clean(req.body?.query,MAX_QUERY),conversationContext=contextText(req.body?.conversationContext,MAX_CONTEXT),pageContext=clean(req.body?.pageContext,600),task=clean(req.body?.task,40).toLowerCase(),variationMode=normalizeAiVariation(req.body?.variationMode);
+  const query=clean(req.body?.query,MAX_QUERY),conversationContext=selectStudyConversationContext(query,req.body?.conversationContext),pageContext=clean(req.body?.pageContext,600),task=clean(req.body?.task,40).toLowerCase(),variationMode=normalizeAiVariation(req.body?.variationMode);
   if(query.length<2)return res.status(400).json({error:'Query is required'});
   if(task==='quiz')return createGroundedQuiz({query,count:req.body?.count,started,res,variationMode});
   if(researchIntent(query))return res.status(200).json({answer:'Câu hỏi này cần chế độ Research A.I để kiểm chứng nguồn học thuật sâu hơn.',sources:[],suggestions:[],provider:'router',degraded:false,route:'research',latencyMs:Date.now()-started});
@@ -187,35 +194,36 @@ export async function handleStudyAssistant(req,res){
     'Nếu câu hỏi là kiến thức học tập, ưu tiên: trả lời trực tiếp → giải thích cốt lõi → mẹo nhớ/điểm dễ nhầm khi hữu ích. Nếu yêu cầu so sánh, dùng tiêu chí rõ ràng. Nếu yêu cầu quiz, tạo câu hỏi có đáp án và giải thích ngắn.',
     'Không tự truy xuất Drive hay tài liệu nội bộ. Nội dung ôn tập tạo ra chỉ là tài liệu tạm thời, không sửa đáp án chính thức của ngân hàng quiz.',
     'Không chẩn đoán, kê đơn hay thay thế bác sĩ. Với nội dung lâm sàng cá nhân hóa, chuyển sang giải thích học thuật an toàn.',
+    'Chỉ dùng Google Search khi câu hỏi thực sự cần thông tin công khai hiện thời hoặc người dùng nêu rõ yêu cầu tra cứu web. Không tự thêm dữ liệu web vào câu hỏi kiến thức ổn định.',
     'Khi dùng Google Search, chỉ nêu nguồn thực sự tìm thấy; không bịa URL. Nếu nguồn mâu thuẫn hoặc chưa chắc chắn, nói rõ giới hạn.',
     responseDiversityInstruction(variationMode),
     studySuggestionInstruction(variationMode),
     'Trả lời bằng tiếng Việt tự nhiên. Không dùng ký hiệu markdown như **, *, # trong phần trả lời; nếu cần liệt kê dùng dấu •. Tránh văn phong máy móc và tránh lặp lại câu hỏi.'
   ].join(' ');
-  const prompt=`CÂU HỎI HIỆN TẠI: ${query}\nƯU TIÊN CAO NHẤT: trả lời đúng yêu cầu hiện tại trước mọi ngữ cảnh cũ.\n\nCONVERSATION_CONTEXT: ${conversationContext||'không có'}\nGhi chú: đây là mạch hội thoại gần nhất, chỉ dùng khi liên quan đến câu hỏi hiện tại. Nếu người dùng hỏi lại cùng ý, không sao chép nguyên văn phần trả lời hoặc gợi ý đã xuất hiện ở đây.\n\nPAGE_CONTEXT: ${pageContext||'không rõ'}\nGhi chú: đây là ngữ cảnh trang/việc học thứ cấp, không phải bằng chứng học thuật.\n\nHãy trả lời trực tiếp câu hỏi hiện tại. Chỉ nối với mạch trước khi thực sự liên quan; không tự thêm mục tiêu, kỳ thi hoặc chủ đề mà người dùng chưa nói.`;
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),TIMEOUT_MS);
+  const prompt=`CÂU HỎI HIỆN TẠI: ${query}\nƯU TIÊN CAO NHẤT: trả lời đúng yêu cầu hiện tại trước mọi ngữ cảnh cũ.\n\nCONVERSATION_CONTEXT: ${conversationContext||'không có'}\nGhi chú: đây là mạch hội thoại gần nhất đã được giới hạn theo mức liên quan, chỉ dùng khi liên quan đến câu hỏi hiện tại. Nếu người dùng hỏi lại cùng ý, không sao chép nguyên văn phần trả lời hoặc gợi ý đã xuất hiện ở đây.\n\nPAGE_CONTEXT: ${pageContext||'không rõ'}\nGhi chú: đây là ngữ cảnh trang/việc học thứ cấp, không phải bằng chứng học thuật.\n\nHãy trả lời trực tiếp câu hỏi hiện tại. Chỉ nối với mạch trước khi thực sự liên quan; không tự thêm mục tiêu, kỳ thi hoặc chủ đề mà người dùng chưa nói.`;
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),TIMEOUT_MS),useWeb=needsStudyWebSearch(query);
+  res.setHeader('X-AI-Web-Search',useWeb?'1':'0');
+  const replyText=async(degraded=false)=>{
+    const output=await createGeminiText({systemInstruction:instructions,prompt,maxOutputTokens:1800,signal:controller.signal,mode:'default'});
+    const parsed=parseStudyResponse(output.text,variationMode),latencyMs=Date.now()-started;
+    res.setHeader('Server-Timing',`study-ai;dur=${latencyMs}`);res.setHeader('X-AI-Provider','gemini');res.setHeader('X-AI-Model',output.model||geminiAiModel());res.setHeader('X-AI-Variation',String(variationMode));
+    return res.status(200).json({answer:answerText(parsed.answer),sources:[],suggestions:parsed.suggestions,provider:'gemini',degraded,route:null,latencyMs});
+  };
+  const replyWeb=async(degraded=false)=>{
+    const output=await createGeminiWebSearch({systemInstruction:instructions,prompt,signal:controller.signal,mode:'default'});
+    const parsed=parseStudyResponse(output.text,variationMode),latencyMs=Date.now()-started;
+    res.setHeader('Server-Timing',`study-ai;dur=${latencyMs}`);res.setHeader('X-AI-Provider','gemini-web');res.setHeader('X-AI-Model',output.model||geminiAiModel());res.setHeader('X-AI-Variation',String(variationMode));
+    return res.status(200).json({answer:answerText(parsed.answer),sources:Array.isArray(output.citations)?output.citations.slice(0,6):[],suggestions:parsed.suggestions,provider:'gemini-web',degraded,route:null,latencyMs});
+  };
   try{
-    try{
-      const output=await createGeminiWebSearch({systemInstruction:instructions,prompt,signal:controller.signal,mode:'default'});
-      const parsed=parseStudyResponse(output.text,variationMode),latencyMs=Date.now()-started;
-      res.setHeader('Server-Timing',`study-ai;dur=${latencyMs}`);
-      res.setHeader('X-AI-Provider','gemini-web');
-      res.setHeader('X-AI-Model',output.model||geminiAiModel());
-      res.setHeader('X-AI-Variation',String(variationMode));
-      return res.status(200).json({answer:answerText(parsed.answer),sources:Array.isArray(output.citations)?output.citations.slice(0,6):[],suggestions:parsed.suggestions,provider:'gemini-web',degraded:false,route:null,latencyMs});
-    }catch(primaryError){
+    try{return useWeb?await replyWeb(false):await replyText(false)}
+    catch(primaryError){
       if(controller.signal.aborted)throw primaryError;
-      const fallback=await createGeminiText({systemInstruction:instructions,prompt,maxOutputTokens:1800,signal:controller.signal,mode:'default'});
-      const parsed=parseStudyResponse(fallback.text,variationMode),latencyMs=Date.now()-started;
-      res.setHeader('Server-Timing',`study-ai;dur=${latencyMs}`);
-      res.setHeader('X-AI-Provider','gemini');
-      res.setHeader('X-AI-Model',fallback.model||geminiAiModel());
-      res.setHeader('X-AI-Variation',String(variationMode));
-      return res.status(200).json({answer:answerText(parsed.answer),sources:[],suggestions:parsed.suggestions,provider:'gemini',degraded:true,route:null,latencyMs});
+      return useWeb?await replyText(true):await replyWeb(true);
     }
   }catch(error){
     const latencyMs=Date.now()-started;
-    console.warn(JSON.stringify({event:'gemini_study',ok:false,latencyMs,error:clean(error?.message||'provider error',180)}));
+    console.warn(JSON.stringify({event:'gemini_study',ok:false,latencyMs,webSearch:useWeb,contextChars:conversationContext.length,error:clean(error?.message||'provider error',180)}));
     return res.status(error?.name==='AbortError'?504:502).json({error:error?.name==='AbortError'?'Gemini Study quá thời gian phản hồi.':'Gemini Study tạm thời chưa phản hồi. Vui lòng thử lại.'});
   }finally{clearTimeout(timer)}
 }

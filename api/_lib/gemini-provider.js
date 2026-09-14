@@ -1,8 +1,10 @@
 const DEFAULT_GEMINI_MODEL='gemini-3.5-flash-lite';
 const DEFAULT_GEMINI_RESEARCH_MODEL='gemini-3.8-flash';
+const DEFAULT_GEMINI_FALLBACK_MODEL=DEFAULT_GEMINI_RESEARCH_MODEL;
 const MAX_ERROR_TEXT=180;
+const DEFAULT_PRIMARY_TIMEOUT_MS=6000;
 const RESEARCH_PRIMARY_TIMEOUT_MS=6500;
-const RESEARCH_FALLBACK_TIMEOUT_MS=7500;
+const FALLBACK_TIMEOUT_MS=7500;
 
 const clean=(value,max=2000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 export const geminiAiEnabled=()=>Boolean(process.env.GEMINI_API_KEY)&&process.env.ENABLE_GEMINI_AI!=='false';
@@ -16,8 +18,9 @@ export const geminiAiModel=(mode='default')=>{
 export const geminiAiConfigured=(mode='default')=>Boolean(geminiAiEnabled()&&geminiAiModel(mode));
 const geminiModelCandidates=mode=>{
   const primary=geminiAiModel(mode);
-  if(mode!=='research')return[primary];
-  const fallback=String(process.env.GEMINI_RESEARCH_FALLBACK_MODEL||DEFAULT_GEMINI_MODEL).trim();
+  const fallback=mode==='research'
+    ?String(process.env.GEMINI_RESEARCH_FALLBACK_MODEL||DEFAULT_GEMINI_MODEL).trim()
+    :String(process.env.GEMINI_FALLBACK_MODEL||DEFAULT_GEMINI_FALLBACK_MODEL).trim();
   return[...new Set([primary,fallback].filter(Boolean))];
 };
 
@@ -58,7 +61,7 @@ async function requestGemini(bodyFactory,signal,mode='default'){
   if(!geminiAiConfigured(mode))throw new Error('Gemini configuration missing');
   const models=geminiModelCandidates(mode),key=process.env.GEMINI_API_KEY;let lastError=null;
   for(let index=0;index<models.length;index++){
-    const model=models[index],canFallback=mode==='research'&&index<models.length-1,attempt=attemptSignal(signal,canFallback?RESEARCH_PRIMARY_TIMEOUT_MS:RESEARCH_FALLBACK_TIMEOUT_MS);
+    const model=models[index],canFallback=index<models.length-1,primaryTimeout=mode==='research'?RESEARCH_PRIMARY_TIMEOUT_MS:DEFAULT_PRIMARY_TIMEOUT_MS,attempt=attemptSignal(signal,canFallback?primaryTimeout:FALLBACK_TIMEOUT_MS);
     try{
       const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{
         method:'POST',signal:attempt.signal,

@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
-import handler from '../api/ai/assistant.js';
+import handler,{systemToolsRequired} from '../api/ai/assistant.js';
+import {needsStudyWebSearch,selectStudyConversationContext} from '../api/_lib/study-assistant-handler.js';
+import {expandMedicalQuery} from '../api/_lib/public-medical-evidence.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 const navigation=ts.transpileModule(read('src/services/aiNavigation.ts'),{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText;
@@ -11,6 +13,7 @@ assert.equal(aiNavigationTarget('Giải thích âm dương ngũ hành'),null);
 
 const client=read('src/services/studyAiService.ts');
 const gateway=read('api/ai/assistant.js');
+const geminiProvider=read('api/_lib/gemini-provider.js');
 const studyHandler=read('api/_lib/study-assistant-handler.js');
 const publicEvidence=read('api/_lib/public-medical-evidence.js');
 const researchCenter=read('src/components/research/ResearchCenter.tsx');
@@ -34,14 +37,31 @@ assert.match(studyHandler,/QUIZ_MODEL_BUSY/);
 assert.match(studyHandler,/X-AI-Evidence-Count/);
 assert.match(studyHandler,/sourceIndexes/);
 assert.match(studyHandler,/X-AI-Variation/);
+assert.match(studyHandler,/X-AI-Web-Search/);
 assert.match(studyHandler,/suggestions:parsed\.suggestions/);
 assert.doesNotMatch(studyHandler,/web_search_preview/,'quiz must not consume a second paid web-search quota');
 assert.match(publicEvidence,/api\.openalex\.org\/works/);
 assert.match(publicEvidence,/ebi\.ac\.uk\/europepmc/);
 assert.match(publicEvidence,/wikipedia\.org\/w\/api\.php/);
-assert.match(publicEvidence,/physiology/);
+assert.match(publicEvidence,/rankResearchRows\(rows,original,english,limit\)/,'quiz evidence must be relevance-ranked before generation');
+assert.match(publicEvidence,/searchOpenAlex\(english,signal,6\)/,'medical retrieval must use normalized medical aliases');
 assert.match(studyHandler,/study_focus/);
 assert.match(studyHandler,/không coi chúng là bằng chứng học thuật/);
+assert.match(aiCenter,/messages\.slice\(-8\)/,'client must bound Study history before upload');
+assert.match(aiCenter,/slice\(-4200\)/,'client must cap Study context payload');
+assert.match(geminiProvider,/GEMINI_FALLBACK_MODEL/,'default Gemini workloads need a bounded alternate model');
+assert.match(geminiProvider,/canFallback=index<models\.length-1/,'Gemini fallback must work outside Research mode');
+
+const expanded=expandMedicalQuery('Sinh lý nội tiết');
+assert.match(expanded.english,/physiology/);
+assert.match(expanded.english,/endocrinology/);
+assert.equal(needsStudyWebSearch('Tạng tượng là gì?'),false);
+assert.equal(needsStudyWebSearch('Thông tin WHO mới nhất hôm nay về YHCT'),true);
+const longContext=Array.from({length:12},(_,i)=>`${i%2?'GEMINI STUDY':'NGƯỜI DÙNG'}: lượt ${i} ${'x'.repeat(500)}`).join('\n');
+assert.ok(selectStudyConversationContext('Tạng tượng là gì?',longContext).length<=2600);
+assert.ok(selectStudyConversationContext('Tiếp tục phần này',longContext).length<=3600);
+assert.equal(systemToolsRequired('Điểm rèn luyện của tôi hiện bao nhiêu?','fast'),true);
+assert.equal(systemToolsRequired('Giải thích tạng tượng','fast'),false);
 
 assert.match(aiCenter,/researchQuery:text/);
 assert.match(aiCenter,/readStudentJourney\(member\.id\)/);
@@ -78,7 +98,7 @@ const response=(body,status=200)=>new Response(JSON.stringify(body),{status,head
 globalThis.fetch=async(url,options={})=>{
   const body=options.body?JSON.parse(options.body):null;calls.push({url:String(url),body});
   if(String(url).endsWith('/rpc/current_member_access_v1'))return response({approved,role:'member',memberId:'test-member'});
-  if(String(url).endsWith('/interactions'))return searchFails?response({error:{message:'search unavailable'}},503):response({output_text:'Kết luận ngắn\nGiải thích cốt lõi'});
+  if(String(url).endsWith('/interactions'))return searchFails?response({error:{message:'search unavailable'}},503):response({output_text:'Kết luận web ngắn\nGiải thích cốt lõi'});
   if(String(url).includes(':generateContent'))return response({candidates:[{content:{parts:[{text:'Gemini text fallback'}]}}]});
   throw new Error(`Unexpected external call: ${url}`);
 };
@@ -97,10 +117,12 @@ try{
   assert.equal(routed.body.route,'research');
   const learnerContext='route=/ai | study_focus=Sinh lý nội tiết | study_goal=exam | study_year=2 | daily_minutes=20 | last_module=exam';
   const result=await invoke({mode:'study',query:'Tạng tượng là gì?',conversationContext:'Âm dương ngũ hành',pageContext:learnerContext,variationMode:1});
-  assert.equal(result.code,200);assert.equal(result.body.provider,'gemini-web');assert.ok(Array.isArray(result.body.suggestions));assert.equal(result.headers['X-AI-Variation'],'1');
-  searchFails=true;const fallback=await invoke({mode:'study',query:'Tạo câu hỏi ôn tập',variationMode:2});
+  assert.equal(result.code,200);assert.equal(result.body.provider,'gemini');assert.equal(result.headers['X-AI-Web-Search'],'0');assert.ok(Array.isArray(result.body.suggestions));assert.equal(result.headers['X-AI-Variation'],'1');
+  const web=await invoke({mode:'study',query:'Thông tin WHO mới nhất hôm nay về YHCT',variationMode:2});
+  assert.equal(web.code,200);assert.equal(web.body.provider,'gemini-web');assert.equal(web.headers['X-AI-Web-Search'],'1');
+  searchFails=true;const fallback=await invoke({mode:'study',query:'Thông tin WHO mới nhất hôm nay về YHCT',variationMode:3});
   assert.equal(fallback.code,200);assert.equal(fallback.body.provider,'gemini');assert.equal(fallback.body.degraded,true);assert.ok(Array.isArray(fallback.body.suggestions));
-  console.log(`Phase 19.2 shared Study chat + contextual variation + editable handoff + fresh reset + quota-independent quiz gateway PASS · ${entries.length}/12 serverless functions`);
+  console.log(`Phase 19.3 AI performance + reasoning audit PASS · contextual Study routing · ranked evidence · system-tool grounding · Gemini fallback · ${entries.length}/12 serverless functions`);
 }finally{
   globalThis.fetch=originalFetch;
   if(originalKey===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=originalKey;

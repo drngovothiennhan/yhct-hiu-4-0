@@ -32,9 +32,11 @@ const MEDICAL_ALIASES=[
 
 export function expandMedicalQuery(value){
   const original=clean(value,260),plain=stripDiacritics(original);
-  const special=SPECIAL_ALIASES.find(([pattern])=>pattern.test(plain))?.[1]||'';
-  const alias=MEDICAL_ALIASES.find(([pattern])=>pattern.test(plain))?.[1]||'';
-  return{original,english:special||alias||original};
+  const aliases=[
+    ...SPECIAL_ALIASES.filter(([pattern])=>pattern.test(plain)).map(([,alias])=>alias),
+    ...MEDICAL_ALIASES.filter(([pattern])=>pattern.test(plain)).map(([,alias])=>alias)
+  ];
+  return{original,english:[...new Set(aliases)].join(' ').trim()||original};
 }
 
 function linkedSignal(parent,timeoutMs=FETCH_TIMEOUT_MS){
@@ -140,12 +142,13 @@ function rankResearchRows(rows,original,english,limit){
 
 export async function retrievePublicMedicalEvidence(topic,{signal,limit=MAX_EVIDENCE}={}){
   const {original,english}=expandMedicalQuery(topic);if(!original)return[];
-  const settled=await Promise.allSettled([searchOpenAlex(original,signal,4),searchEuropePmc(english,signal,4)]);let rows=[];
+  const settled=await Promise.allSettled([searchOpenAlex(english,signal,6),searchEuropePmc(english,signal,6)]);let rows=[];
   for(const result of settled)if(result.status==='fulfilled')rows.push(...result.value.map(item=>({...item,snippet:item.abstract||''})));
-  rows=dedupe(rows,limit);if(rows.length>=Math.min(4,limit))return rows;
+  let ranked=rankResearchRows(rows,original,english,limit);if(ranked.length>=Math.min(4,limit))return ranked;
   const wiki=await Promise.allSettled([searchWikipedia(original,signal,'vi',2),...(english!==original?[searchWikipedia(english,signal,'en',2)]:[])]);
   for(const result of wiki)if(result.status==='fulfilled')rows.push(...result.value);
-  return dedupe(rows,limit);
+  ranked=rankResearchRows(rows,original,english,limit);
+  return ranked;
 }
 
 export async function retrievePublicResearchEvidence(topic,{signal,limit=18}={}){
