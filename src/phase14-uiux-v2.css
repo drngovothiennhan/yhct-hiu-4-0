@@ -4,7 +4,7 @@
 .phase14-shell .primary-nav-v2 button svg{width:20px;height:20px;flex:none}
 .phase14-shell .primary-nav-v2 .sidebar-ai-action{border:1px solid color-mix(in srgb,var(--accent,#0f766e) 28%,transparent);background:color-mix(in srgb,var(--accent,#0f766e) 10%,var(--panel,#fff));color:var(--accent,#0f766e)}
 .phase14-shell .secondary-nav-v2{margin:2px 0 0;border-top:1px solid color-mix(in srgb,var(--line,#dce7e3) 82%,transparent);padding-top:10px}
-.phase14-shell .secondary-nav-v2>summary{display:flex;align-items:center;gap:10px;min-height:42px;padding:0 12px;border-radius:12px;cursor:pointer;font-weight:700;opacity:.78;list-style:none}
+.phase14-shell .secondary-nav-v2>summary{display:flex;align-items:center;gap:10px;min-height:42px;padding:0 12px;border:1px solid var(--line,#dce7e3);border-radius:12px;background:var(--surface,#fff);color:var(--text,#24362f);cursor:pointer;font-weight:700;opacity:1;list-style:none}
 .phase14-shell .secondary-nav-v2>summary::-webkit-details-marker{display:none}
 .phase14-shell .secondary-nav-v2>summary svg{width:18px;height:18px}
 .phase14-shell .secondary-nav-v2>div{display:grid;gap:5px;margin-top:6px}
