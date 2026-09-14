@@ -1,3 +1,5 @@
+import {timingSafeEqual} from 'node:crypto';
+
 const SUPABASE_URL=(process.env.VITE_SUPABASE_URL||'https://gzmpnsrwqjpsbklyflqr.supabase.co').trim();
 const PUBLISHABLE_KEY=(process.env.VITE_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_Y4hMhXROZ-aVgWoaQ5fFKQ_ZAcXuIzG').trim();
 const ROLE_LEVEL={guest:0,member:1,mod:2,super_mod:3,leader:4,admin:5};
@@ -11,9 +13,17 @@ export const roleAtLeast=(role,minRole='member')=>(ROLE_LEVEL[String(role||'gues
 const bearer=req=>String(req.headers?.authorization||'');
 const safeRpcName=value=>{const name=String(value||'');if(!/^[a-z0-9_]+$/i.test(name))throw new Error('Invalid RPC name');return name};
 const requestHost=req=>String(req.headers?.host||req.headers?.['x-forwarded-host']||'').split(',')[0].trim().toLowerCase();
+const requestPath=req=>String(req.url||'').split('?')[0].trim();
+const secureEqual=(provided,expected)=>{
+  const left=Buffer.from(String(provided||'')),right=Buffer.from(String(expected||''));
+  return left.length===right.length&&left.length>0&&timingSafeEqual(left,right);
+};
 function goldenEvalAccess(req){
-  const expected=String(process.env.AI_GOLDEN_EPHEMERAL_KEY||''),deploymentHost=String(process.env.VERCEL_URL||'').trim().toLowerCase(),provided=String(req.headers?.['x-yhct-golden-eval']||'');
-  if(expected.length<32||provided.length!==expected.length||!deploymentHost||requestHost(req)!==deploymentHost||provided!==expected)return null;
+  const expected=String(process.env.AI_GOLDEN_EPHEMERAL_KEY||''),provided=String(req.headers?.['x-yhct-golden-eval']||'');
+  const deploymentHost=String(process.env.VERCEL_URL||'').trim().toLowerCase(),productionHost=String(process.env.VERCEL_PROJECT_PRODUCTION_URL||'').trim().toLowerCase();
+  const goldenHost=productionHost.endsWith('.vercel.app')?productionHost.replace(/\.vercel\.app$/,'-golden.vercel.app'):'';
+  const host=requestHost(req),allowedHost=Boolean(host&&(host===deploymentHost||(goldenHost&&host===goldenHost)));
+  if(requestPath(req)!=='/api/ai/assistant'||expected.length<32||provided.length!==expected.length||!allowedHost||!secureEqual(provided,expected))return null;
   return{approved:true,role:'member',memberId:'golden-medical-eval',positionTitle:'AI Golden Medical Eval'};
 }
 
