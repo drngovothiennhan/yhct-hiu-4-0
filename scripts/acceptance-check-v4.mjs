@@ -9,7 +9,7 @@ const mustExist=[
   'src/components/news/TcmNewsRotator.tsx','src/news-rotator.css','src/components/drl/DrlCenter.tsx','src/workers/drlParseWorker.ts',
   'src/components/community/CommunitySidebar.tsx','src/components/profile/ProfileCenter.tsx','src/components/profile/ProfileInbox.tsx',
   'src/components/admin/AdminThemeControl.tsx','src/components/widgets/DesktopAcademicWidgets.tsx','src/components/feed/AcademicFeed.tsx',
-  'src/services/authRuntimeService.ts','src/services/offlineCache.ts','src/services/pwaInstallService.ts','src/components/system/AppSettingsDialog.tsx',
+  'src/services/authRuntimeService.ts','src/services/offlineCache.ts','src/services/pwaInstallService.ts','src/services/researchEvidenceService.ts','src/components/system/AppSettingsDialog.tsx',
   'src/components/research/ResearchAiMini.tsx','src/components/exam/ExamCenter.tsx','src/services/examSessionService.ts',
   'src/desktop-interaction-profile.css','src/desktop-community.css','src/exam-v2.css',
   'api/manifest.js','public/manifest.webmanifest','public/service-worker.js','public/pwa-icon-192.png','public/pwa-icon-512.png','public/pwa-maskable-512.png',
@@ -56,8 +56,10 @@ need(desktopCommunity,['.desktop-academic-widgets{display:none}','@media (min-wi
 need(widgets,['apparentSolarLongitude','drl_deadline_public_v1','member_profile_summary_v1','herb_drug_interactions','verified_at','source_title','research_opportunities_feed_v1','research_apply_v1','member_upcoming_schedule_v2','schedule_checkin_v1','safeHttpUrl'],'desktop academic widgets');
 if(/openai|gemini|generateContent|chat\.completions/i.test(widgets))errors.push('medical interaction widget must not call generative AI');
 
-const researchMini=read('src/components/research/ResearchAiMini.tsx'),exam=read('src/components/exam/ExamCenter.tsx'),examService=read('src/services/examSessionService.ts');
-need(researchMini,['Dùng tài liệu nội bộ cho lượt này','setUseInternal(false)','RESEARCH_ROLE=GEMINI_MEDICAL_RESEARCH_LEAD','searchPubMed(text,8)','searchOpenAlex(text,8)','searchClinicalTrials(text,5)','searchDriveRag',"searchKnowledge(text,'all',4)",'translateAcademic','PUBLIC_SOURCE_BUDGET=2','CENTRAL_SOURCE_BUDGET=2','DRIVE_SOURCE_BUDGET=2','balancedResearchSources(literature,knowledge,drive.sources,internalEnabled)','Không tạo câu trả lời local thay thế'],'Research AI canonical retrieval, evidence balance and request-scoped privacy');
+const researchMini=read('src/components/research/ResearchAiMini.tsx'),researchEvidence=read('src/services/researchEvidenceService.ts'),exam=read('src/components/exam/ExamCenter.tsx'),examService=read('src/services/examSessionService.ts');
+need(researchMini,['Dùng tài liệu nội bộ cho lượt này','setUseInternal(false)','RESEARCH_ROLE=GEMINI_MEDICAL_RESEARCH_LEAD','searchResearchEvidence(text,14,controller.signal)','reusePublic','searchDriveRag',"searchKnowledge(text,'all',4)",'translateAcademic','PUBLIC_SOURCE_BUDGET=2','CENTRAL_SOURCE_BUDGET=2','DRIVE_SOURCE_BUDGET=2','balancedResearchSources(literature,knowledge,drive.sources,internalEnabled)','Không tạo câu trả lời local thay thế'],'Research AI canonical retrieval, evidence balance and request-scoped privacy');
+need(researchEvidence,["/api/knowledge/resources?action=research",'requestDeadline(12000,signal)'],'Research public evidence is consolidated server-side with bounded deadline');
+if(researchMini.includes('searchPubMed(text,8)')||researchMini.includes('searchOpenAlex(text,8)')||researchMini.includes('searchClinicalTrials(text,5)'))errors.push('Research AI must not restore duplicate browser provider fan-out');
 if(researchMini.includes('buildAcademicFallback')||researchMini.includes('A.I local 0đ'))errors.push('Research AI must not restore local pseudo-answer fallback');
 need(exam,['Thi thử 50 câu','A.I hướng dẫn suy luận','server integrity','getExamConfigV2'],'exam v2 UI');
 need(examService,['exam_config_v2','exam_session_start_v2','exam_session_answer_v2','exam_session_submit_v2'],'exam v2 RPC client');
@@ -80,4 +82,4 @@ if(!String(pkg.scripts?.prebuild||'').includes('audit:roles'))errors.push('prebu
 if(!String(pkg.scripts?.prebuild||'').includes('audit:modules'))errors.push('prebuild must enforce module isolation');
 
 if(errors.length){console.error('FINAL 4 ACCEPTANCE CHECK FAILED');for(const error of errors)console.error(`- ${error}`);process.exit(1)}
-console.log(`final4-acceptance-ok: ${sourceFiles.length} source files scanned; modular routing, Research AI evidence balance, rolling TCM news carousel, embedded inbox, ACC-only theme, root installable PWA, anti-flash boot, offline and RBAC gates passed`);
+console.log(`final4-acceptance-ok: ${sourceFiles.length} source files scanned; modular routing, canonical Research evidence balance, rolling TCM news carousel, embedded inbox, ACC-only theme, root installable PWA, anti-flash boot, offline and RBAC gates passed`);
