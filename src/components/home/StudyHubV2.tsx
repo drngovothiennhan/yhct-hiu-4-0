@@ -4,7 +4,7 @@ import type {Member} from '../../types';
 import type {ModuleId} from '../../modules/moduleContract';
 import {readReviewCards,type ReviewCard} from '../../services/adaptiveReview';
 import {getPracticeQuizConfig} from '../../services/practiceQuizService';
-import {readStudentJourney,subscribeStudentJourney} from '../../services/studentJourneyService';
+import {readStudentJourney,saveStudentPreferences,subscribeStudentJourney} from '../../services/studentJourneyService';
 import {askStudyGemini} from '../../services/studyAiService';
 import {routeStudyOsRequest} from '../../v2/study-os/intentRouter';
 import './study-hub-v2.css';
@@ -82,12 +82,15 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
   const [journey,setJourney]=useState(()=>readStudentJourney(memberId));
   const [reviewCards,setReviewCards]=useState<ReviewCard[]>(()=>readReviewCards(memberId));
   const [activeSubjects,setActiveSubjects]=useState<string[]>([]);
+  const [missionEditing,setMissionEditing]=useState(false);
   const name=member?.herbalAlias||member?.fullName?.split(/\s+/).filter(Boolean).slice(-2).join(' ')||'bạn';
   const focus=journey.preferences?.focus||'kiến thức YHCT';
   const dailyMinutes=journey.preferences?.dailyMinutes||20;
   const dateKey=localDateKey();
   const [daily,setDaily]=useState<DailyContent>(()=>fallbackDaily(dateKey,focus,dailyMinutes,[]));
   const review=useMemo(()=>reviewSnapshot(reviewCards,activeSubjects,focus),[reviewCards,activeSubjects,focus]);
+  const missionOptions=useMemo(()=>[...new Set([focus,...activeSubjects].map(item=>cleanText(item,80)).filter(Boolean))].sort((a,b)=>a===focus?-1:b===focus?1:a.localeCompare(b,'vi')),[activeSubjects,focus]);
+  const canChangeMission=Boolean(journey.preferences&&missionOptions.length>1);
 
   useEffect(()=>{setJourney(readStudentJourney(memberId));return subscribeStudentJourney(memberId,setJourney)},[memberId]);
   useEffect(()=>{const refresh=()=>setReviewCards(readReviewCards(memberId));refresh();window.addEventListener('yhct:review',refresh);window.addEventListener('storage',refresh);return()=>{window.removeEventListener('yhct:review',refresh);window.removeEventListener('storage',refresh)}},[memberId]);
@@ -137,6 +140,12 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
 
   const submit=(event:FormEvent)=>{event.preventDefault();execute(query)};
   const useQuickAction=(item:QuickAction)=>execute(item.seed);
+  const changeMissionFocus=(next:string)=>{
+    const value=cleanText(next,80);
+    if(!value||!journey.preferences)return;
+    if(value!==focus)saveStudentPreferences({...journey.preferences,focus:value},memberId);
+    setMissionEditing(false);
+  };
 
   return <section className="study-os-v2" aria-label="HIU YHCT AI Study OS">
     <header className="study-os-v2__hero">
@@ -155,10 +164,10 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
           </div>
         </div>
         <aside className="study-os-v2__mission" aria-label="Mục tiêu học hôm nay">
-          <span><Target/> DAILY MISSION</span>
-          <strong>{focus}</strong>
+          <div className="study-os-v2__mission-head"><span><Target/> DAILY MISSION</span>{canChangeMission&&<button type="button" className="study-os-v2__mission-change" aria-expanded={missionEditing} onClick={()=>setMissionEditing(value=>!value)}>Thay đổi</button>}</div>
+          {missionEditing&&canChangeMission?<label className="study-os-v2__mission-picker"><span>Trọng tâm học tập</span><select value={focus} onChange={event=>changeMissionFocus(event.target.value)} autoFocus>{missionOptions.map(subject=><option key={subject} value={subject}>{subject}</option>)}</select></label>:<strong>{focus}</strong>}
           <p>{dailyMinutes} phút tập trung · {journey.todayQuestions} câu đã luyện hôm nay</p>
-          <button onClick={()=>execute(`Giúp tôi học ${focus} trong ${dailyMinutes} phút, ưu tiên nội dung quan trọng nhất`)}>Bắt đầu phiên học <ArrowRight/></button>
+          <button type="button" className="study-os-v2__mission-start" onClick={()=>execute(`Giúp tôi học ${focus} trong ${dailyMinutes} phút, ưu tiên nội dung quan trọng nhất`)}>Bắt đầu phiên học <ArrowRight/></button>
         </aside>
       </div>
     </header>
