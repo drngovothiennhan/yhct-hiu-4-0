@@ -10,6 +10,12 @@ export const roleAtLeast=(role,minRole='member')=>(ROLE_LEVEL[String(role||'gues
 
 const bearer=req=>String(req.headers?.authorization||'');
 const safeRpcName=value=>{const name=String(value||'');if(!/^[a-z0-9_]+$/i.test(name))throw new Error('Invalid RPC name');return name};
+const requestHost=req=>String(req.headers?.host||req.headers?.['x-forwarded-host']||'').split(',')[0].trim().toLowerCase();
+function goldenEvalAccess(req){
+  const expected=String(process.env.AI_GOLDEN_EPHEMERAL_KEY||''),deploymentHost=String(process.env.VERCEL_URL||'').trim().toLowerCase(),provided=String(req.headers?.['x-yhct-golden-eval']||'');
+  if(expected.length<32||provided.length!==expected.length||!deploymentHost||requestHost(req)!==deploymentHost||provided!==expected)return null;
+  return{approved:true,role:'member',memberId:'golden-medical-eval',positionTitle:'AI Golden Medical Eval'};
+}
 
 export async function publicRpc(rpcName,args={},timeoutMs=4500){
   const name=safeRpcName(rpcName);
@@ -35,6 +41,7 @@ export async function memberRpc(req,rpcName,args={}){
 }
 
 async function currentAccess(req){
+  const golden=goldenEvalAccess(req);if(golden)return{ok:true,status:200,data:golden};
   const auth=bearer(req);
   if(!auth.startsWith('Bearer ')||auth.length<32)return{ok:false,status:401,error:'Authentication required'};
   try{return{ok:true,status:200,data:await memberRpc(req,'current_member_access_v1',{})}}

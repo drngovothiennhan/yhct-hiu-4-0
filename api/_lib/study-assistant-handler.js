@@ -6,9 +6,10 @@ import {normalizeAiVariation,parseStudyResponse,responseDiversityInstruction,stu
 const TIMEOUT_MS=20000;
 const QUIZ_TIMEOUT_MS=50000;
 const MAX_QUERY=2200;
-const MAX_CONTEXT=6500;
+const MAX_CONTEXT=8000;
 const MIN_QUIZ_COUNT=5;
 const MAX_QUIZ_COUNT=20;
+const TRUSTED_QUIZ_EVIDENCE=new Set(['OpenAlex','Europe PMC']);
 const clean=(value,max=2000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 const contextText=(value,max=MAX_CONTEXT)=>String(value??'').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,' ').replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim().slice(-max);
 const answerText=value=>String(value??'').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').replace(/\*\*([^*]+)\*\*/g,'$1').replace(/^\s*#{1,6}\s*/gm,'').replace(/^\s*[*-]\s+/gm,'• ').trim().slice(0,7000);
@@ -17,7 +18,7 @@ const followupIntent=value=>/^(?:tiếp tục|giải thích lại|nói lại|ph�
 export const needsStudyWebSearch=value=>/\b(hôm nay|mới nhất|cập nhật mới|hiện hành|website|trang web|google|who|bộ y tế|bộ giáo dục|thông báo mới|tin mới)\b/i.test(clean(value,MAX_QUERY));
 export function selectStudyConversationContext(query,value){
   const raw=contextText(value,MAX_CONTEXT);if(!raw)return'';
-  const lines=raw.split('\n').map(line=>line.trim()).filter(Boolean),followup=followupIntent(query),maxLines=followup?6:4,maxChars=followup?3600:2600;
+  const lines=raw.split('\n').map(line=>line.trim()).filter(Boolean),followup=followupIntent(query),maxLines=followup?8:6,maxChars=followup?5000:3600;
   return lines.slice(-maxLines).join('\n').slice(-maxChars);
 }
 const quizCount=value=>Math.max(MIN_QUIZ_COUNT,Math.min(MAX_QUIZ_COUNT,Math.trunc(Number(value)||10)));
@@ -74,7 +75,8 @@ const QUIZ_SYSTEM=[
   'Bạn là bộ tạo câu hỏi ôn tập y khoa cho sinh viên Y học cổ truyền HIU.',
   'Mỗi câu phải có đúng 4 lựa chọn, chỉ một đáp án đúng, giải thích ngắn gọn và không dùng dữ kiện bịa.',
   'Chỉ dùng gói bằng chứng công khai được hệ thống truy xuất và cung cấp. Mỗi câu phải có sourceIndexes trỏ tới nguồn thực sự hỗ trợ đáp án.',
-  'Ưu tiên nguồn học thuật/y khoa công khai đáng tin cậy. Phân biệt kiến thức YHCT cổ điển với bằng chứng y sinh hiện đại; không biến lý luận YHCT thành kết luận điều trị đã được chứng minh.',
+  'Chỉ chấp nhận nguồn học thuật/y khoa từ Europe PMC hoặc OpenAlex cho bước tạo quiz; không dùng Wikipedia làm căn cứ cho đáp án quiz.',
+  'Phân biệt kiến thức YHCT cổ điển với bằng chứng y sinh hiện đại; không biến lý luận YHCT thành kết luận điều trị đã được chứng minh.',
   'Không tạo câu hỏi chẩn đoán/kê đơn cá nhân hóa. Không sao chép nguyên văn dài từ nguồn.',
   'Trả JSON đúng schema, không thêm markdown.'
 ].join(' ');
@@ -103,9 +105,10 @@ export async function createGroundedQuiz({query,count,started,res,variationMode=
   try{
     const evidenceRows=await retrievePublicMedicalEvidence(query,{signal:controller.signal,limit:6});
     if(controller.signal.aborted){const aborted=new Error('aborted');aborted.name='AbortError';throw aborted}
-    sources=publicEvidenceSources(evidenceRows);
-    const evidence=publicEvidencePacket(evidenceRows);
-    if(!sources.length||!evidence)throw new Error('Public medical evidence unavailable');
+    const trustedEvidence=evidenceRows.filter(item=>TRUSTED_QUIZ_EVIDENCE.has(String(item?.provider||'')));
+    sources=publicEvidenceSources(trustedEvidence);
+    const evidence=publicEvidencePacket(trustedEvidence);
+    if(sources.length<2||!evidence)throw new Error('Trusted public medical evidence unavailable');
 
     const instructions=[
       'Bạn là Gemini Study, giảng viên kiêm cố vấn học tập Y học cổ truyền bậc đại học của HIU YHCT 4.0.',
@@ -156,7 +159,7 @@ export async function createGroundedQuiz({query,count,started,res,variationMode=
     const timedOut=error?.name==='AbortError';
     const modelBusy=hasEvidence&&(finalFailure==='rate_limit'||geminiFailure==='rate_limit');
     return res.status(timedOut?504:503).json({
-      error:timedOut?'A.I tạo đề quá thời gian phản hồi. Vui lòng thử lại.':modelBusy?'Đã truy xuất được nguồn công khai nhưng dịch vụ tạo đề A.I đang quá tải. Vui lòng thử lại sau ít phút.':'A.I tạo đề tạm thời chưa truy xuất được đủ nguồn công khai. Hãy thử chủ đề cụ thể hơn hoặc chọn Đề HIU đã duyệt.',
+      error:timedOut?'A.I tạo đề quá thời gian phản hồi. Vui lòng thử lại.':modelBusy?'Đã truy xuất được nguồn công khai nhưng dịch vụ tạo đề A.I đang quá tải. Vui lòng thử lại sau ít phút.':'A.I tạo đề tạm thời chưa truy xuất được ít nhất 2 nguồn học thuật đáng tin cậy. Hãy thử chủ đề cụ thể hơn hoặc chọn Đề HIU đã duyệt.',
       code:timedOut?'QUIZ_TIMEOUT':modelBusy?'QUIZ_MODEL_BUSY':'QUIZ_PROVIDER_ERROR',
       ...(hasEvidence?{sources}:{}),
       latencyMs
@@ -194,6 +197,8 @@ export async function handleStudyAssistant(req,res){
     'Nếu câu hỏi là kiến thức học tập, ưu tiên: trả lời trực tiếp → giải thích cốt lõi → mẹo nhớ/điểm dễ nhầm khi hữu ích. Nếu yêu cầu so sánh, dùng tiêu chí rõ ràng. Nếu yêu cầu quiz, tạo câu hỏi có đáp án và giải thích ngắn.',
     'Không tự truy xuất Drive hay tài liệu nội bộ. Nội dung ôn tập tạo ra chỉ là tài liệu tạm thời, không sửa đáp án chính thức của ngân hàng quiz.',
     'Không chẩn đoán, kê đơn hay thay thế bác sĩ. Với nội dung lâm sàng cá nhân hóa, chuyển sang giải thích học thuật an toàn.',
+    'Nếu mô tả có dấu hiệu cấp cứu tiềm tàng như đau ngực dữ dội kèm khó thở/vã mồ hôi, dấu FAST của đột quỵ, khó thở hoặc phù họng gợi ý phản vệ: ưu tiên khuyên gọi 115 hoặc đến cấp cứu ngay; không trì hoãn vì tự xử trí YHCT hoặc chờ theo dõi tại nhà.',
+    'Không đưa liều thuốc cá nhân hóa khi thiếu dữ kiện thiết yếu như tuổi, cân nặng, thai kỳ, bệnh nền, dị ứng hoặc thuốc đang dùng. Với thai kỳ, trẻ nhỏ, thuốc chống đông và nguy cơ tương tác thảo dược, yêu cầu người dùng trao đổi bác sĩ/dược sĩ thay vì tự phối hợp.',
     'Chỉ dùng Google Search khi câu hỏi thực sự cần thông tin công khai hiện thời hoặc người dùng nêu rõ yêu cầu tra cứu web. Không tự thêm dữ liệu web vào câu hỏi kiến thức ổn định.',
     'Khi dùng Google Search, chỉ nêu nguồn thực sự tìm thấy; không bịa URL. Nếu nguồn mâu thuẫn hoặc chưa chắc chắn, nói rõ giới hạn.',
     responseDiversityInstruction(variationMode),

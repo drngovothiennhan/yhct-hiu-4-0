@@ -8,8 +8,6 @@ on:
 permissions:
   contents: read
 
-# A completed PR Web CI also emits workflow_run. Keep its concurrency namespace
-# separate so a skipped PR deployment can never cancel an in-flight main deploy.
 concurrency:
   group: vercel-production-${{ github.event.workflow_run.event }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: true
@@ -21,30 +19,67 @@ jobs:
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 35
     environment: production
     env:
       VERCEL_ORG_ID: team_zMTBj85c4Dh5QoDNIjWqQRTg
+      VERCEL_SCOPE: hiu-yhct
       VERCEL_PROJECT_ID: prj_7DWP3LX30CFALUD1KoNeOR8NlpsQ
       VERCEL_PROJECT_NAME: yhct-hiu-final4-stage
       VERCEL_PRODUCTION_ALIAS: yhct-hiu-final4-stage.vercel.app
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      GIT_REPO_OWNER: drngovothiennhan
-      GIT_REPO_NAME: yhct-hiu-4-0
       CI_PASSED_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
-      - name: Require production deployment credential
+      - name: Require release credentials and exact CI commit
         shell: bash
         run: |
           set -euo pipefail
           if [ -z "${VERCEL_TOKEN:-}" ]; then
-            echo "::error title=Missing VERCEL_TOKEN::Production deploy is fail-closed."
+            echo "::error title=Missing VERCEL_TOKEN::Production release is fail-closed."
             exit 78
           fi
           if ! [[ "$CI_PASSED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error title=Invalid CI commit::Unexpected commit SHA."
             exit 78
           fi
+
+      - name: Checkout exact CI-passed commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CI_PASSED_SHA }}
+          fetch-depth: 1
+
+      - name: Use CI-proven Node runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify exact checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          if [ "$actual" != "$CI_PASSED_SHA" ]; then
+            echo "::error title=Commit mismatch::Checked out ${actual}, expected ${CI_PASSED_SHA}."
+            exit 79
+          fi
+
+      - name: Install Vercel CLI for staged production control
+        run: npm install --global vercel@latest --no-audit --no-fund
+
+      - name: Link repository workspace to production project
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .vercel
+          node - <<'NODE'
+          const fs=require('node:fs');
+          fs.writeFileSync('.vercel/project.json',JSON.stringify({
+            orgId:process.env.VERCEL_ORG_ID,
+            projectId:process.env.VERCEL_PROJECT_ID,
+            projectName:process.env.VERCEL_PROJECT_NAME
+          },null,2));
+          NODE
 
       - name: Verify Vercel token project access
         shell: bash
@@ -70,132 +105,105 @@ jobs:
             )"
             rm -f "$response_file"
             echo "::error title=VERCEL_TOKEN scope mismatch::Vercel project probe returned HTTP ${status}: ${detail}"
-            exit 79
+            exit 80
           fi
           rm -f "$response_file"
           echo "Vercel token can access production project."
 
-      - name: Create production deployment from CI-passed commit
-        id: create
+      - name: Generate deployment-scoped Golden Eval credential
         shell: bash
         run: |
           set -euo pipefail
-          request_file="$(mktemp)"
-          response_file="$(mktemp)"
-          node - "$request_file" <<'NODE'
-          const fs=require('node:fs');
-          const output=process.argv[2];
-          const sha=process.env.CI_PASSED_SHA;
-          const owner=process.env.GIT_REPO_OWNER;
-          const repo=process.env.GIT_REPO_NAME;
-          const body={
-            name:process.env.VERCEL_PROJECT_NAME,
-            project:process.env.VERCEL_PROJECT_ID,
-            target:'production',
-            gitSource:{type:'github',org:owner,repo,ref:sha},
-            gitMetadata:{
-              remoteUrl:`https://github.com/${owner}/${repo}`,
-              commitRef:'main',
-              commitSha:sha,
-              ci:true,
-              ciType:'github-actions',
-              ciGitProviderUsername:owner,
-              ciGitRepoVisibility:'public'
-            }
-          };
-          fs.writeFileSync(output,JSON.stringify(body));
-          NODE
-          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
-            --request POST \
-            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
-            --header 'Content-Type: application/json' \
-            --data-binary "@${request_file}" \
-            "https://api.vercel.com/v13/deployments?teamId=${VERCEL_ORG_ID}&forceNew=1")"
-          rm -f "$request_file"
-          if [[ "$status" != "200" && "$status" != "201" && "$status" != "202" ]]; then
-            detail="$(node - "$response_file" <<'NODE'
-          const fs=require('node:fs');
-          try {
-            const body=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
-            const error=body?.error||body;
-            process.stdout.write(String(error?.message||error?.code||'Deployment create failed').slice(0,600));
-          } catch {
-            process.stdout.write('Unable to read Vercel deployment error');
-          }
-          NODE
-            )"
-            rm -f "$response_file"
-            echo "::error title=Vercel deployment creation failed::HTTP ${status}: ${detail}"
-            exit 80
-          fi
-          deployment_id="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));if(!b.id)process.exit(2);process.stdout.write(b.id)" "$response_file")"
-          deployment_url="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.url||'')" "$response_file")"
-          rm -f "$response_file"
-          echo "deployment_id=$deployment_id" >> "$GITHUB_OUTPUT"
-          echo "deployment_url=https://$deployment_url" >> "$GITHUB_OUTPUT"
-          echo "Created deployment: $deployment_id"
+          key="$(node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('hex'))")"
+          echo "::add-mask::${key}"
+          echo "AI_GOLDEN_EPHEMERAL_KEY=${key}" >> "$GITHUB_ENV"
 
-      - name: Wait for Vercel production readiness and alias binding
-        id: ready
+      - name: Create staged production deployment without domain promotion
+        id: stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_url="$(vercel deploy --prod --skip-domain --force --yes \
+            --token "$VERCEL_TOKEN" \
+            --scope "$VERCEL_SCOPE" \
+            --env "AI_GOLDEN_EPHEMERAL_KEY=${AI_GOLDEN_EPHEMERAL_KEY}")"
+          candidate_url="$(printf '%s' "$candidate_url" | tail -n 1 | tr -d '\r')"
+          if ! [[ "$candidate_url" =~ ^https://[A-Za-z0-9.-]+\.vercel\.app$ ]]; then
+            echo "::error title=Invalid staged deployment URL::${candidate_url}"
+            exit 81
+          fi
+          if [ "$candidate_url" = "https://${VERCEL_PRODUCTION_ALIAS}" ]; then
+            echo "::error title=Unsafe deployment::Staged candidate unexpectedly equals production alias."
+            exit 81
+          fi
+          echo "candidate_url=${candidate_url}" >> "$GITHUB_OUTPUT"
+          echo "Staged production candidate created without domain promotion."
+
+      - name: Candidate health preflight through Vercel protection
+        shell: bash
+        run: |
+          set -euo pipefail
+          vercel curl /api/health \
+            --deployment "${{ steps.stage.outputs.candidate_url }}" \
+            --token "$VERCEL_TOKEN" \
+            --scope "$VERCEL_SCOPE" \
+            --fail-with-body --silent --show-error >/tmp/yhct-health.json
+          node -e "const fs=require('node:fs');const s=fs.readFileSync('/tmp/yhct-health.json','utf8');if(!s.trim())process.exit(2);console.log('Candidate health response received.')"
+
+      - name: Live Golden Medical Eval release gate
         shell: bash
         env:
-          DEPLOYMENT_ID: ${{ steps.create.outputs.deployment_id }}
+          AI_GOLDEN_TARGET: ${{ steps.stage.outputs.candidate_url }}
+          AI_GOLDEN_VERCEL_TOKEN: ${{ env.VERCEL_TOKEN }}
+          AI_GOLDEN_VERCEL_SCOPE: ${{ env.VERCEL_SCOPE }}
+          AI_GOLDEN_REPORT: ai-golden-medical-report.json
         run: |
           set -euo pipefail
-          response_file="$(mktemp)"
-          trap 'rm -f "$response_file"' EXIT
-          for attempt in $(seq 1 120); do
-            status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
-              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
-              "https://api.vercel.com/v13/deployments/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}")"
-            if [ "$status" != "200" ]; then
-              echo "::warning::Deployment status probe HTTP ${status}; retrying."
-              sleep 5
-              continue
+          node scripts/ai-golden-medical-eval.mjs --runtime
+
+      - name: Upload live Golden Medical evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-medical-${{ env.CI_PASSED_SHA }}
+          path: ai-golden-medical-report.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Promote only the Golden-passed staged deployment
+        id: promote
+        shell: bash
+        run: |
+          set -euo pipefail
+          vercel promote "${{ steps.stage.outputs.candidate_url }}" \
+            --yes \
+            --token "$VERCEL_TOKEN" \
+            --scope "$VERCEL_SCOPE" \
+            --timeout=5m
+          echo "url=https://${VERCEL_PRODUCTION_ALIAS}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify promoted production health
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error "https://${VERCEL_PRODUCTION_ALIAS}/api/health" >/tmp/yhct-production-health.json; then
+              echo "Production health is reachable after Golden-gated promotion."
+              exit 0
             fi
-            state="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.readyState||b.status||'UNKNOWN')" "$response_file")"
-            deployed_sha="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b?.meta?.githubCommitSha||'')" "$response_file")"
-            alias_bound="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(Array.isArray(b.alias)&&b.alias.includes(process.env.VERCEL_PRODUCTION_ALIAS)?'1':'0')" "$response_file")"
-            echo "Vercel state: $state; production alias bound: $alias_bound"
-            if [[ "$state" == "ERROR" || "$state" == "CANCELED" ]]; then
-              echo "::error title=Vercel production failed::Deployment ${DEPLOYMENT_ID} entered ${state}."
-              exit 81
-            fi
-            if [ "$state" = "READY" ]; then
-              if [ -n "$deployed_sha" ] && [ "$deployed_sha" != "$CI_PASSED_SHA" ]; then
-                echo "::error title=Commit mismatch::Vercel built ${deployed_sha}, expected ${CI_PASSED_SHA}."
-                exit 82
-              fi
-              if [ "$alias_bound" = "1" ]; then
-                echo "url=https://${VERCEL_PRODUCTION_ALIAS}" >> "$GITHUB_OUTPUT"
-                echo "Production READY and alias bound: https://${VERCEL_PRODUCTION_ALIAS}"
-                exit 0
-              fi
-            fi
-            sleep 5
+            sleep 2
           done
-          echo "::error title=Vercel production timeout::Deployment/alias did not become ready within 10 minutes."
-          exit 83
-
-      - name: Checkout exact deployed commit for live Chrome QA
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.CI_PASSED_SHA }}
-          fetch-depth: 1
-
-      - name: Use CI-proven Node runtime for Chrome QA
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
+          echo "::error title=Production health failed::Promoted alias did not become healthy."
+          exit 82
 
       - name: Real Google Chrome production smoke
         shell: bash
         env:
-          CHROME_SMOKE_URL: ${{ steps.ready.outputs.url }}
+          CHROME_SMOKE_URL: ${{ steps.promote.outputs.url }}
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
-            if node scripts/chrome-real-smoke.mjs && node scripts/chrome-production-content-check.mjs; then
+            if node scripts/chrome-real-smoke.mjs && node scripts/chrome-production-content-check.mjs && node scripts/mobile-shell-responsive-check.mjs; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
@@ -205,7 +213,8 @@ jobs:
             echo "::warning::Chrome smoke attempt ${attempt} hit a transient runner/CDP startup failure; cleaning Chrome and retrying."
             pkill -f 'google-chrome.*remote-debugging-port=9222' || true
             pkill -f 'google-chrome.*remote-debugging-port=9223' || true
-            rm -rf /tmp/yhct-chrome-* || true
+            pkill -f 'google-chrome.*remote-debugging-port=956' || true
+            rm -rf /tmp/yhct-chrome-* /tmp/yhct-mobile-shell-* || true
             sleep 2
           done
 
@@ -218,13 +227,14 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-      - name: Publish deployment summary
+      - name: Publish release summary
         run: |
           {
-            echo "### Vercel production deployment"
+            echo "### Golden-gated Vercel production release"
             echo "- Commit: \`${CI_PASSED_SHA}\`"
-            echo "- Deployment: \`${{ steps.create.outputs.deployment_id }}\`"
-            echo "- Immutable URL: ${{ steps.create.outputs.deployment_url }}"
-            echo "- Public production alias: ${{ steps.ready.outputs.url }}"
-            echo "- Live Google Chrome smoke: passed on 390x844 mobile and 1440x1000 desktop"
+            echo "- Staged candidate: ${{ steps.stage.outputs.candidate_url }}"
+            echo "- Golden Medical live gate: passed"
+            echo "- Production alias: ${{ steps.promote.outputs.url }}"
+            echo "- Production Chrome smoke: passed on 390x844 mobile and 1440x1000 desktop"
+            echo "- Structural mobile assistant gate: passed"
           } >> "$GITHUB_STEP_SUMMARY"
