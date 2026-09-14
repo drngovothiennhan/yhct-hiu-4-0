@@ -43,6 +43,11 @@ assert.match(studyHandler,/không coi chúng là bằng chứng học thuật/);
 
 assert.match(aiCenter,/researchQuery:text/);
 assert.match(aiCenter,/readStudentJourney\(member\.id\)/);
+assert.match(aiCenter,/if\(seed\)setQuery\(seed\)/,'Home Study handoff must remain editable before send');
+assert.doesNotMatch(aiCenter,/requestAnimationFrame\(\(\)=>void send\(seed\)\)/,'Home Study handoff must never auto-submit a seeded prompt');
+assert.match(aiCenter,/setFreshSession\(true\)/,'Mới must create a fresh AI Study session');
+assert.match(aiCenter,/!freshSession&&preferences\?\.focus/,'fresh AI Study session must ignore inherited learning focus');
+assert.match(aiCenter,/!freshSession\?studyFocus:''/,'fresh AI Study session must not reuse inherited focus for resource lookup');
 assert.match(researchCenter,/<ResearchAiMini/);
 assert.doesNotMatch(researchCenter,/ragInternalConsent|setRagInternalConsent/);
 assert.match(researchMini,/Dùng tài liệu nội bộ cho lượt này/);
@@ -92,7 +97,7 @@ try{
   assert.equal(result.code,200);assert.equal(result.body.provider,'gemini-web');
   searchFails=true;const fallback=await invoke({mode:'study',query:'Tạo câu hỏi ôn tập'});
   assert.equal(fallback.code,200);assert.equal(fallback.body.provider,'gemini');assert.equal(fallback.body.degraded,true);
-  console.log(`Phase 19.2 shared Study chat + quota-independent quiz gateway PASS · ${entries.length}/12 serverless functions`);
+  console.log(`Phase 19.2 shared Study chat + editable handoff + fresh reset + quota-independent quiz gateway PASS · ${entries.length}/12 serverless functions`);
 }finally{
   globalThis.fetch=originalFetch;
   if(originalKey===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=originalKey;
