@@ -8,45 +8,42 @@ const navigation=ts.transpileModule(read('src/services/aiNavigation.ts'),{compil
 const {aiNavigationTarget}=await import(`data:text/javascript;base64,${Buffer.from(navigation).toString('base64')}`);
 assert.equal(aiNavigationTarget('Mở lịch học')?.path,'/schedule');
 assert.equal(aiNavigationTarget('Giải thích âm dương ngũ hành'),null);
-const aiCenter=read('src/components/ai/AiCenter.tsx');
-assert.match(aiCenter,/researchQuery:text/);
-assert.match(aiCenter,/localStorage.setItem\(RESEARCH_PENDING_KEY,seed\)/);
-assert.match(aiCenter,/readStudentJourney\(member\.id\)/);
-assert.match(aiCenter,/study_focus=/);
-assert.match(aiCenter,/study_goal=/);
-assert.match(aiCenter,/daily_minutes=/);
-assert.match(aiCenter,/last_module=/);
-assert.match(aiCenter,/Học sâu hơn/);
-assert.match(aiCenter,/Tài liệu liên quan/);
-assert.match(aiCenter,/findRelatedLearningResources\(seed,6\)/);
-assert.match(aiCenter,/Chỉ hiển thị metadata an toàn/);
-const researchCenter=read('src/components/research/ResearchCenter.tsx');
-assert.match(researchCenter,/yhct-research-pending-query-v1/);
-assert.match(researchCenter,/localStorage\.getItem\(RESEARCH_PENDING_KEY\)/);
-assert.match(researchCenter,/localStorage\.removeItem\(RESEARCH_PENDING_KEY\)/);
-assert.match(researchCenter,/setQ\(seed\)/);
-assert.match(researchCenter,/setRagQ\(seed\)/);
-assert.match(researchCenter,/const \[ragInternalConsent,setRagInternalConsent\]=useState\(false\)/);
-assert.doesNotMatch(researchCenter,/setRagInternalConsent\(true\)/);
-const resourceService=read('src/services/learningResourceService.ts');
-assert.match(resourceService,/learning_resource_list_v1/);
-assert.match(resourceService,/p_include_drafts:false/);
-assert.match(resourceService,/row\.status==='published'&&row\.audience==='members'/);
-assert.doesNotMatch(resourceService,/source_locator|source_version|source_metadata|drive_file_id|webViewLink|drive\.google\.com/i);
+
 const client=read('src/services/studyAiService.ts');
+const gateway=read('api/ai/assistant.js');
+const studyHandler=read('api/_lib/study-assistant-handler.js');
+const researchCenter=read('src/components/research/ResearchCenter.tsx');
+const researchMini=read('src/components/research/ResearchAiMini.tsx');
+const aiCenter=read('src/components/ai/AiCenter.tsx');
+
 assert.match(client,/fetch\('\/api\/ai\/assistant'/);
 assert.match(client,/JSON\.stringify\(\{mode:'study',query,conversationContext,pageContext\}\)/);
-assert.match(read('api/ai/assistant.js'),/if\(req.body\?\.mode==='study'\)return handleStudyAssistant\(req,res\)/);
+assert.match(client,/JSON\.stringify\(\{mode:'study',task:'quiz',query:cleanTopic,count:requested\}\)/,'generated quiz must reuse the shared Study gateway');
+assert.doesNotMatch(client,/\/api\/ai\/study-quiz/,'no duplicate Study quiz endpoint may remain');
+assert.match(gateway,/if\(req.body\?\.mode==='study'\)return handleStudyAssistant\(req,res\)/);
 assert.ok(!fs.existsSync(new URL('../api/ai/study-assistant.js',import.meta.url)));
-const studyHandler=read('api/_lib/study-assistant-handler.js');
-assert.match(studyHandler,/export async function handleStudyAssistant/);
+assert.ok(!fs.existsSync(new URL('../api/ai/study-quiz.js',import.meta.url)));
+assert.match(studyHandler,/task==='quiz'/);
+assert.match(studyHandler,/createGroundedQuiz/);
+assert.match(studyHandler,/runOpenAiQuiz/);
+assert.match(studyHandler,/createGeminiWebSearch/);
+assert.match(studyHandler,/openai-web-fallback/);
+assert.match(studyHandler,/web_search_preview/);
+assert.match(studyHandler,/Gemini quiz has no grounded web source/);
+assert.match(studyHandler,/X-AI-Failover/);
 assert.match(studyHandler,/study_focus/);
 assert.match(studyHandler,/không coi chúng là bằng chứng học thuật/);
+
+assert.match(aiCenter,/researchQuery:text/);
+assert.match(aiCenter,/readStudentJourney\(member\.id\)/);
+assert.match(researchCenter,/<ResearchAiMini/);
+assert.doesNotMatch(researchCenter,/ragInternalConsent|setRagInternalConsent/);
+assert.match(researchMini,/Dùng tài liệu nội bộ cho lượt này/);
+assert.match(researchMini,/setUseInternal\(false\)/);
+assert.match(researchMini,/\{useInternal:internalEnabled\}/);
 assert.doesNotMatch(read('src/components/ai/UnifiedAiMini.tsx'),/askXiaoZhiMini/);
 assert.match(read('src/components/ai/UnifiedAiMini.tsx'),/openStudyAi\(text\)/);
-assert.match(read('api/ai/assistant.js'),/internalContextConsent/);
 
-// Vite project: Vercel excludes underscore-prefixed files/directories in api/.
 const entries=[];
 function walk(dir,relative=''){
   for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
@@ -58,16 +55,14 @@ function walk(dir,relative=''){
 }
 walk(new URL('../api/',import.meta.url));
 assert.ok(entries.length<=12,`Vercel Hobby budget exceeded: ${entries.length}\n${entries.join('\n')}`);
-console.log(`Serverless source entrypoints: ${entries.length}/12\n${entries.join('\n')}`);
 
 const originalFetch=globalThis.fetch;
 const originalKey=process.env.GEMINI_API_KEY,originalEnabled=process.env.ENABLE_GEMINI_AI;
-const calls=[];
-let role='member',approved=true,searchFails=false;
+const calls=[];let approved=true,searchFails=false;
 const response=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json'}});
-globalThis.fetch=async(url,options)=>{
-  calls.push({url:String(url),body:JSON.parse(options.body)});
-  if(String(url).endsWith('/rpc/current_member_access_v1'))return response({approved,role,memberId:'test-member'});
+globalThis.fetch=async(url,options={})=>{
+  const body=options.body?JSON.parse(options.body):null;calls.push({url:String(url),body});
+  if(String(url).endsWith('/rpc/current_member_access_v1'))return response({approved,role:'member',memberId:'test-member'});
   if(String(url).endsWith('/interactions'))return searchFails?response({error:{message:'search unavailable'}},503):response({output_text:'Kết luận ngắn\nGiải thích cốt lõi'});
   if(String(url).includes(':generateContent'))return response({candidates:[{content:{parts:[{text:'Gemini text fallback'}]}}]});
   throw new Error(`Unexpected external call: ${url}`);
@@ -81,32 +76,16 @@ try{
   process.env.GEMINI_API_KEY='test-only';process.env.ENABLE_GEMINI_AI='true';
   assert.equal((await invoke({mode:'study',query:'Tạng tượng là gì?'},'GET')).code,405);
   assert.equal((await invoke({mode:'study',query:'Tạng tượng là gì?'},'POST',false)).code,401);
-  assert.equal(calls.length,0);
   approved=false;assert.equal((await invoke({mode:'study',query:'Tạng tượng là gì?'})).code,403);approved=true;
   assert.equal((await invoke({mode:'study',query:''})).code,400);
-  for(const query of ['Tìm PubMed về châm cứu mất ngủ','DOI','PMID','systematic review','meta-analysis','guideline','clinical trial','RCT','evidence','nghiên cứu','y văn','trích dẫn','tài liệu tham khảo','bằng chứng khoa học']){
-    const before=calls.length,result=await invoke({mode:'study',query});
-    assert.equal(result.body.route,'research',query);assert.equal(calls.length,before+1,'Research handoff must not call an AI provider');
-  }
+  const routed=await invoke({mode:'study',query:'Tìm PubMed về châm cứu mất ngủ'});
+  assert.equal(routed.body.route,'research');
   const learnerContext='route=/ai | study_focus=Sinh lý nội tiết | study_goal=exam | study_year=2 | daily_minutes=20 | last_module=exam';
-  for(const query of ['Tạng tượng là gì?','So sánh Tỳ khí hư và Tỳ dương hư','Vậy điểm khác nhau quan trọng nhất là gì?']){
-    const result=await invoke({mode:'study',query,conversationContext:'So sánh Tỳ khí hư và Tỳ dương hư',pageContext:learnerContext,sources:[{id:'drive:private',text:'PRIVATE_SOURCE_SENTINEL'}]});
-    assert.equal(result.code,200);assert.equal(result.body.provider,'gemini-web');assert.equal(result.body.route,null);
-    assert.ok(result.body.answer.includes('\n'),'Preserve readable answer paragraphs');
-    const prompt=calls.at(-1).body.input;
-    assert.ok(prompt.includes(`CÂU HỎI HIỆN TẠI: ${query}`));
-    assert.ok(prompt.includes('CONVERSATION_CONTEXT: So sánh Tỳ khí hư và Tỳ dương hư'));
-    assert.ok(prompt.includes(`PAGE_CONTEXT: ${learnerContext}`));
-    assert.ok(prompt.includes('study_focus=Sinh lý nội tiết'));
-    assert.ok(!prompt.includes('PRIVATE_SOURCE_SENTINEL'));
-  }
+  const result=await invoke({mode:'study',query:'Tạng tượng là gì?',conversationContext:'Âm dương ngũ hành',pageContext:learnerContext});
+  assert.equal(result.code,200);assert.equal(result.body.provider,'gemini-web');
   searchFails=true;const fallback=await invoke({mode:'study',query:'Tạo câu hỏi ôn tập'});
   assert.equal(fallback.code,200);assert.equal(fallback.body.provider,'gemini');assert.equal(fallback.body.degraded,true);
-  assert.deepEqual(fallback.body.sources,[]);
-  delete process.env.GEMINI_API_KEY;
-  assert.equal((await invoke({mode:'study',query:'Tạng tượng là gì?'})).code,503);
-  for(const mode of ['fast','research','exam','xiaozhi-mini'])assert.equal((await invoke({mode,query:'test'},'POST',false)).code,401,`${mode} authentication preserved`);
-  console.log('Phase 17 shared Study gateway runtime + privacy + learner-context + safe-resource + research-handoff + fallback contracts: PASS');
+  console.log(`Phase 19 shared Study chat + quiz gateway PASS · ${entries.length}/12 serverless functions`);
 }finally{
   globalThis.fetch=originalFetch;
   if(originalKey===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=originalKey;

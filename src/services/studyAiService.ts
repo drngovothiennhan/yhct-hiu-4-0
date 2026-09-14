@@ -38,11 +38,11 @@ export async function askStudyGemini(query:string,conversationContext='',pageCon
 
 export async function generateStudyGeminiQuiz(topic:string,count:number,signal?:AbortSignal):Promise<StudyAiQuiz>{
   const cleanTopic=String(topic||'').replace(/\s+/g,' ').trim().slice(0,220);
-  if(cleanTopic.length<2)throw new Error('Hãy nhập chủ đề muốn Gemini tạo đề.');
+  if(cleanTopic.length<2)throw new Error('Hãy nhập chủ đề muốn A.I tạo đề.');
   const requested=Math.max(5,Math.min(20,Math.trunc(Number(count)||10)));
   const token=await memberToken();
   ensureActive(signal);
-  const deadline=requestDeadline(60000,signal);
+  const deadline=requestDeadline(65000,signal);
   try{
     const response=await fetch('/api/ai/assistant',{
       method:'POST',
@@ -51,21 +51,21 @@ export async function generateStudyGeminiQuiz(topic:string,count:number,signal?:
       body:JSON.stringify({mode:'study',task:'quiz',query:cleanTopic,count:requested})
     });
     const payload=await response.json().catch(()=>null) as Partial<StudyAiQuiz>&{error?:string}|null;
-    if(!response.ok)throw new Error(payload?.error||`Gemini tạo đề lỗi ${response.status}`);
+    if(!response.ok)throw new Error(payload?.error||`A.I tạo đề lỗi ${response.status}`);
     const questions=Array.isArray(payload?.questions)?payload.questions.filter(question=>{
       const correct=Number(question?.correctIndex);
       return Boolean(question&&typeof question.stem==='string'&&Array.isArray(question.options)&&question.options.length===4&&Number.isInteger(correct)&&correct>=0&&correct<4&&typeof question.explanation==='string');
     }).slice(0,requested):[];
-    if(questions.length!==requested)throw new Error('Gemini chưa tạo đủ số câu hợp lệ. Vui lòng thử lại.');
+    if(questions.length!==requested)throw new Error('A.I chưa tạo đủ số câu hợp lệ. Vui lòng thử lại.');
     const sources=Array.isArray(payload?.sources)?payload.sources.filter(source=>source&&typeof source.url==='string'&&source.url.startsWith('https://')).slice(0,6):[];
     if(!sources.length)throw new Error('Đề A.I chưa có nguồn web xác minh nên không được phát hành.');
     return{
       aiGenerated:true,
       topic:String(payload?.topic||cleanTopic),
-      title:String(payload?.title||'Đề ôn tập do Gemini tạo'),
+      title:String(payload?.title||'Đề ôn tập do A.I tạo'),
       questions,
       sources,
-      provider:String(payload?.provider||'gemini-web'),
+      provider:String(payload?.provider||'ai-web'),
       degraded:Boolean(payload?.degraded),
       generatedAt:String(payload?.generatedAt||new Date().toISOString()),
       latencyMs:Number(payload?.latencyMs||0)

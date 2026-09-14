@@ -13,8 +13,10 @@ forbid(app,["tab==='messages'","go('messages')","Inbox cá nhân</button>","tab=
 need(profile,['ProfileInbox','<ProfileInbox member={member}/>','Tường cá nhân'],'profile inbox merge');
 need(inbox,['messages_inbox_v1','member_messages','MessagesCenter','role="dialog"','inboxBadge'],'profile inbox dialog');
 need(adminTheme,['THEME_OPTIONS.length','Giao diện hệ thống','module khác chỉ nhận theme đồng bộ'],'ACC compact theme');
-need(research,['searchOpenAlex(query,12)','ragInternalConsent','Research A.I tổng hợp nguồn vừa tìm','summarizeOpenAlex','askServerAi'],'research public retrieval');
-need(researchMini,['searchPubMed(text,6)','searchOpenAlex(text,6)','searchClinicalTrials(text,4)','internalEnabled?searchDriveRag(text,4,controller.signal)',"internalEnabled?searchKnowledge(text,'all',5)","askServerAi(leaderPrompt,'research'",'RESEARCH_LEADER=GEMINI','threadContext(messages)','result.suggestedQueries','Dùng tài liệu nội bộ','setUseInternal(false)'],'Research AI canonical orchestration');
+need(research,['searchPubMed(query,12)','searchOpenAlex(query,12)','searchClinicalTrials(query,8)','<ResearchAiMini','Khách: không dùng Gemini','Trích xuất ý chính (không A.I)'],'research public evidence surface');
+forbid(research,['ragInternalConsent','Research A.I tổng hợp nguồn vừa tìm','summarizeOpenAlex','askServerAi'],'research public surface must not own AI orchestration');
+need(researchMini,['RESEARCH_ROLE=GEMINI_MEDICAL_RESEARCH_LEAD','searchPubMed(text,8)','searchOpenAlex(text,8)','searchClinicalTrials(text,5)','Dùng tài liệu nội bộ cho lượt này','translateAcademic','searchDriveRag',"searchKnowledge(text,'all',4)",'Bằng chứng','PICO','Khoảng trống','Phương pháp','Không tạo câu trả lời local thay thế','setUseInternal(false)'],'Research AI canonical orchestration');
+forbid(researchMini,['buildAcademicFallback','Fallback học thuật cục bộ','A.I local 0đ'],'Research AI local pseudo-answer path');
 need(mini,['researchIntent','VOICE_KEY','startListening','openResearch(text)','openStudyAi(text)','Trợ lý tác vụ'],'global task assistant routing');
 forbid(mini,['askXiaoZhiMini','searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge','centralKnowledgeService','askAcademicUnified','feedback_submit_v1'],'global task assistant academic separation');
 need(aiCenter,['askStudyGemini','AI STUDY OS · GEMINI','ai-center__conversation','ai-center__composer'],'dedicated Gemini Study workspace');
@@ -27,4 +29,4 @@ need(pwa,['beforeinstallprompt','appinstalled','requestPwaInstall','display-mode
 need(settings,['Cài ứng dụng mạng xã hội','PWA độc lập của Chrome','requestPwaInstall'],'app settings');
 
 if(errors.length){console.error('MODULE ISOLATION CHECK FAILED');for(const error of errors)console.error(`- ${error}`);process.exit(1)}
-console.log('module-isolation-ok: 11 final areas including dedicated Gemini Study AI Center, task-only floating assistant, native lazy route boundaries, vendor-only manual chunks, inbox embedded in profile, admin/ACC separation, root PWA install, and Research A.I with request-scoped internal consent present');
+console.log('module-isolation-ok: 11 final areas including dedicated Gemini Study AI Center, task-only floating assistant, native lazy route boundaries, vendor-only manual chunks, inbox embedded in profile, admin/ACC separation, root PWA install, and single Gemini medical Research orchestration with request-scoped internal consent present');

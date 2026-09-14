@@ -3,54 +3,58 @@ const read=p=>fs.readFileSync(p,'utf8');
 const fail=[];
 const need=(body,tokens,label)=>{for(const token of tokens)if(!body.includes(token))fail.push(`${label} missing ${token}`)};
 const forbid=(body,tokens,label)=>{for(const token of tokens)if(body.includes(token))fail.push(`${label} must not contain ${token}`)};
+
 const mini=read('src/components/ai/UnifiedAiMini.tsx');
 const app=read('src/App.tsx');
 const research=read('src/components/research/ResearchAiMini.tsx');
 const researchCenter=read('src/components/research/ResearchCenter.tsx');
-const quiz=read('api/_lib/quiz-workspace.js');
-const acc=read('src/components/admin/QuizImportCenter.tsx');
+const proposal=read('api/ai/research-proposal.js');
+const proposalUi=read('src/components/research/ResearchProposalBuilder.tsx');
+const quotaMigration=read('supabase/migrations/202609132110_phase19_research_proposal_gemini_quota.sql');
 const quizManager=read('src/components/admin/LearningContentManagerPanel.tsx');
 const trustedIngest=read('api/_lib/trusted-quiz-ingest.js');
+const bankMigration=read('supabase/migrations/202609132120_phase19_quiz_bank_data_first.sql');
+const study=read('api/_lib/study-assistant-handler.js');
+const studyClient=read('src/services/studyAiService.ts');
 const xz=read('src/services/xiaozhiMiniService.ts');
 const xzServer=read('api/_lib/xiaozhi-mini-handler.js');
 const assistant=read('api/ai/assistant.js');
 const geminiProvider=read('api/_lib/gemini-provider.js');
-const aiOps=read('src/components/admin/AiOperationsPanel.tsx');
-const systemOps=read('src/components/admin/AdminOpsAssistant.tsx');
-const providerRegistry=read('src/modules/ai/providers/registry.ts');
 const vercel=JSON.parse(read('vercel.json'));
 
-need(mini,['Trợ lý tác vụ','herb_garden_wallet_v1',"from('notifications')",'researchIntent','openResearch(text)','openStudyAi(text)'],'AI Mini task assistant');
-forbid(mini,['askXiaoZhiMini','askAcademicUnified','searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge'],'AI Mini task/research boundary');
-for(const basic of ['tạng\\s*tượng','bát\\s*cương','âm\\s*dương','ngũ\\s*hành','huyệt\\s*vị','vị\\s*thuốc'])forbid(mini,[basic],`AI Mini must not route ordinary study topic ${basic}`);
+need(mini,['Trợ lý tác vụ','researchIntent','openResearch(text)','openStudyAi(text)'],'AI Mini task assistant');
+forbid(mini,['askXiaoZhiMini','searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge'],'AI Mini academic boundary');
 if((app.match(/<UnifiedAiMini\b/g)||[]).length!==1)fail.push('App must render exactly one global task assistant launcher');
+need(xz,['hiu.vn','appAssistantQuery'],'official HIU task-assistant source policy');
+need(xzServer,['isResearchIntent',"route:'research'"],'XiaoZhi research handoff');
 
-need(xz,['hiu.vn','fanpage chính thức','appAssistantQuery'],'official HIU source policy');
-need(xzServer,['isResearchIntent',"answer:'Học thuật → Trung tâm nghiên cứu'","route:'research'",'Gemini với Google Search','Nội dung nghiên cứu/y văn/lâm sàng chuyên sâu phải chuyển sang Trung tâm nghiên cứu'],'legacy XiaoZhi server research handoff');
-
-need(research,['RESEARCH_LEADER=GEMINI','searchOpenAlex(text,6)','searchPubMed(text,6)','searchClinicalTrials(text,4)','Dùng tài liệu nội bộ','internalEnabled?searchDriveRag','internalEnabled?searchKnowledge','setUseInternal(false)','{useInternal:internalEnabled}'],'Research A.I canonical workers and request-scoped consent');
-need(researchCenter,['searchPubMed(query,12)','searchOpenAlex(query,12)','searchClinicalTrials(query,8)','ragInternalConsent','setRagInternalConsent(false)','Dùng tài liệu nội bộ cho lượt này','{useInternal:true}'],'Research Center public sources and one-shot internal consent');
+need(research,['RESEARCH_ROLE=GEMINI_MEDICAL_RESEARCH_LEAD','searchPubMed(text,8)','searchOpenAlex(text,8)','searchClinicalTrials(text,5)','searchDriveRag','searchKnowledge','Dùng tài liệu nội bộ cho lượt này','setUseInternal(false)','Bằng chứng','PICO','Khoảng trống','Phương pháp','Không tạo câu trả lời local thay thế'],'Gemini medical research workbench');
+forbid(research,['buildAcademicFallback','A.I local 0đ','Fallback học thuật cục bộ'],'Research must not synthesize fake local AI answers');
+need(researchCenter,['<ResearchAiMini','searchPubMed(query,12)','searchOpenAlex(query,12)','searchClinicalTrials(query,8)','Khách: không dùng Gemini','Trích xuất ý chính (không A.I)'],'Research Center evidence/AI separation');
 if((researchCenter.match(/<ResearchAiMini\b/g)||[]).length!==1)fail.push('Research Center must render exactly one Research A.I surface');
-forbid(researchCenter,['A.I OpenAlex','OpenAlex A.I','A.I Mini riêng tại Trung tâm nghiên cứu'],'Research UI provider/product sprawl');
+forbid(researchCenter,['A.I OpenAlex','OpenAlex A.I','tổng hợp local 0đ','ragInternalConsent'],'Research UI duplicate orchestration');
 
-need(assistant,['isInternalSource',"startsWith('drive:')","startsWith('central:')",'internalContextConsent',"sources.some(isInternalSource)&&!internalContextConsent",'chủ động bật Dùng tài liệu nội bộ'],'server private-context gate');
-forbid(assistant,['GEMINI_ALLOW_PRIVATE_CONTEXT'],'server private-context gate');
+need(proposal,['createGeminiJson','geminiAiConfigured','geminiAiModel',"mode:'research'",'research_proposal_quota_v1','quotaError(usage)','Không dùng bản nháp local thay thế'],'Gemini proposal + server quota');
+forbid(proposal,['api.openai.com','OPENAI_API_KEY','localFallback'],'proposal must not fall back to OpenAI/local');
+need(proposalUi,['Gemini tạo đề cương','Hạn mức theo vai trò · chu kỳ 6 giờ','quota.unlimited','quota.limit','quota.remaining','/api/ai/research-proposal'],'role-aware proposal quota UX');
+forbid(proposalUi,['A.I local 0đ','Tinh chỉnh A.I cloud','buildLocalProposalSections'],'proposal UI must have one Gemini generation path');
+need(quotaMigration,["v_role='admin'","'unlimited',true","v_role in('mod','super_mod','leader') then 5 else 3","interval '6 hours'",'v_used >= v_limit','Approved member required'],'server-authoritative proposal role quota');
+
+need(assistant,['isInternalSource',"startsWith('drive:')","startsWith('central:')",'internalContextConsent',"sources.some(isInternalSource)&&!internalContextConsent", "req.body?.mode==='study'",'handleStudyAssistant'],'shared AI gateway + private-context gate');
 need(geminiProvider,['geminiPrivateContextAllowed=()=>false','process.env.GEMINI_API_KEY'],'server-only Gemini provider');
+forbid(assistant,['GEMINI_ALLOW_PRIVATE_CONTEXT'],'private context bypass');
+need(studyClient,["fetch('/api/ai/assistant'","task:'quiz'"],'Study client reuses shared gateway');
+forbid(studyClient,['/api/ai/study-quiz'],'duplicate Study quiz endpoint');
+need(study,["memberAccess(req,'member')","task==='quiz'",'createGroundedQuiz','createGeminiWebSearch','runOpenAiQuiz',"provider:'openai-web-fallback'",'Gemini quiz has no grounded web source','OpenAI quiz has no grounded web source','invalid_quiz_count'],'transparent resilient Study quiz inside shared gateway');
+if(fs.existsSync('api/ai/study-quiz.js'))fail.push('dedicated Study quiz serverless function must remain removed');
 
-need(quiz,['createGeminiJson','geminiAiConfigured','gemini-quiz-designer-v1','Chỉ được dùng thông tin nằm trong SOURCE',"reviewStatus:'expert_approved'",'adminConfirmed:true','sourceEvidence.includes(evidence.toLowerCase())','!explanation',"driveConfigured:credentialMode!=='none'",'clean(body.subjectName,160)'],'Gemini quiz designer and Drive readiness');
-need(acc,['LearningContentManagerPanel'],'ACC canonical quiz manager entry');
-forbid(acc,['conversionMode','pendingUpload','setChecked(new Set())','Tất cả kết quả chỉ ở trạng thái bản nháp','Drive tạm chưa khả dụng','Tài liệu → Ngân hàng trắc nghiệm'],'ACC duplicate quiz workflow');
-need(quizManager,['Ngân hàng câu hỏi','syncQuizBank','updateQuizBank','Cập nhật','File từ ACC','tryTrustedQuizUpload','processUpload','sourceFileBase64',"conversionMode:'auto'",'DOCX, TXT hoặc PDF','Xử lý nâng cao / tài liệu ngoại lệ','publishAll','Duyệt & phát hành','driveReady','subject.trim()','AnswerReviewQueue'],'canonical ACC quiz-bank manager with one-step trusted Update and explicit exception review');
-forbid(quizManager,['selection:ready','setChecked(new Set(d.questions'],'canonical ACC explicit admin review');
-need(trustedIngest,["BANK_FOLDER_NAME='NGÂN HÀNG TRẮC NGHIỆM'","MANUAL_INTAKE_FOLDER='Thêm thủ công'",'practice_trusted_quiz_ingest_v1','practice_source_sync_state_v1','parseTrustedMarkedDocx','parseTrustedDeterministicDocx','explicit-answer-key-v1'],'trusted one-step Drive/ACC bank update');
+need(quizManager,['Ngân hàng đề thi','syncQuizBank','Thêm thủ công → Cập nhật → dùng ngay','thư mục môn','Tên thư mục môn là nội dung người học nhìn thấy','tên tệp DOCX chỉ là dấu vết quản trị','đáp án tô đỏ'],'canonical one-step subject-folder quiz bank manager');
+forbid(quizManager,['sourceFileBase64','tryTrustedQuizUpload','startQuizPipeline','publishQuizDraft','Xử lý nâng cao','Duyệt Drive thủ công','File từ ACC'],'quiz manager must not expose alternate ingestion workflows');
+need(trustedIngest,["MANUAL_INTAKE_FOLDER='Thêm thủ công'","MEMBER_SUBJECT='Ngân hàng HIU'",'subjectFolders','nestedGroups','sourceSubject','parseTrustedMarkedDocx','practice_source_sync_state_v1','practice_trusted_quiz_ingest_v1','needsProcessing','rows.filter(isDocx)','PARSER_REVISION'],'direct + one-level subject-folder DOCX intake with parser-revision retry');
+forbid(trustedIngest,['parseMcqDocument','explicit-answer-key-v1','trusted-quiz-upload','subjectFromName'],'canonical path requires Word red answer and folder taxonomy');
+need(bankMigration,['practice_quiz_config_v1','practice_quiz_page_v1','practice_subject_folders_sync_admin_v1','where active is true',"q.review_status in('source_verified','expert_approved')"],'data-first member bank and safe-update folder sync');
+forbid(bankMigration,['sourceFileName'],'member quiz RPC must not expose source filename');
 
-need(aiOps,['fetchAiHealth','cấu hình · provider/model · live probe · privacy gate · contract','Cấu hình không được xem là bằng chứng liveness','Live probe Gemini',"?'CONFIG':'OFF'"],'Admin A.I Operations truthful observability');
-forbid(aiOps,['readiness · model/provider · latency · degraded mode · privacy gate · contract','candidateZeroCostProviders','Adapter 0đ có thể tích hợp tiếp','GEMINI_ALLOW_PRIVATE_CONTEXT'],'Admin A.I Operations anti-sprawl and no false readiness');
-need(systemOps,['Vận hành hệ thống · Quy tắc xác định'],'deterministic system operations naming');
-forbid(systemOps,['A.I Ops · Quản trị giải thích được'],'system operations must not masquerade as another A.I product');
-for(const dead of ["id:'gemini-byok'","id:'unpaywall'",'candidateZeroCostProviders'])forbid(providerRegistry,[dead],`provider registry dead adapter ${dead}`);
-for(const core of ["id:'gemini-server'","id:'central-rag'","id:'drive-rag'","id:'openalex'","id:'pubmed'","id:'clinicaltrials'"])need(providerRegistry,[core],`provider registry core ${core}`);
-
-if(vercel?.git?.deploymentEnabled!==false)fail.push('Vercel Git auto-deploy must be disabled so production is gated by Web CI');
+if(vercel?.git?.deploymentEnabled!==false)fail.push('Vercel Git auto-deploy must remain disabled so production is gated by Web CI');
 if(fail.length){console.error('AI ROLE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('AI role contract PASS: one task assistant, one Gemini Study role, one Research A.I role, one canonical one-step ACC/Drive quiz-bank Update, request-scoped internal consent, deterministic trusted answers, provenance/admin exception review, truthful configured-vs-live observability and anti-sprawl boundaries are enforced.');
+console.log('AI role contract PASS: task assistant, shared resilient Gemini-first Study quiz, Gemini medical Research, role-aware proposal quota and one canonical red-answer bank are isolated and enforced.');
