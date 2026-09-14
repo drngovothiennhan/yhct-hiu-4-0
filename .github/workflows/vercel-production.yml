@@ -23,10 +23,10 @@ jobs:
     environment: production
     env:
       VERCEL_ORG_ID: team_zMTBj85c4Dh5QoDNIjWqQRTg
-      VERCEL_TEAM_SLUG: hiu-yhct
       VERCEL_PROJECT_ID: prj_7DWP3LX30CFALUD1KoNeOR8NlpsQ
       VERCEL_PROJECT_NAME: yhct-hiu-final4-stage
       VERCEL_PRODUCTION_ALIAS: yhct-hiu-final4-stage.vercel.app
+      VERCEL_GATE_ALIAS: yhct-hiu-final4-stage-golden.vercel.app
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       GIT_REPO_OWNER: drngovothiennhan
       GIT_REPO_NAME: yhct-hiu-4-0
@@ -55,9 +55,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      - name: Install Vercel CLI for protected candidate probes
-        run: npm install --global vercel@latest --no-audit --no-fund
 
       - name: Verify exact checkout
         shell: bash
@@ -170,27 +167,51 @@ jobs:
           echo "::error title=Staged Vercel timeout::Candidate did not become READY within 10 minutes."
           exit 85
 
+      - name: Bind isolated Golden gate alias
+        id: gate_alias
+        shell: bash
+        env:
+          DEPLOYMENT_ID: ${{ steps.stage.outputs.deployment_id }}
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data "{\"alias\":\"${VERCEL_GATE_ALIAS}\"}" \
+            "https://api.vercel.com/v2/deployments/${DEPLOYMENT_ID}/aliases?teamId=${VERCEL_ORG_ID}")"
+          if [ "$status" != "200" ]; then
+            detail="$(cat "$response_file" | head -c 600)"
+            rm -f "$response_file"
+            echo "::error title=Golden gate alias failed::HTTP ${status}: ${detail}"
+            exit 86
+          fi
+          alias_uid="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));if(!b.uid)process.exit(2);process.stdout.write(b.uid)" "$response_file")"
+          rm -f "$response_file"
+          echo "alias_uid=${alias_uid}" >> "$GITHUB_OUTPUT"
+          echo "gate_url=https://${VERCEL_GATE_ALIAS}" >> "$GITHUB_OUTPUT"
+          echo "Bound isolated Golden gate alias; production alias remains untouched."
+
       - name: Candidate health preflight
         shell: bash
         env:
-          CANDIDATE_URL: ${{ steps.stage.outputs.candidate_url }}
+          GATE_URL: ${{ steps.gate_alias.outputs.gate_url }}
         run: |
           set -euo pipefail
-          vercel curl /api/health \
-            --deployment "${CANDIDATE_URL}" \
-            --scope "${VERCEL_TEAM_SLUG}" \
-            --token "${VERCEL_TOKEN}" \
-            --fail-with-body > /tmp/yhct-health.json
+          status="$(curl --silent --show-error --output /tmp/yhct-health.json --write-out '%{http_code}' "${GATE_URL}/api/health")"
+          if [ "$status" != "200" ]; then
+            echo "::error title=Candidate health failed::Isolated Golden gate alias returned HTTP ${status}."
+            exit 87
+          fi
           node -e "const fs=require('node:fs');const body=JSON.parse(fs.readFileSync('/tmp/yhct-health.json','utf8'));if(body?.ok!==true)process.exit(1)"
-          echo "Candidate health preflight passed through authenticated Vercel deployment access."
+          echo "Candidate health preflight passed on isolated gate alias."
 
       - name: Live Golden Medical Eval release gate
         shell: bash
         env:
-          AI_GOLDEN_TARGET: ${{ steps.stage.outputs.candidate_url }}
+          AI_GOLDEN_TARGET: ${{ steps.gate_alias.outputs.gate_url }}
           AI_GOLDEN_REPORT: ai-golden-medical-report.json
-          AI_GOLDEN_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          AI_GOLDEN_VERCEL_SCOPE: ${{ env.VERCEL_TEAM_SLUG }}
         run: |
           set -euo pipefail
           node scripts/ai-golden-medical-eval.mjs --runtime
@@ -218,7 +239,7 @@ jobs:
             --header 'Content-Type: application/json' \
             "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/promote/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}")"
           if [[ "$status" != "200" && "$status" != "201" && "$status" != "202" ]]; then
-            detail="$(cat "$response_file" | head -c 600)";rm -f "$response_file";echo "::error title=Golden-passed promotion failed::HTTP ${status}: ${detail}";exit 87
+            detail="$(cat "$response_file" | head -c 600)";rm -f "$response_file";echo "::error title=Golden-passed promotion failed::HTTP ${status}: ${detail}";exit 88
           fi
           rm -f "$response_file"
           echo "url=https://${VERCEL_PRODUCTION_ALIAS}" >> "$GITHUB_OUTPUT"
@@ -243,7 +264,7 @@ jobs:
             sleep 3
           done
           echo "::error title=Production promotion verification failed::Exact staged deployment was not bound healthy within 3 minutes."
-          exit 88
+          exit 89
 
       - name: Real Google Chrome production smoke
         shell: bash
@@ -272,6 +293,24 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      - name: Remove isolated Golden gate alias
+        if: always() && steps.gate_alias.outputs.alias_uid != ''
+        shell: bash
+        env:
+          ALIAS_UID: ${{ steps.gate_alias.outputs.alias_uid }}
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --output /tmp/yhct-alias-delete.json --write-out '%{http_code}' \
+            --request DELETE \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v2/aliases/${ALIAS_UID}?teamId=${VERCEL_ORG_ID}")"
+          if [[ "$status" != "200" && "$status" != "204" ]]; then
+            detail="$(cat /tmp/yhct-alias-delete.json | head -c 400)"
+            echo "::error title=Golden gate alias cleanup failed::HTTP ${status}: ${detail}"
+            exit 90
+          fi
+          echo "Removed isolated Golden gate alias."
+
       - name: Publish release summary
         run: |
           {
@@ -282,4 +321,5 @@ jobs:
             echo "- Production alias: ${{ steps.promote.outputs.url }}"
             echo "- Production Chrome smoke: passed on 390x844 mobile and 1440x1000 desktop"
             echo "- Structural mobile assistant gate: passed"
+            echo "- Isolated Golden gate alias: removed"
           } >> "$GITHUB_STEP_SUMMARY"
