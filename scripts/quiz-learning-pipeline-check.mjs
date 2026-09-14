@@ -8,6 +8,8 @@ const acc=read('src/components/admin/QuizImportCenter.tsx');
 const manager=read('src/components/admin/LearningContentManagerPanel.tsx');
 const trustedIngest=read('api/_lib/trusted-quiz-ingest.js');
 const daily=read('src/components/exam/DailyDrivePractice.tsx');
+const dailyService=read('src/services/dailyPracticeService.ts');
+const dailyV2Sql=read('supabase/migrations/202609140820_quick_review_folder_reconfigure_v2.sql');
 const practice=read('src/components/exam/PracticeBankQuiz.tsx');
 const adaptive=read('src/components/exam/AdaptiveReview.tsx');
 const reasoning=read('src/components/exam/QuestionReasoningGuide.tsx');
@@ -36,7 +38,9 @@ forbid(pageBody,["'correctIndex'","'explanation'",'sourceFileName'],'quiz page m
 need(bankSql,['least(coalesce(p_limit,25),50)'],'server quiz page request bound');
 
 for(const count of ['5','10','20'])need(daily,[count],`Quick Review ${count}-question choice`);
-need(daily,['selectedCount','Ôn tập nhanh','daily-drive__source-switch','onChooseGemini','Đề HIU','Đề Gemini','const openToday=async(count=selectedCount)','getTodayDailyPractice(count)','QuestionReasoningGuide'],'Quick Review has HIU/Gemini sources and contextual reasoning');
+need(daily,['selectedCount','selectedSubject','getPracticeQuizConfig','Ôn tập nhanh','daily-drive__source-switch','daily-drive__setup','onChooseGemini','Đề HIU','Đề Gemini','const openToday=async(count=selectedCount,subject=selectedSubject,reset=Boolean(session))','getTodayDailyPractice(count,subject,reset)','Đổi bộ','QuestionReasoningGuide'],'Quick Review has repeatable folder/count choice, HIU/Gemini sources and contextual reasoning');
+need(dailyService,['daily_practice_today_v2','p_subject:String(subject||\'\')','p_reset:Boolean(reset)'],'Quick Review client uses reconfigurable daily practice RPC');
+need(dailyV2Sql,['daily_practice_today_v2','p_subject text default','p_reset boolean default false','private.practice_subject_folders_v1',"answers='{}'::jsonb",'subject=target_subject'],'Quick Review server preserves folder-only taxonomy and supports safe same-day reset');
 forbid(daily,['eligibleCount','<small>Sẵn sàng</small>'],'member Quick Review must not expose global bank count');
 need(practice,['QUIZ HỌC TẬP','Chọn nguồn → nội dung → số câu → bắt đầu','HIU_QUESTION_COUNTS=[10,20,30,50]','AI_QUESTION_COUNTS=[5,10,20]','preferredSource','Đề HIU','Đề Gemini','getPracticeQuizPage(subject,0,seed.current,count)','submitPracticeQuiz(questions as PracticeQuizQuestion[]','Nộp bài','QuestionReasoningGuide','recordReview'],'source-first HIU/Gemini Practice Quiz');
 forbid(practice,['Tải thêm','hasMore','eligibleCount','câu đã duyệt'],'member Practice Quiz hides global count and pagination');
@@ -53,7 +57,7 @@ need(aiCenter,['slice(-6400)','Giảng viên & cố vấn YHCT hệ đại học
 need(exam,["import PracticeBankQuiz from './PracticeBankQuiz'","openBankSource('ai')",'<DailyDrivePractice onChooseGemini',"<PracticeBankQuiz key={bankSource} preferredSource={bankSource} onSourceChange={setBankSource}/>",'Đề HIU hoặc Gemini A.I'],'Quick Review Gemini source routes to generated quiz mode');
 forbid(legacyExam,['DailyDrivePractice','PracticeBankQuiz','AdaptiveReview'],'Standard Exam must not remount sibling Learning Hub workflows');
 
-need(adaptive,['Ôn tập ngắt quãng','subject','count','REVIEW_COUNTS=[5,10,20]','getPracticeQuizConfig','QuestionReasoningGuide'],'adaptive review supports subject/content filtering, count selection and contextual reasoning');
+need(adaptive,['Ôn tập ngắt quãng','subject','count','REVIEW_COUNTS=[5,10,20]','getPracticeQuizConfig','const subjects=bankSubjects','validCards','<small>{card.subject}</small>','QuestionReasoningGuide'],'adaptive review uses current folder registry only, supports count selection and contextual reasoning');
 need(reasoning,['A.I hướng dẫn suy luận','askServerAi','stem','options','subject','topic','selectedIndex',"askServerAi(prompt,'exam'",'KHÔNG tiết lộ đáp án đúng','Dữ kiện quyết định','Loại trừ','Điểm cần nhớ'],'reasoning tutor receives current question context and stays non-answer-leaking before selection');
 need(mini,['AssistantMascot','guideOpen','avatarStyle','Trợ lý tác vụ','Câu hỏi học tập sẽ tự chuyển sang Gemini Study.','app-assistant-guide-toggle'],'task-only A.I Mini compact guide');
 need(mascot,["'default'|'eagle'|'viet'|'minimal'",'assistant-mascot__beak'],'selectable assistant presentation layer');
@@ -61,4 +65,4 @@ forbid(mascot,['fetch(','askServerAi','askXiaoZhiMini'],'mascot remains presenta
 
 if(fs.existsSync('api/ai/study-quiz.js'))fail.push('duplicate api/ai/study-quiz.js must remain removed');
 if(fail.length){console.error('QUIZ LEARNING PIPELINE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('Quiz learning pipeline contract PASS: one-step red-answer bank + quota-independent public evidence + shared Gemini-first generation + contextual reasoning + adaptive review + single-mount Learning Hub.');
+console.log('Quiz learning pipeline contract PASS: one-step red-answer bank + repeatable folder/count Quick Review + quota-independent public evidence + shared Gemini-first generation + contextual reasoning + folder-only adaptive review + single-mount Learning Hub.');
