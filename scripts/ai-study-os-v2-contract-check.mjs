@@ -9,6 +9,7 @@ const router=read('src/v2/study-os/intentRouter.ts');
 const home=read('src/components/home/StudentHome.tsx');
 const studyHub=read('src/components/home/StudyHubV2.tsx');
 const v2Css=read('src/components/home/study-hub-v2.css');
+const shellCss=read('src/phase14-uiux-v2.css');
 const main=read('src/main.tsx');
 
 if(fs.existsSync(new URL('../src/v2/study-os/canary.ts',import.meta.url)))fail('legacy Study OS canary runtime must not return after Phase 17E convergence');
@@ -20,6 +21,9 @@ forbidText(home,/student-home\.css|study-hub-v2\.css/,'legacy/V2 CSS must stay o
 requireText(v2Css,/\.study-os-v2/,'V2 styles must remain isolated under the study-os-v2 namespace');
 requireText(v2Css,/\.study-os-v2__focus-layout/,'Home must keep the compact Focus Command layout');
 requireText(v2Css,/\.study-os-v2__continue/,'Home must keep one consolidated continue-learning surface');
+requireText(v2Css,/\.study-os-v2__mission-change/,'Daily Mission must keep a compact focus-change control');
+requireText(v2Css,/\.study-os-v2__mission-picker/,'Daily Mission focus picker must remain styled inside the Study OS boundary');
+requireText(shellCss,/\.secondary-nav-v2>summary\{[^}]*background:var\(--surface,#fff\)[^}]*color:var\(--text,#24362f\)/,'Công cụ khác must use the same light sidebar surface and readable text');
 
 requireText(router,/destination:'research'/,'router must preserve dedicated Research destination');
 requireText(router,/destination:'exam'/,'router must preserve canonical exam destination');
@@ -29,6 +33,9 @@ forbidText(router,/gemini|openai/i,'intent routing must remain provider-agnostic
 
 requireText(studyHub,/MY HIU YHCT · AI STUDY OS/,'production Home must identify the unified Study OS surface');
 requireText(studyHub,/DAILY MISSION/,'Home must expose one compact daily mission');
+requireText(studyHub,/Thay đổi/,'Daily Mission must let learners change their current focus');
+requireText(studyHub,/saveStudentPreferences\(\{\.\.\.journey\.preferences,focus:value\},memberId\)/,'Daily Mission focus changes must persist through the canonical learner preference service');
+requireText(studyHub,/missionOptions[\s\S]*activeSubjects/,'Daily Mission choices must come from the current canonical learning subjects');
 requireText(studyHub,/TIẾP TỤC HỌC/,'Home must consolidate progress, weak points and spaced review');
 requireText(studyHub,/readReviewCards/,'Home continue-learning state must use real spaced-review data');
 requireText(studyHub,/getPracticeQuizConfig/,'Home weak-folder labels must be constrained to current HIU folders');
