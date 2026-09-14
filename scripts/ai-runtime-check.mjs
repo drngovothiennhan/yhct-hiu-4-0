@@ -12,6 +12,7 @@ const access=read('api/_lib/member-access.js');
 const toolsSource=read('api/_lib/ai-tools.js');
 const gateway=read('api/ai/assistant.js');
 const studyHandler=read('api/_lib/study-assistant-handler.js');
+const publicEvidence=read('api/_lib/public-medical-evidence.js');
 const studyClient=read('src/services/studyAiService.ts');
 const xiaozhiHandler=read('api/_lib/xiaozhi-mini-handler.js');
 const geminiProvider=read('api/_lib/gemini-provider.js');
@@ -56,14 +57,19 @@ requireText(studyClient,"task:'quiz'",'Study quiz selects quiz task inside share
 forbidText(studyClient,'/api/ai/study-quiz','Study client has no duplicate quiz endpoint');
 requireText(studyHandler,"memberAccess(req,'member')",'Study handler requires approved-member authentication');
 requireText(studyHandler,"task==='quiz'",'Study handler routes quiz task');
-requireText(studyHandler,'createGeminiWebSearch','Study quiz attempts Gemini Google Search grounding');
-requireText(studyHandler,'runOpenAiQuiz','Study quiz has one web-grounded provider failover');
-requireText(studyHandler,"provider:'openai-web-fallback'",'Study quiz labels provider failover truthfully');
-requireText(studyHandler,"type:'web_search_preview'",'Study quiz fallback remains web-grounded');
-requireText(studyHandler,'invalid_quiz_count','Study quiz fails closed on incomplete fallback output');
-requireText(studyHandler,'OpenAI quiz has no grounded web source','Study quiz fallback requires public sources');
-requireText(studyHandler,'Gemini quiz has no grounded web source','Gemini quiz path requires public sources');
+requireText(studyHandler,'retrievePublicMedicalEvidence','Study quiz retrieves public evidence independently of model quota');
+requireText(studyHandler,'runOpenAiEvidenceQuiz','Study quiz has one same-evidence provider failover');
+requireText(studyHandler,"provider:'openai-public-evidence'",'Study quiz labels evidence failover truthfully');
+requireText(studyHandler,'sourceIndexes','Study quiz binds every question to retrieved public sources');
+requireText(studyHandler,'QUIZ_MODEL_BUSY','Study quiz separates model exhaustion from source retrieval failure');
+requireText(studyHandler,'X-AI-Evidence-Count','Study quiz exposes evidence count for diagnostics');
 requireText(studyHandler,'X-AI-Failover','Study quiz exposes transparent failover header');
+forbidText(studyHandler,'web_search_preview','Study quiz does not spend a second paid web-search quota');
+forbidText(studyHandler,'runOpenAiQuiz','retired web-search failover stays removed');
+requireText(publicEvidence,'api.openalex.org/works','public evidence uses OpenAlex');
+requireText(publicEvidence,'ebi.ac.uk/europepmc','public evidence uses Europe PMC');
+requireText(publicEvidence,'wikipedia.org/w/api.php','public evidence retains bounded general-source fallback');
+requireText(publicEvidence,'physiology','public evidence expands broad Vietnamese medical topics');
 if(fs.existsSync(path.join(root,'api/ai/study-quiz.js')))fail('duplicate Study quiz serverless endpoint must remain removed');else ok('duplicate Study quiz serverless endpoint removed');
 
 requireText(xiaozhiHandler,"memberAccess(req,'member')",'XiaoZhi requires approved-member auth');
@@ -118,4 +124,4 @@ const srcFiles=[];
 function walk(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const full=path.join(dir,entry.name);if(entry.isDirectory())walk(full);else if(/\.(ts|tsx|js|jsx)$/.test(entry.name))srcFiles.push(full)}}
 walk(path.join(root,'src'));
 for(const file of srcFiles){const text=fs.readFileSync(file,'utf8');if(text.includes('OPENAI_API_KEY'))fail(`server secret name leaked into browser source: ${path.relative(root,file)}`)}
-if(!process.exitCode)ok(`AI runtime acceptance passed across ${srcFiles.length} browser source files with shared Gemini-first Study quiz, task-only assistant, Gemini Research, opt-in internal RAG and grounded failover`);
+if(!process.exitCode)ok(`AI runtime acceptance passed across ${srcFiles.length} browser source files with quota-independent public evidence, shared Gemini-first Study quiz, task-only assistant, Gemini Research and opt-in internal RAG`);
