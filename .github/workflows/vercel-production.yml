@@ -95,6 +95,36 @@ jobs:
           echo "::add-mask::${key}"
           echo "AI_GOLDEN_EPHEMERAL_KEY=${key}" >> "$GITHUB_ENV"
 
+      - name: Generate ephemeral Vercel automation bypass
+        shell: bash
+        run: |
+          set -euo pipefail
+          bypass="$(node -e "process.stdout.write(require('node:crypto').randomBytes(16).toString('hex'))")"
+          echo "::add-mask::${bypass}"
+          export BYPASS_SECRET="$bypass"
+          request_file="$(mktemp)"
+          response_file="$(mktemp)"
+          node - "$request_file" <<'NODE'
+          const fs=require('node:fs');
+          fs.writeFileSync(process.argv[2],JSON.stringify({generate:{secret:process.env.BYPASS_SECRET,note:`HIU Golden ${process.env.CI_PASSED_SHA.slice(0,12)}`}}));
+          NODE
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+            --request PATCH \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data-binary "@${request_file}" \
+            "https://api.vercel.com/v1/projects/${VERCEL_PROJECT_ID}/protection-bypass?teamId=${VERCEL_ORG_ID}")"
+          rm -f "$request_file"
+          if [ "$status" != "200" ]; then
+            detail="$(cat "$response_file" | head -c 600)"
+            rm -f "$response_file"
+            echo "::error title=Automation bypass creation failed::HTTP ${status}: ${detail}"
+            exit 80
+          fi
+          rm -f "$response_file"
+          echo "VERCEL_AUTOMATION_BYPASS_SECRET=${bypass}" >> "$GITHUB_ENV"
+          echo "Ephemeral Vercel automation bypass created for live gate."
+
       - name: Create staged production deployment without domain promotion
         id: stage
         shell: bash
@@ -173,6 +203,7 @@ jobs:
         run: |
           set -euo pipefail
           status="$(curl --silent --show-error --output /tmp/yhct-health.json --write-out '%{http_code}' \
+            --header "x-vercel-protection-bypass: ${VERCEL_AUTOMATION_BYPASS_SECRET}" \
             --header "x-yhct-golden-eval: ${AI_GOLDEN_EPHEMERAL_KEY}" \
             "${CANDIDATE_URL}/api/health")"
           if [ "$status" != "200" ]; then
@@ -257,6 +288,38 @@ jobs:
             rm -rf /tmp/yhct-chrome-* /tmp/yhct-mobile-shell-* || true
             sleep 2
           done
+
+      - name: Revoke ephemeral Vercel automation bypass
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
+            echo "No automation bypass was created."
+            exit 0
+          fi
+          export BYPASS_SECRET="${VERCEL_AUTOMATION_BYPASS_SECRET}"
+          request_file="$(mktemp)"
+          response_file="$(mktemp)"
+          node - "$request_file" <<'NODE'
+          const fs=require('node:fs');
+          fs.writeFileSync(process.argv[2],JSON.stringify({revoke:{secret:process.env.BYPASS_SECRET,regenerate:false}}));
+          NODE
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+            --request PATCH \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data-binary "@${request_file}" \
+            "https://api.vercel.com/v1/projects/${VERCEL_PROJECT_ID}/protection-bypass?teamId=${VERCEL_ORG_ID}")"
+          rm -f "$request_file"
+          if [ "$status" != "200" ]; then
+            detail="$(cat "$response_file" | head -c 600)"
+            rm -f "$response_file"
+            echo "::error title=Automation bypass cleanup failed::HTTP ${status}: ${detail}"
+            exit 89
+          fi
+          rm -f "$response_file"
+          echo "Ephemeral Vercel automation bypass revoked."
 
       - name: Upload production Chrome QA evidence
         if: always()
