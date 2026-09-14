@@ -21,7 +21,7 @@ const fallbackFollowups=[
   ['Đổi góc giải thích ngắn gọn','Chỉ ra ranh giới khái niệm','Tạo một tình huống học tập','Mở rộng một mức sâu hơn']
 ] as const;
 const clean=(value:string)=>value.replace(/\s+/g,' ').trim();
-const contextOf=(messages:Message[])=>messages.slice(-10).map(item=>`${item.role==='user'?'NGƯỜI DÙNG':'GEMINI STUDY'}: ${clean(item.text).slice(0,item.role==='user'?1200:1000)}`).join('\n').slice(-6400);
+const contextOf=(messages:Message[])=>messages.slice(-8).map(item=>`${item.role==='user'?'NGƯỜI DÙNG':'GEMINI STUDY'}: ${clean(item.text).slice(0,item.role==='user'?900:700)}`).join('\n').slice(-4200);
 const resourceTypeLabel=(type:string)=>type==='quiz_source'?'Bộ trắc nghiệm':type==='reference'?'Tài liệu tham khảo':'Tài liệu học';
 
 export default function AiCenter({member,onOpenResearch}:{member:Member;onOpenResearch:()=>void}){
