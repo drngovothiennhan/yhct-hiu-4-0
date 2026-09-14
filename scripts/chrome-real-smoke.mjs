@@ -116,7 +116,7 @@ async function runCase(name,width,height,port){
       if(overlayAudit.searchOverlaps.length||overlayAudit.titleOverlaps.length||overlayAudit.outOfViewport.length)throw new Error(`mobile: overlay contract failed: ${JSON.stringify(overlayAudit)}`);
       await send('Page.reload',{ignoreCache:true});await waitReady();const after=await inspect();assertStableBoot(after);routeRefresh={before,after};
       if(before.pathname!=='/research'||after.pathname!=='/research'||before.activeModule!=='research'||after.activeModule!=='research'||!before.heading.includes('Trung tâm nghiên cứu')||!after.heading.includes('Trung tâm nghiên cứu'))throw new Error(`mobile: modular research refresh route persistence failed: ${JSON.stringify(routeRefresh)}`);
-      if(!before.bodyText.includes('Research A.I dành cho thành viên đã đăng nhập')||!before.bodyText.includes('Bằng chứng công khai')||!before.bodyText.includes('PubMed · OpenAlex · ClinicalTrials.gov'))throw new Error(`mobile: canonical Research guest/evidence surface missing: ${before.bodyText}`);
+      if(!before.bodyText.includes('Research A.I dành cho thành viên đã đăng nhập')||!before.bodyText.includes('Bằng chứng công khai')||!before.bodyText.includes('PubMed/Europe PMC')||!before.bodyText.includes('OpenAlex')||!before.bodyText.includes('ClinicalTrials.gov'))throw new Error(`mobile: canonical Research guest/evidence surface missing: ${before.bodyText}`);
 
       await send('Page.navigate',{url:`${baseTarget}/exam`});await waitReady();
       const examBefore=await inspect();assertStableBoot(examBefore);
