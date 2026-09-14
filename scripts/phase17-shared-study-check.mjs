@@ -98,7 +98,9 @@ const response=(body,status=200)=>new Response(JSON.stringify(body),{status,head
 globalThis.fetch=async(url,options={})=>{
   const body=options.body?JSON.parse(options.body):null;calls.push({url:String(url),body});
   if(String(url).endsWith('/rpc/current_member_access_v1'))return response({approved,role:'member',memberId:'test-member'});
-  if(String(url).endsWith('/interactions'))return searchFails?response({error:{message:'search unavailable'}},503):response({output_text:'Kết luận web ngắn\nGiải thích cốt lõi'});
+  if(String(url).endsWith('/interactions'))return searchFails
+    ?response({error:{message:'search unavailable'}},503)
+    :response({output_text:'Kết luận web ngắn\nGiải thích cốt lõi',steps:[{type:'model_output',content:[{type:'text',text:'Kết luận web ngắn\nGiải thích cốt lõi',annotations:[{type:'url_citation',url_citation:{title:'WHO',url:'https://www.who.int/health-topics/traditional-complementary-and-integrative-medicine'}}]}]}]});
   if(String(url).includes(':generateContent'))return response({candidates:[{content:{parts:[{text:'Gemini text fallback'}]}}]});
   throw new Error(`Unexpected external call: ${url}`);
 };
@@ -119,7 +121,7 @@ try{
   const result=await invoke({mode:'study',query:'Tạng tượng là gì?',conversationContext:'Âm dương ngũ hành',pageContext:learnerContext,variationMode:1});
   assert.equal(result.code,200);assert.equal(result.body.provider,'gemini');assert.equal(result.headers['X-AI-Web-Search'],'0');assert.ok(Array.isArray(result.body.suggestions));assert.equal(result.headers['X-AI-Variation'],'1');
   const web=await invoke({mode:'study',query:'Thông tin WHO mới nhất hôm nay về YHCT',variationMode:2});
-  assert.equal(web.code,200);assert.equal(web.body.provider,'gemini-web');assert.equal(web.headers['X-AI-Web-Search'],'1');
+  assert.equal(web.code,200);assert.equal(web.body.provider,'gemini-web');assert.equal(web.headers['X-AI-Web-Search'],'1');assert.ok(Array.isArray(web.body.sources));assert.ok(web.body.sources.some(source=>String(source?.url||'').startsWith('https://')));
   searchFails=true;const fallback=await invoke({mode:'study',query:'Thông tin WHO mới nhất hôm nay về YHCT',variationMode:3});
   assert.equal(fallback.code,200);assert.equal(fallback.body.provider,'gemini');assert.equal(fallback.body.degraded,true);assert.ok(Array.isArray(fallback.body.suggestions));
   console.log(`Phase 19.3 AI performance + reasoning audit PASS · contextual Study routing · ranked evidence · system-tool grounding · Gemini fallback · ${entries.length}/12 serverless functions`);
