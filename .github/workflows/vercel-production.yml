@@ -193,20 +193,56 @@ jobs:
           echo "gate_url=https://${VERCEL_GATE_ALIAS}" >> "$GITHUB_OUTPUT"
           echo "Bound isolated Golden gate alias; production alias remains untouched."
 
+      - name: Create temporary Golden share access
+        id: gate_share
+        shell: bash
+        env:
+          ALIAS_UID: ${{ steps.gate_alias.outputs.alias_uid }}
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+            --request PATCH \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data '{"ttl":1800}' \
+            "https://api.vercel.com/aliases/${ALIAS_UID}/protection-bypass?teamId=${VERCEL_ORG_ID}")"
+          if [ "$status" != "200" ]; then
+            detail="$(cat "$response_file" | head -c 600)"
+            rm -f "$response_file"
+            echo "::error title=Golden share access failed::HTTP ${status}: ${detail}"
+            exit 86
+          fi
+          share_secret="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));if(!b.value)process.exit(2);process.stdout.write(b.value)" "$response_file")"
+          rm -f "$response_file"
+          echo "::add-mask::${share_secret}"
+          echo "share_secret=${share_secret}" >> "$GITHUB_OUTPUT"
+          echo "Created expiring share access for isolated Golden alias only."
+
       - name: Candidate health preflight
         shell: bash
         env:
           GATE_URL: ${{ steps.gate_alias.outputs.gate_url }}
+          SHARE_SECRET: ${{ steps.gate_share.outputs.share_secret }}
         run: |
           set -euo pipefail
+          cookie_jar="/tmp/yhct-vercel-share.cookies"
+          rm -f "$cookie_jar"
+          encoded_secret="$(node -e "process.stdout.write(encodeURIComponent(process.argv[1]))" "$SHARE_SECRET")"
           last_status="000"
           for attempt in $(seq 1 45); do
-            last_status="$(curl --silent --show-error --output /tmp/yhct-health.json --write-out '%{http_code}' "${GATE_URL}/api/health" || true)"
+            bootstrap_status="$(curl --location --silent --show-error --max-redirs 8 --output /tmp/yhct-share-bootstrap.html --write-out '%{http_code}' \
+              --cookie "$cookie_jar" --cookie-jar "$cookie_jar" \
+              "${GATE_URL}/?_vercel_share=${encoded_secret}" || true)"
+            last_status="$(curl --silent --show-error --output /tmp/yhct-health.json --write-out '%{http_code}' \
+              --cookie "$cookie_jar" --cookie-jar "$cookie_jar" \
+              "${GATE_URL}/api/health" || true)"
             if [ "$last_status" = "200" ] && node -e "const fs=require('node:fs');const body=JSON.parse(fs.readFileSync('/tmp/yhct-health.json','utf8'));if(body?.ok!==true)process.exit(1)"; then
+              echo "AI_GOLDEN_COOKIE_JAR=${cookie_jar}" >> "$GITHUB_ENV"
               echo "Candidate health preflight passed on isolated gate alias."
               exit 0
             fi
-            echo "Golden gate alias not ready yet (attempt ${attempt}, HTTP ${last_status})."
+            echo "Golden gate alias not ready yet (attempt ${attempt}, bootstrap HTTP ${bootstrap_status}, health HTTP ${last_status})."
             sleep 2
           done
           echo "::error title=Candidate health failed::Isolated Golden gate alias did not become healthy; last HTTP ${last_status}."
@@ -314,7 +350,8 @@ jobs:
             echo "::error title=Golden gate alias cleanup failed::HTTP ${status}: ${detail}"
             exit 90
           fi
-          echo "Removed isolated Golden gate alias."
+          rm -f /tmp/yhct-vercel-share.cookies /tmp/yhct-share-bootstrap.html /tmp/yhct-health.json
+          echo "Removed isolated Golden gate alias and temporary share session."
 
       - name: Publish release summary
         run: |
@@ -326,5 +363,5 @@ jobs:
             echo "- Production alias: ${{ steps.promote.outputs.url }}"
             echo "- Production Chrome smoke: passed on 390x844 mobile and 1440x1000 desktop"
             echo "- Structural mobile assistant gate: passed"
-            echo "- Isolated Golden gate alias: removed"
+            echo "- Isolated Golden gate alias and temporary share access: removed"
           } >> "$GITHUB_STEP_SUMMARY"
