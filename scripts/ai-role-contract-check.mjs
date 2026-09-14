@@ -15,6 +15,7 @@ const quizManager=read('src/components/admin/LearningContentManagerPanel.tsx');
 const trustedIngest=read('api/_lib/trusted-quiz-ingest.js');
 const bankMigration=read('supabase/migrations/202609132120_phase19_quiz_bank_data_first.sql');
 const study=read('api/_lib/study-assistant-handler.js');
+const publicEvidence=read('api/_lib/public-medical-evidence.js');
 const studyClient=read('src/services/studyAiService.ts');
 const xz=read('src/services/xiaozhiMiniService.ts');
 const xzServer=read('api/_lib/xiaozhi-mini-handler.js');
@@ -45,7 +46,9 @@ need(geminiProvider,['geminiPrivateContextAllowed=()=>false','process.env.GEMINI
 forbid(assistant,['GEMINI_ALLOW_PRIVATE_CONTEXT'],'private context bypass');
 need(studyClient,["fetch('/api/ai/assistant'","task:'quiz'"],'Study client reuses shared gateway');
 forbid(studyClient,['/api/ai/study-quiz'],'duplicate Study quiz endpoint');
-need(study,["memberAccess(req,'member')","task==='quiz'",'createGroundedQuiz','createGeminiWebSearch','runOpenAiQuiz',"provider:'openai-web-fallback'",'Gemini quiz has no grounded web source','OpenAI quiz has no grounded web source','invalid_quiz_count'],'transparent resilient Study quiz inside shared gateway');
+need(study,["memberAccess(req,'member')","task==='quiz'",'createGroundedQuiz','retrievePublicMedicalEvidence','createGeminiJson','runOpenAiEvidenceQuiz',"provider:'openai-public-evidence'",'sourceIndexes','QUIZ_MODEL_BUSY','X-AI-Evidence-Count'],'transparent resilient Study quiz inside shared gateway');
+forbid(study,['web_search_preview','runOpenAiQuiz',"provider:'openai-web-fallback'"],'retired duplicate quota-sensitive quiz search');
+need(publicEvidence,['api.openalex.org/works','ebi.ac.uk/europepmc','wikipedia.org/w/api.php','publicEvidencePacket','publicEvidenceSources'],'quota-independent public evidence layer');
 if(fs.existsSync('api/ai/study-quiz.js'))fail.push('dedicated Study quiz serverless function must remain removed');
 
 need(quizManager,['Ngân hàng đề thi','syncQuizBank','Thêm thủ công → Cập nhật → dùng ngay','thư mục môn','Tên thư mục môn là nội dung người học nhìn thấy','tên tệp DOCX chỉ là dấu vết quản trị','đáp án tô đỏ'],'canonical one-step subject-folder quiz bank manager');
@@ -57,4 +60,4 @@ forbid(bankMigration,['sourceFileName'],'member quiz RPC must not expose source 
 
 if(vercel?.git?.deploymentEnabled!==false)fail.push('Vercel Git auto-deploy must remain disabled so production is gated by Web CI');
 if(fail.length){console.error('AI ROLE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('AI role contract PASS: task assistant, shared resilient Gemini-first Study quiz, Gemini medical Research, role-aware proposal quota and one canonical red-answer bank are isolated and enforced.');
+console.log('AI role contract PASS: task assistant, shared evidence-first Gemini Study quiz, Gemini medical Research, role-aware proposal quota and one canonical red-answer bank are isolated and enforced.');
