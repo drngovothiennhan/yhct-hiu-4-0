@@ -12,6 +12,9 @@ assert.ok(hub.includes("visited.has('quick')")&&hub.includes("visited.has('bank'
 assert.ok(hub.includes('role="tablist"')&&hub.includes('role="tabpanel"')&&hub.includes('aria-selected={tab===id}'));
 assert.ok(hub.includes("hidden={tab!=='quick'}")&&hub.includes("hidden={tab!=='bank'}")&&hub.includes("hidden={tab!=='adaptive'}")&&hub.includes("hidden={tab!=='exam'}"));
 assert.ok(hub.includes("import NationalExamPrepLegacy from './NationalExamPrepLegacy'"));
+assert.ok(hub.includes('yhct-learning-hub-pending-tab-v1'),'Home must be able to deep-link to a Learning Hub workflow');
+assert.ok(hub.includes('chọn nguồn → thư mục hoặc chủ đề → số câu → học'),'Learning Hub must state the canonical learning flow');
+assert.ok(hub.includes('Nguồn → thư mục → 5/10/20 câu')&&hub.includes('Nguồn → thư mục/chủ đề → số câu'),'Quick Review and Quiz must use the same source-first hierarchy');
 assert.equal((hub.match(/<DailyDrivePractice\b/g)||[]).length,1,'Quick Review must mount exactly once in canonical hub');
 assert.equal((hub.match(/<PracticeBankQuiz\b/g)||[]).length,1,'Quiz Study must mount exactly once in canonical hub');
 assert.equal((hub.match(/<AdaptiveReview\b/g)||[]).length,1,'Spaced Review must mount exactly once in canonical hub');
@@ -25,4 +28,4 @@ assert.ok(contract.includes("export type ModuleId='feed'|'ai'|'research'|'profil
 assert.ok(contract.includes("ai:{id:'ai',title:'Trợ lý A.I',path:'/ai'"));
 assert.ok(contract.includes("exam:{id:'exam',title:'Luyện thi ĐGNL',path:'/exam'"));
 assert.ok(!contract.includes("path:'/learning'"));
-console.log('Learning Hub structural contract passed: each workflow mounts once; Standard Exam no longer duplicates Quick Review, Quiz Study or Spaced Review.');
+console.log('Learning Hub structural contract passed: source-first hierarchy, deep-link handoff and single-mount workflows are preserved.');

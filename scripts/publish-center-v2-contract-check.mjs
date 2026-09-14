@@ -49,7 +49,8 @@ forbidText(bankMigration,/sourceFileName/,'member quiz RPC must not leak source 
 requireText(admin,/LearningContentManagerPanel/,'system admins receive canonical learning-management surface');
 requireText(student,/HIU_QUESTION_COUNTS=\[10,20,30,50\]/,'HIU bank keeps bounded selected counts');
 requireText(student,/AI_QUESTION_COUNTS=\[5,10,20\]/,'A.I generated quiz keeps tighter counts');
-requireText(student,/Chọn nguồn → nội dung → số câu → bắt đầu/,'student workflow remains source → content → count → start');
+requireText(student,/Nguồn → thư mục\/chủ đề → số câu → học/,'student workflow remains source → folder/topic → count → study');
+requireText(student,/Thư mục HIU/,'HIU bank uses folder-based member taxonomy');
 requireText(student,/>Đề HIU</,'approved HIU bank remains explicit source');
 requireText(student,/>Đề Gemini <em className="practice-bank__ai-label">A\.I<\/em></,'Gemini generated quiz remains A.I-labelled source');
 requireText(student,/QuestionReasoningGuide/,'contextual reasoning remains present');

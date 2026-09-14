@@ -2,19 +2,23 @@ import {useEffect,useMemo,useState,type FormEvent} from 'react';
 import {ArrowRight,BookOpen,Brain,FlaskConical,GraduationCap,Sparkles,Target} from 'lucide-react';
 import type {Member} from '../../types';
 import type {ModuleId} from '../../modules/moduleContract';
-import {readStudentJourney} from '../../services/studentJourneyService';
+import {readReviewCards,type ReviewCard} from '../../services/adaptiveReview';
+import {getPracticeQuizConfig} from '../../services/practiceQuizService';
+import {readStudentJourney,subscribeStudentJourney} from '../../services/studentJourneyService';
 import {askStudyGemini} from '../../services/studyAiService';
 import {routeStudyOsRequest} from '../../v2/study-os/intentRouter';
 import './study-hub-v2.css';
 
 const RESEARCH_PENDING_KEY='yhct-research-pending-query-v1';
 const AI_PENDING_KEY='yhct-ai-center-pending-query-v1';
+const LEARNING_PENDING_TAB_KEY='yhct-learning-hub-pending-tab-v1';
 const DAILY_HISTORY_PREFIX='yhct-study-os-daily-v1:';
 
 type Props={member:Member|null;onNavigate:(module:ModuleId)=>void;onLogin:()=>void};
 type QuickAction={label:string;seed:string;icon:'learn'|'quiz'|'research'};
 type DailyContent={date:string;headline:string;guidance:string;actions:QuickAction[]};
 type DailyHistory={date:string;headline:string;guidance:string;labels:string[]};
+type LearningTab='quick'|'bank'|'adaptive'|'exam';
 
 const DAILY_VARIANTS=[
   ['Hôm nay mình học gọn mà chắc nhé?','Chọn một mục tiêu nhỏ, hoàn thành rồi mới mở rộng.',['Ôn phần dễ quên','Kiểm tra 10 câu','Tra cứu nguồn học thuật']],
@@ -63,15 +67,31 @@ const parseDailyAi=(answer:string,date:string,focus:string,dailyMinutes:number,h
     return{date,headline,guidance,actions:actionsFromLabels(labels,focus,dailyMinutes)};
   }catch{return null}
 };
+const reviewSnapshot=(cards:ReviewCard[],subjects:string[],fallback:string)=>{
+  const allowed=new Set(subjects),valid=cards.filter(card=>Boolean(card.subject&&allowed.has(card.subject))),now=Date.now();
+  const dueCount=valid.filter(card=>card.due<=now).length;
+  const weakCount=new Map<string,number>();
+  valid.filter(card=>card.streak===0).forEach(card=>{const key=card.subject||'';if(key)weakCount.set(key,(weakCount.get(key)||0)+1)});
+  const weakFolder=[...weakCount.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'vi'))[0]?.[0]||fallback;
+  return{dueCount,weakFolder,total:valid.length};
+};
 
 export default function StudyHubV2({member,onNavigate,onLogin}:Props){
+  const memberId=member?.id||null;
   const [query,setQuery]=useState('');
-  const journey=useMemo(()=>readStudentJourney(member?.id||null),[member?.id]);
+  const [journey,setJourney]=useState(()=>readStudentJourney(memberId));
+  const [reviewCards,setReviewCards]=useState<ReviewCard[]>(()=>readReviewCards(memberId));
+  const [activeSubjects,setActiveSubjects]=useState<string[]>([]);
   const name=member?.herbalAlias||member?.fullName?.split(/\s+/).filter(Boolean).slice(-2).join(' ')||'bạn';
   const focus=journey.preferences?.focus||'kiến thức YHCT';
   const dailyMinutes=journey.preferences?.dailyMinutes||20;
-  const dateKey=localDateKey(),memberId=member?.id||null;
+  const dateKey=localDateKey();
   const [daily,setDaily]=useState<DailyContent>(()=>fallbackDaily(dateKey,focus,dailyMinutes,[]));
+  const review=useMemo(()=>reviewSnapshot(reviewCards,activeSubjects,focus),[reviewCards,activeSubjects,focus]);
+
+  useEffect(()=>{setJourney(readStudentJourney(memberId));return subscribeStudentJourney(memberId,setJourney)},[memberId]);
+  useEffect(()=>{const refresh=()=>setReviewCards(readReviewCards(memberId));refresh();window.addEventListener('yhct:review',refresh);window.addEventListener('storage',refresh);return()=>{window.removeEventListener('yhct:review',refresh);window.removeEventListener('storage',refresh)}},[memberId]);
+  useEffect(()=>{let alive=true;void getPracticeQuizConfig().then(config=>{if(alive)setActiveSubjects([...new Set(config.subjects||[])])}).catch(()=>{if(alive)setActiveSubjects([])});return()=>{alive=false}},[memberId]);
 
   useEffect(()=>{
     let alive=true;const controller=new AbortController();
@@ -97,6 +117,7 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
     void load();return()=>{alive=false;controller.abort()};
   },[dateKey,memberId,focus,dailyMinutes]);
 
+  const openLearning=(tab:LearningTab='quick')=>{try{localStorage.setItem(LEARNING_PENDING_TAB_KEY,tab)}catch{}onNavigate('exam')};
   const execute=(raw:string)=>{
     const plan=routeStudyOsRequest(raw);
     if(!plan.query)return;
@@ -106,7 +127,7 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
       return;
     }
     if(plan.destination==='exam'){
-      onNavigate('exam');
+      openLearning('bank');
       return;
     }
     if(!member){onLogin();return}
@@ -115,49 +136,43 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
   };
 
   const submit=(event:FormEvent)=>{event.preventDefault();execute(query)};
-  const useQuickAction=(item:QuickAction)=>{
-    if(item.icon==='research'){setQuery(item.seed);return}
-    execute(item.seed);
-  };
+  const useQuickAction=(item:QuickAction)=>execute(item.seed);
 
   return <section className="study-os-v2" aria-label="HIU YHCT AI Study OS">
     <header className="study-os-v2__hero">
       <div className="study-os-v2__eyebrow"><Sparkles/> MY HIU YHCT · AI STUDY OS</div>
-      <h2>Chào {name}. {daily.headline}</h2>
-      <p>{daily.guidance}</p>
-      <form className="study-os-v2__command" onSubmit={submit}>
-        <label className="sr-only" htmlFor="study-os-command">Yêu cầu học tập hoặc nghiên cứu</label>
-        <textarea id="study-os-command" rows={2} value={query} onChange={event=>setQuery(event.target.value)} placeholder="Ví dụ: Tôi có 30 phút, giúp tôi ôn Sinh lý nội tiết…"/>
-        <button type="submit" disabled={!query.trim()}><Sparkles/> Bắt đầu <ArrowRight/></button>
-      </form>
-      <div className="study-os-v2__quick" aria-label="Gợi ý nhanh">
-        {daily.actions.map(item=><button key={`${daily.date}-${item.icon}`} onClick={()=>useQuickAction(item)}>{item.icon==='quiz'?<GraduationCap/>:item.icon==='research'?<FlaskConical/>:<Brain/>}<span>{item.label}</span></button>)}
+      <div className="study-os-v2__focus-layout">
+        <div className="study-os-v2__focus-main">
+          <h2>Chào {name}. {daily.headline}</h2>
+          <p>{daily.guidance}</p>
+          <form className="study-os-v2__command" onSubmit={submit}>
+            <label className="sr-only" htmlFor="study-os-command">Yêu cầu học tập hoặc nghiên cứu</label>
+            <textarea id="study-os-command" rows={2} value={query} onChange={event=>setQuery(event.target.value)} placeholder="Ví dụ: Tôi có 30 phút, giúp tôi ôn Sinh lý nội tiết…"/>
+            <button type="submit" disabled={!query.trim()}><Sparkles/> Bắt đầu <ArrowRight/></button>
+          </form>
+          <div className="study-os-v2__quick" aria-label="Gợi ý học tập hôm nay">
+            {daily.actions.map(item=><button key={`${daily.date}-${item.icon}`} onClick={()=>useQuickAction(item)}>{item.icon==='quiz'?<GraduationCap/>:item.icon==='research'?<FlaskConical/>:<Brain/>}<span>{item.label}</span></button>)}
+          </div>
+        </div>
+        <aside className="study-os-v2__mission" aria-label="Mục tiêu học hôm nay">
+          <span><Target/> DAILY MISSION</span>
+          <strong>{focus}</strong>
+          <p>{dailyMinutes} phút tập trung · {journey.todayQuestions} câu đã luyện hôm nay</p>
+          <button onClick={()=>execute(`Giúp tôi học ${focus} trong ${dailyMinutes} phút, ưu tiên nội dung quan trọng nhất`)}>Bắt đầu phiên học <ArrowRight/></button>
+        </aside>
       </div>
     </header>
 
-    <div className="study-os-v2__grid">
-      <article className="study-os-v2__card study-os-v2__card--focus">
-        <div className="study-os-v2__card-icon"><Target/></div>
-        <div><small>HỌC TIẾP</small><h3>{focus}</h3><p>Mục tiêu cá nhân hiện tại: {dailyMinutes} phút tập trung.</p></div>
-        <button onClick={()=>execute(`Giúp tôi học tiếp ${focus} trong ${dailyMinutes} phút`)}>Học cùng AI <ArrowRight/></button>
-      </article>
-
-      <article className="study-os-v2__card">
-        <div className="study-os-v2__card-icon"><GraduationCap/></div>
-        <div><small>QUIZ & ÔN LUYỆN</small><h3>{journey.todayQuestions||0} câu hôm nay</h3><p>Chọn nội dung, số lượng câu và bắt đầu luyện từ ngân hàng đã duyệt.</p></div>
-        <button onClick={()=>onNavigate('exam')}>Mở Learning Hub <ArrowRight/></button>
-      </article>
-
-      <article className="study-os-v2__card">
-        <div className="study-os-v2__card-icon"><FlaskConical/></div>
-        <div><small>NGHIÊN CỨU</small><h3>Research A.I có nguồn</h3><p>Tìm bằng chứng, đọc nguồn và dùng tài liệu nội bộ khi bạn chủ động lựa chọn.</p></div>
-        <button onClick={()=>onNavigate('research')}>Mở Research <ArrowRight/></button>
-      </article>
-    </div>
-
-    <section className="study-os-v2__assistant">
-      <div><BookOpen/><span><b>AI học tập HIU YHCT</b><small>Gemini phụ trách hỏi đáp theo ngữ cảnh; trợ lý nổi chỉ giữ vai trò tác vụ và điều hướng hệ thống.</small></span></div>
-      <button onClick={()=>execute(`Giúp tôi lập kế hoạch học ${focus} hôm nay`)}>{member?'Mở AI học tập':'Đăng nhập để dùng'} <ArrowRight/></button>
+    <section className="study-os-v2__continue" aria-label="Tiếp tục học">
+      <header>
+        <div><span>TIẾP TỤC HỌC</span><h3>Quay lại đúng phần cần làm</h3><p>Tiến độ, điểm cần củng cố và lịch ôn được gom tại một chỗ.</p></div>
+        <button onClick={()=>openLearning('quick')}>Learning Hub <ArrowRight/></button>
+      </header>
+      <div className="study-os-v2__continue-grid">
+        <button onClick={()=>execute(`Giúp tôi tiếp tục học ${focus} trong ${dailyMinutes} phút`)}><Brain/><span><small>TRỌNG TÂM</small><b>{focus}</b><em>{dailyMinutes} phút theo mục tiêu</em></span><ArrowRight/></button>
+        <button onClick={()=>openLearning('adaptive')}><BookOpen/><span><small>ÔN NGẮT QUÃNG</small><b>{review.dueCount} thẻ đến hạn</b><em>Cần củng cố: {review.weakFolder}</em></span><ArrowRight/></button>
+        <button onClick={()=>openLearning('bank')}><GraduationCap/><span><small>TIẾN ĐỘ HÔM NAY</small><b>{journey.todayQuestions} câu đã luyện</b><em>Mở quiz theo thư mục hoặc chủ đề</em></span><ArrowRight/></button>
+      </div>
     </section>
   </section>;
 }
