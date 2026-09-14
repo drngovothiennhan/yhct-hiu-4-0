@@ -2,7 +2,7 @@ import {supabase} from './authService';
 
 export type DailyPracticeConfig={authenticated:boolean;ready:boolean;eligibleCount:number;needsReviewCount:number;practiceDate:string;hasTodaySession:boolean;defaultCount:number};
 export type DailyPracticeQuestion={id:string;subject:string;topic:string;stem:string;options:string[];sourceFileName:string;generationMethod:'parsed'|'ai_generated';reviewStatus:'source_verified'|'expert_approved'};
-export type DailyPracticeSession={ready:boolean;sessionId?:string;practiceDate:string;status?:'active'|'completed';questionCount?:number;available?:number;answers?:Record<string,number>;questions:DailyPracticeQuestion[]};
+export type DailyPracticeSession={ready:boolean;sessionId?:string;practiceDate:string;status?:'active'|'completed';subject?:string;questionCount?:number;available?:number;answers?:Record<string,number>;questions:DailyPracticeQuestion[]};
 export type DailyPracticeAnswer={accepted:boolean;alreadyAnswered:boolean;correct:boolean;selectedIndex:number;correctIndex:number;explanation:string;sourceFileName:string;reviewStatus:string};
 export type DriveSyncRow={driveFileId:string;fileName:string;status:string;parsed:number;generated:number;inserted:number;updated:number;message:string};
 export type DriveSyncResult={ok:boolean;degraded:boolean;reason?:string;folderId?:string;filesFound?:number;processed:DriveSyncRow[];latencyMs?:number};
@@ -21,7 +21,7 @@ export async function getDailyPracticeConfig():Promise<DailyPracticeConfig>{
   if(error){if(isMemberGate(error))return GUEST_CONFIG;throw error}
   return{...GUEST_CONFIG,...(data as Omit<DailyPracticeConfig,'authenticated'>),authenticated:true};
 }
-export async function getTodayDailyPractice(count=10):Promise<DailyPracticeSession>{await requireMemberSession();const {data,error}=await supabase.rpc('daily_practice_today_v1',{p_count:Math.max(1,Math.min(30,Math.trunc(count)||10))});if(error)throw error;return data as DailyPracticeSession}
+export async function getTodayDailyPractice(count=10,subject='',reset=false):Promise<DailyPracticeSession>{await requireMemberSession();const {data,error}=await supabase.rpc('daily_practice_today_v2',{p_count:Math.max(1,Math.min(30,Math.trunc(count)||10)),p_subject:String(subject||'').trim().slice(0,160),p_reset:Boolean(reset)});if(error)throw error;return data as DailyPracticeSession}
 export async function answerDailyPractice(sessionId:string,questionId:string,selectedIndex:number):Promise<DailyPracticeAnswer>{await requireMemberSession();const {data,error}=await supabase.rpc('daily_practice_answer_v1',{p_session_id:sessionId,p_question_id:questionId,p_selected_index:selectedIndex});if(error)throw error;return data as DailyPracticeAnswer}
 export async function getPracticeReviewQueue(limit=5):Promise<PracticeReviewQuestion[]>{await requireMemberSession();const {data,error}=await supabase.rpc('practice_question_review_queue_v1',{p_limit:Math.max(1,Math.min(20,Math.trunc(limit)||5))});if(error)throw error;return Array.isArray(data)?data as PracticeReviewQuestion[]:[]}
 export async function reviewPracticeQuestion(questionId:string,status:'expert_approved'|'rejected'){await requireMemberSession();const {data,error}=await supabase.rpc('practice_question_review_v1',{p_question_id:questionId,p_status:status});if(error)throw error;return data}
