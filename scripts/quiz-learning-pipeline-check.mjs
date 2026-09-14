@@ -38,11 +38,11 @@ forbid(pageBody,["'correctIndex'","'explanation'",'sourceFileName'],'quiz page m
 need(bankSql,['least(coalesce(p_limit,25),50)'],'server quiz page request bound');
 
 for(const count of ['5','10','20'])need(daily,[count],`Quick Review ${count}-question choice`);
-need(daily,['selectedCount','selectedSubject','getPracticeQuizConfig','Ôn tập nhanh','daily-drive__source-switch','daily-drive__setup','onChooseGemini','Đề HIU','Đề Gemini','const openToday=async(count=selectedCount,subject=selectedSubject,reset=Boolean(session))','getTodayDailyPractice(count,subject,reset)','Đổi bộ','QuestionReasoningGuide'],'Quick Review has repeatable folder/count choice, HIU/Gemini sources and contextual reasoning');
+need(daily,['selectedCount','selectedSubject','getPracticeQuizConfig','Ôn tập nhanh','daily-drive__source-switch','daily-drive__setup','onChooseGemini','Đề HIU','Đề Gemini','Thư mục HIU','Tất cả thư mục HIU','const openToday=async(count=selectedCount,subject=selectedSubject,reset=Boolean(session))','getTodayDailyPractice(count,subject,reset)','Đổi bộ','QuestionReasoningGuide'],'Quick Review has repeatable folder/count choice, HIU/Gemini sources and contextual reasoning');
 need(dailyService,['daily_practice_today_v2','p_subject:String(subject||\'\')','p_reset:Boolean(reset)'],'Quick Review client uses reconfigurable daily practice RPC');
 need(dailyV2Sql,['daily_practice_today_v2','p_subject text default','p_reset boolean default false','private.practice_subject_folders_v1',"answers='{}'::jsonb",'subject=target_subject'],'Quick Review server preserves folder-only taxonomy and supports safe same-day reset');
 forbid(daily,['eligibleCount','<small>Sẵn sàng</small>'],'member Quick Review must not expose global bank count');
-need(practice,['QUIZ HỌC TẬP','Chọn nguồn → nội dung → số câu → bắt đầu','HIU_QUESTION_COUNTS=[10,20,30,50]','AI_QUESTION_COUNTS=[5,10,20]','preferredSource','Đề HIU','Đề Gemini','getPracticeQuizPage(subject,0,seed.current,count)','submitPracticeQuiz(questions as PracticeQuizQuestion[]','Nộp bài','QuestionReasoningGuide','recordReview'],'source-first HIU/Gemini Practice Quiz');
+need(practice,['QUIZ HỌC TẬP','Nguồn → thư mục/chủ đề → số câu → học','HIU_QUESTION_COUNTS=[10,20,30,50]','AI_QUESTION_COUNTS=[5,10,20]','preferredSource','Đề HIU','Đề Gemini','Thư mục HIU','Tất cả thư mục HIU','getPracticeQuizPage(subject,0,seed.current,count)','submitPracticeQuiz(questions as PracticeQuizQuestion[]','Nộp bài','QuestionReasoningGuide','recordReview'],'source-first HIU/Gemini Practice Quiz');
 forbid(practice,['Tải thêm','hasMore','eligibleCount','câu đã duyệt'],'member Practice Quiz hides global count and pagination');
 need(service,['practice_quiz_page_v1','practice_quiz_submit_v1','for(let at=0;at<questions.length;at+=500)'],'HIU client submit remains chunked and server-authoritative');
 
@@ -54,7 +54,7 @@ forbid(studyHandler,['web_search_preview','runOpenAiQuiz',"provider:'openai-web-
 need(publicEvidence,['api.openalex.org/works','ebi.ac.uk/europepmc','wikipedia.org/w/api.php','physiology','publicEvidencePacket','publicEvidenceSources'],'public evidence must be retrieved independently of model quota');
 need(studyHandler,['conversationContext','giảng viên kiêm cố vấn học tập Y học cổ truyền bậc đại học','THỨ TỰ ƯU TIÊN NGỮ CẢNH BẮT BUỘC','Tuyệt đối không tự bịa rằng người dùng sắp thi'],'Gemini Study chat remains context-first and university-YHCT-advisor scoped');
 need(aiCenter,['slice(-6400)','Giảng viên & cố vấn YHCT hệ đại học','câu hỏi hiện tại luôn được ưu tiên cao nhất','Nếu chưa xác định được chủ đề'],'AI Center preserves recent context and avoids guessing');
-need(exam,["import PracticeBankQuiz from './PracticeBankQuiz'","openBankSource('ai')",'<DailyDrivePractice onChooseGemini',"<PracticeBankQuiz key={bankSource} preferredSource={bankSource} onSourceChange={setBankSource}/>",'Đề HIU hoặc Gemini A.I'],'Quick Review Gemini source routes to generated quiz mode');
+need(exam,["import PracticeBankQuiz from './PracticeBankQuiz'","openBankSource('ai')",'<DailyDrivePractice onChooseGemini',"<PracticeBankQuiz key={bankSource} preferredSource={bankSource} onSourceChange={setBankSource}/>",'Nguồn → thư mục/chủ đề → số câu'],'Quick Review Gemini source routes to generated quiz mode inside the unified hierarchy');
 forbid(legacyExam,['DailyDrivePractice','PracticeBankQuiz','AdaptiveReview'],'Standard Exam must not remount sibling Learning Hub workflows');
 
 need(adaptive,['Ôn tập ngắt quãng','subject','count','REVIEW_COUNTS=[5,10,20]','getPracticeQuizConfig','const subjects=bankSubjects','validCards','<small>{card.subject}</small>','QuestionReasoningGuide'],'adaptive review uses current folder registry only, supports count selection and contextual reasoning');
@@ -65,4 +65,4 @@ forbid(mascot,['fetch(','askServerAi','askXiaoZhiMini'],'mascot remains presenta
 
 if(fs.existsSync('api/ai/study-quiz.js'))fail.push('duplicate api/ai/study-quiz.js must remain removed');
 if(fail.length){console.error('QUIZ LEARNING PIPELINE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('Quiz learning pipeline contract PASS: one-step red-answer bank + repeatable folder/count Quick Review + quota-independent public evidence + shared Gemini-first generation + contextual reasoning + folder-only adaptive review + single-mount Learning Hub.');
+console.log('Quiz learning pipeline contract PASS: one-step bank + source-folder-count learning hierarchy + repeatable Quick Review + grounded Gemini generation + folder-only adaptive review.');
