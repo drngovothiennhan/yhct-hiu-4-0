@@ -2,9 +2,12 @@ import {ensureActive,requestDeadline} from './aiRequest';
 import {supabase} from './authService';
 
 export type StudyAiSource={title:string;url:string};
-export type StudyAiReply={answer:string;sources:StudyAiSource[];provider:string;degraded:boolean;route?:'research'|null;latencyMs:number};
+export type StudyAiReply={answer:string;sources:StudyAiSource[];suggestions:string[];provider:string;degraded:boolean;route?:'research'|null;latencyMs:number};
 export type StudyAiQuizQuestion={stem:string;options:string[];correctIndex:number;explanation:string};
 export type StudyAiQuiz={aiGenerated:true;topic:string;title:string;questions:StudyAiQuizQuestion[];sources:StudyAiSource[];provider:string;degraded:boolean;generatedAt:string;latencyMs:number};
+
+let variationTurn=Math.abs(Date.now())%6;
+const nextVariationMode=()=>{variationTurn=(variationTurn+1)%6;return variationTurn};
 
 async function memberToken(){
   const {data}=await supabase.auth.getSession(),token=data.session?.access_token;
@@ -15,19 +18,20 @@ async function memberToken(){
 export async function askStudyGemini(query:string,conversationContext='',pageContext='',signal?:AbortSignal):Promise<StudyAiReply>{
   const token=await memberToken();
   ensureActive(signal);
-  const deadline=requestDeadline(45000,signal);
+  const deadline=requestDeadline(45000,signal),variationMode=nextVariationMode();
   try{
     const response=await fetch('/api/ai/assistant',{
       method:'POST',
       signal:deadline.signal,
       headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
-      body:JSON.stringify({mode:'study',query,conversationContext,pageContext})
+      body:JSON.stringify({mode:'study',query,conversationContext,pageContext,variationMode})
     });
     const payload=await response.json().catch(()=>null) as Partial<StudyAiReply>&{error?:string}|null;
     if(!response.ok)throw new Error(payload?.error||`Gemini Study lỗi ${response.status}`);
     return{
       answer:String(payload?.answer||'Gemini Study chưa có câu trả lời.'),
       sources:Array.isArray(payload?.sources)?payload.sources.filter(source=>source&&typeof source.url==='string'&&source.url.startsWith('https://')).slice(0,6):[],
+      suggestions:Array.isArray(payload?.suggestions)?payload.suggestions.map(value=>String(value||'').replace(/\s+/g,' ').trim().slice(0,46)).filter(Boolean).slice(0,4):[],
       provider:String(payload?.provider||'gemini'),
       degraded:Boolean(payload?.degraded),
       route:payload?.route==='research'?'research':null,
@@ -42,13 +46,13 @@ export async function generateStudyGeminiQuiz(topic:string,count:number,signal?:
   const requested=Math.max(5,Math.min(20,Math.trunc(Number(count)||10)));
   const token=await memberToken();
   ensureActive(signal);
-  const deadline=requestDeadline(65000,signal);
+  const deadline=requestDeadline(65000,signal),variationMode=nextVariationMode();
   try{
     const response=await fetch('/api/ai/assistant',{
       method:'POST',
       signal:deadline.signal,
       headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
-      body:JSON.stringify({mode:'study',task:'quiz',query:cleanTopic,count:requested})
+      body:JSON.stringify({mode:'study',task:'quiz',query:cleanTopic,count:requested,variationMode})
     });
     const payload=await response.json().catch(()=>null) as Partial<StudyAiQuiz>&{error?:string}|null;
     if(!response.ok)throw new Error(payload?.error||`A.I tạo đề lỗi ${response.status}`);
