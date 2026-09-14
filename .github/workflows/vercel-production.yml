@@ -177,7 +177,6 @@ jobs:
           set -euo pipefail
           vercel curl /api/health \
             --deployment "${CANDIDATE_URL}" \
-            --scope "${VERCEL_ORG_ID}" \
             --token "${VERCEL_TOKEN}" \
             --fail-with-body > /tmp/yhct-health.json
           node -e "const fs=require('node:fs');const body=JSON.parse(fs.readFileSync('/tmp/yhct-health.json','utf8'));if(body?.ok!==true)process.exit(1)"
@@ -189,7 +188,6 @@ jobs:
           AI_GOLDEN_TARGET: ${{ steps.stage.outputs.candidate_url }}
           AI_GOLDEN_REPORT: ai-golden-medical-report.json
           AI_GOLDEN_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          AI_GOLDEN_VERCEL_SCOPE: ${{ env.VERCEL_ORG_ID }}
         run: |
           set -euo pipefail
           node scripts/ai-golden-medical-eval.mjs --runtime
