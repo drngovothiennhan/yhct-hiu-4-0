@@ -6,6 +6,7 @@ import {answerDailyPractice,getDailyPracticeConfig,getTodayDailyPractice,type Da
 import {getPracticeQuizConfig} from '../../services/practiceQuizService';
 import QuestionReasoningGuide from './QuestionReasoningGuide';
 import '../../daily-drive-practice.css';
+import '../../daily-drive-practice-controls.css';
 
 const DAILY_COUNTS=[5,10,20] as const;
 type DailyDrivePracticeProps={onChooseGemini?:()=>void};
