@@ -199,13 +199,18 @@ jobs:
           GATE_URL: ${{ steps.gate_alias.outputs.gate_url }}
         run: |
           set -euo pipefail
-          status="$(curl --silent --show-error --output /tmp/yhct-health.json --write-out '%{http_code}' "${GATE_URL}/api/health")"
-          if [ "$status" != "200" ]; then
-            echo "::error title=Candidate health failed::Isolated Golden gate alias returned HTTP ${status}."
-            exit 87
-          fi
-          node -e "const fs=require('node:fs');const body=JSON.parse(fs.readFileSync('/tmp/yhct-health.json','utf8'));if(body?.ok!==true)process.exit(1)"
-          echo "Candidate health preflight passed on isolated gate alias."
+          last_status="000"
+          for attempt in $(seq 1 45); do
+            last_status="$(curl --silent --show-error --output /tmp/yhct-health.json --write-out '%{http_code}' "${GATE_URL}/api/health" || true)"
+            if [ "$last_status" = "200" ] && node -e "const fs=require('node:fs');const body=JSON.parse(fs.readFileSync('/tmp/yhct-health.json','utf8'));if(body?.ok!==true)process.exit(1)"; then
+              echo "Candidate health preflight passed on isolated gate alias."
+              exit 0
+            fi
+            echo "Golden gate alias not ready yet (attempt ${attempt}, HTTP ${last_status})."
+            sleep 2
+          done
+          echo "::error title=Candidate health failed::Isolated Golden gate alias did not become healthy; last HTTP ${last_status}."
+          exit 87
 
       - name: Live Golden Medical Eval release gate
         shell: bash
