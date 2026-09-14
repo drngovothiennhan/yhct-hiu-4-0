@@ -18,8 +18,8 @@ const researchMini=read('src/components/research/ResearchAiMini.tsx');
 const aiCenter=read('src/components/ai/AiCenter.tsx');
 
 assert.match(client,/fetch\('\/api\/ai\/assistant'/);
-assert.match(client,/JSON\.stringify\(\{mode:'study',query,conversationContext,pageContext\}\)/);
-assert.match(client,/JSON\.stringify\(\{mode:'study',task:'quiz',query:cleanTopic,count:requested\}\)/,'generated quiz must reuse the shared Study gateway');
+assert.match(client,/JSON\.stringify\(\{mode:'study',query,conversationContext,pageContext,variationMode\}\)/);
+assert.match(client,/JSON\.stringify\(\{mode:'study',task:'quiz',query:cleanTopic,count:requested,variationMode\}\)/,'generated quiz must reuse the shared Study gateway with response variation');
 assert.doesNotMatch(client,/\/api\/ai\/study-quiz/,'no duplicate Study quiz endpoint may remain');
 assert.match(gateway,/if\(req.body\?\.mode==='study'\)return handleStudyAssistant\(req,res\)/);
 assert.ok(!fs.existsSync(new URL('../api/ai/study-assistant.js',import.meta.url)));
@@ -33,6 +33,8 @@ assert.match(studyHandler,/openai-public-evidence/);
 assert.match(studyHandler,/QUIZ_MODEL_BUSY/);
 assert.match(studyHandler,/X-AI-Evidence-Count/);
 assert.match(studyHandler,/sourceIndexes/);
+assert.match(studyHandler,/X-AI-Variation/);
+assert.match(studyHandler,/suggestions:parsed\.suggestions/);
 assert.doesNotMatch(studyHandler,/web_search_preview/,'quiz must not consume a second paid web-search quota');
 assert.match(publicEvidence,/api\.openalex\.org\/works/);
 assert.match(publicEvidence,/ebi\.ac\.uk\/europepmc/);
@@ -48,6 +50,7 @@ assert.doesNotMatch(aiCenter,/requestAnimationFrame\(\(\)=>void send\(seed\)\)/,
 assert.match(aiCenter,/setFreshSession\(true\)/,'Mới must create a fresh AI Study session');
 assert.match(aiCenter,/!freshSession&&preferences\?\.focus/,'fresh AI Study session must ignore inherited learning focus');
 assert.match(aiCenter,/!freshSession\?studyFocus:''/,'fresh AI Study session must not reuse inherited focus for resource lookup');
+assert.match(aiCenter,/aria-label="Gợi ý học tiếp theo"/,'Study follow-ups must be contextual rather than fixed');
 assert.match(researchCenter,/<ResearchAiMini/);
 assert.doesNotMatch(researchCenter,/ragInternalConsent|setRagInternalConsent/);
 assert.match(researchMini,/Dùng tài liệu nội bộ cho lượt này/);
@@ -93,11 +96,11 @@ try{
   const routed=await invoke({mode:'study',query:'Tìm PubMed về châm cứu mất ngủ'});
   assert.equal(routed.body.route,'research');
   const learnerContext='route=/ai | study_focus=Sinh lý nội tiết | study_goal=exam | study_year=2 | daily_minutes=20 | last_module=exam';
-  const result=await invoke({mode:'study',query:'Tạng tượng là gì?',conversationContext:'Âm dương ngũ hành',pageContext:learnerContext});
-  assert.equal(result.code,200);assert.equal(result.body.provider,'gemini-web');
-  searchFails=true;const fallback=await invoke({mode:'study',query:'Tạo câu hỏi ôn tập'});
-  assert.equal(fallback.code,200);assert.equal(fallback.body.provider,'gemini');assert.equal(fallback.body.degraded,true);
-  console.log(`Phase 19.2 shared Study chat + editable handoff + fresh reset + quota-independent quiz gateway PASS · ${entries.length}/12 serverless functions`);
+  const result=await invoke({mode:'study',query:'Tạng tượng là gì?',conversationContext:'Âm dương ngũ hành',pageContext:learnerContext,variationMode:1});
+  assert.equal(result.code,200);assert.equal(result.body.provider,'gemini-web');assert.ok(Array.isArray(result.body.suggestions));assert.equal(result.headers['X-AI-Variation'],'1');
+  searchFails=true;const fallback=await invoke({mode:'study',query:'Tạo câu hỏi ôn tập',variationMode:2});
+  assert.equal(fallback.code,200);assert.equal(fallback.body.provider,'gemini');assert.equal(fallback.body.degraded,true);assert.ok(Array.isArray(fallback.body.suggestions));
+  console.log(`Phase 19.2 shared Study chat + contextual variation + editable handoff + fresh reset + quota-independent quiz gateway PASS · ${entries.length}/12 serverless functions`);
 }finally{
   globalThis.fetch=originalFetch;
   if(originalKey===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=originalKey;
