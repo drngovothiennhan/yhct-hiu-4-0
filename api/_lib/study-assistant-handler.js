@@ -1,6 +1,7 @@
 import {cloudAiEnabled,cloudAiModel,memberAccess} from './member-access.js';
 import {createGeminiText,createGeminiJson,createGeminiWebSearch,geminiAiConfigured,geminiAiModel} from './gemini-provider.js';
 import {publicEvidencePacket,publicEvidenceSources,retrievePublicMedicalEvidence} from './public-medical-evidence.js';
+import {normalizeAiVariation,parseStudyResponse,responseDiversityInstruction,studySuggestionInstruction} from './ai-response-diversity.js';
 
 const TIMEOUT_MS=20000;
 const QUIZ_TIMEOUT_MS=50000;
@@ -71,7 +72,7 @@ const QUIZ_SYSTEM=[
   'Trả JSON đúng schema, không thêm markdown.'
 ].join(' ');
 
-async function runOpenAiEvidenceQuiz(topic,count,evidence,sources,signal){
+async function runOpenAiEvidenceQuiz(topic,count,evidence,sources,signal,variationMode){
   const key=process.env.OPENAI_API_KEY,model=cloudAiModel();
   if(!cloudAiEnabled()||!key||!model)throw new Error('OpenAI fallback configuration missing');
   const response=await fetch('https://api.openai.com/v1/responses',{
@@ -79,7 +80,7 @@ async function runOpenAiEvidenceQuiz(topic,count,evidence,sources,signal){
     headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},
     body:JSON.stringify({
       model,store:false,max_output_tokens:4600,
-      instructions:QUIZ_SYSTEM,
+      instructions:`${QUIZ_SYSTEM} ${responseDiversityInstruction(variationMode)}`,
       input:`CHỦ ĐỀ: ${topic}\nSỐ CÂU: ${count}\nNGUỒN CÔNG KHAI: ${JSON.stringify(sources)}\nGÓI BẰNG CHỨNG:\n${evidence}`,
       text:{format:{type:'json_schema',name:'yhct_study_quiz_evidence_v2',strict:true,schema:groundedQuizSchema(count,sources.length)}}
     })
@@ -89,7 +90,7 @@ async function runOpenAiEvidenceQuiz(topic,count,evidence,sources,signal){
   return{...quiz,provider:'openai-public-evidence',model};
 }
 
-export async function createGroundedQuiz({query,count,started,res}){
+export async function createGroundedQuiz({query,count,started,res,variationMode=0}){
   const requested=quizCount(count),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),QUIZ_TIMEOUT_MS);
   let geminiFailure='',sources=[];
   try{
@@ -108,6 +109,8 @@ export async function createGroundedQuiz({query,count,started,res}){
       'Câu hỏi phải bám sát chủ đề người dùng chọn, phù hợp mục tiêu ôn tập sinh viên và tránh chẩn đoán hay kê đơn cá nhân hóa.',
       'Không bịa nguồn, không bịa dữ kiện. Mỗi câu phải có sourceIndexes chứa chỉ số nguồn thực sự hỗ trợ đáp án.',
       'Nếu bằng chứng không đủ để tạo đủ số câu an toàn thì không tự bổ sung kiến thức ngoài nguồn.',
+      responseDiversityInstruction(variationMode),
+      'Khi tạo lại cùng một chủ đề, thay đổi góc hỏi và cách xây dựng nhiễu trong giới hạn bằng chứng; không thay đổi đáp án đúng chỉ để tạo cảm giác mới.',
       'Chỉ trả về JSON thuần, không markdown. correctIndex là số nguyên 0-3. explanation giải thích ngắn vì sao đáp án đúng.'
     ].join(' ');
     const prompt=`CHỦ ĐỀ: ${query}\nSỐ CÂU MỤC TIÊU: ${requested}\nNGUỒN (chỉ số bắt đầu 0): ${JSON.stringify(sources)}\nGÓI BẰNG CHỨNG CÔNG KHAI:\n${evidence}`;
@@ -130,7 +133,7 @@ export async function createGroundedQuiz({query,count,started,res}){
       }
     }else geminiFailure='configuration';
 
-    const fallback=await runOpenAiEvidenceQuiz(query,requested,evidence,sources,controller.signal),latencyMs=Date.now()-started;
+    const fallback=await runOpenAiEvidenceQuiz(query,requested,evidence,sources,controller.signal,variationMode),latencyMs=Date.now()-started;
     res.setHeader('Server-Timing',`study-quiz;dur=${latencyMs}`);
     res.setHeader('X-AI-Provider',fallback.provider);
     res.setHeader('X-AI-Model',fallback.model);
@@ -164,10 +167,10 @@ export async function handleStudyAssistant(req,res){
   const access=await memberAccess(req,'member');
   if(!access.ok)return res.status(access.status).json({error:access.error});
 
-  const query=clean(req.body?.query,MAX_QUERY),conversationContext=contextText(req.body?.conversationContext,MAX_CONTEXT),pageContext=clean(req.body?.pageContext,600),task=clean(req.body?.task,40).toLowerCase();
+  const query=clean(req.body?.query,MAX_QUERY),conversationContext=contextText(req.body?.conversationContext,MAX_CONTEXT),pageContext=clean(req.body?.pageContext,600),task=clean(req.body?.task,40).toLowerCase(),variationMode=normalizeAiVariation(req.body?.variationMode);
   if(query.length<2)return res.status(400).json({error:'Query is required'});
-  if(task==='quiz')return createGroundedQuiz({query,count:req.body?.count,started,res});
-  if(researchIntent(query))return res.status(200).json({answer:'Câu hỏi này cần chế độ Research A.I để kiểm chứng nguồn học thuật sâu hơn.',sources:[],provider:'router',degraded:false,route:'research',latencyMs:Date.now()-started});
+  if(task==='quiz')return createGroundedQuiz({query,count:req.body?.count,started,res,variationMode});
+  if(researchIntent(query))return res.status(200).json({answer:'Câu hỏi này cần chế độ Research A.I để kiểm chứng nguồn học thuật sâu hơn.',sources:[],suggestions:[],provider:'router',degraded:false,route:'research',latencyMs:Date.now()-started});
   if(!geminiAiConfigured('default'))return res.status(503).json({error:'Gemini Study chưa được cấu hình trên máy chủ.'});
 
   const instructions=[
@@ -185,26 +188,30 @@ export async function handleStudyAssistant(req,res){
     'Không tự truy xuất Drive hay tài liệu nội bộ. Nội dung ôn tập tạo ra chỉ là tài liệu tạm thời, không sửa đáp án chính thức của ngân hàng quiz.',
     'Không chẩn đoán, kê đơn hay thay thế bác sĩ. Với nội dung lâm sàng cá nhân hóa, chuyển sang giải thích học thuật an toàn.',
     'Khi dùng Google Search, chỉ nêu nguồn thực sự tìm thấy; không bịa URL. Nếu nguồn mâu thuẫn hoặc chưa chắc chắn, nói rõ giới hạn.',
-    'Trả lời bằng tiếng Việt tự nhiên. Không dùng ký hiệu markdown như **, *, # trong câu trả lời; nếu cần liệt kê dùng dấu •. Tránh văn phong máy móc và tránh lặp lại câu hỏi.'
+    responseDiversityInstruction(variationMode),
+    studySuggestionInstruction(variationMode),
+    'Trả lời bằng tiếng Việt tự nhiên. Không dùng ký hiệu markdown như **, *, # trong phần trả lời; nếu cần liệt kê dùng dấu •. Tránh văn phong máy móc và tránh lặp lại câu hỏi.'
   ].join(' ');
-  const prompt=`CÂU HỎI HIỆN TẠI: ${query}\nƯU TIÊN CAO NHẤT: trả lời đúng yêu cầu hiện tại trước mọi ngữ cảnh cũ.\n\nCONVERSATION_CONTEXT: ${conversationContext||'không có'}\nGhi chú: đây là mạch hội thoại gần nhất, chỉ dùng khi liên quan đến câu hỏi hiện tại.\n\nPAGE_CONTEXT: ${pageContext||'không rõ'}\nGhi chú: đây là ngữ cảnh trang/việc học thứ cấp, không phải bằng chứng học thuật.\n\nHãy trả lời trực tiếp câu hỏi hiện tại. Chỉ nối với mạch trước khi thực sự liên quan; không tự thêm mục tiêu, kỳ thi hoặc chủ đề mà người dùng chưa nói.`;
+  const prompt=`CÂU HỎI HIỆN TẠI: ${query}\nƯU TIÊN CAO NHẤT: trả lời đúng yêu cầu hiện tại trước mọi ngữ cảnh cũ.\n\nCONVERSATION_CONTEXT: ${conversationContext||'không có'}\nGhi chú: đây là mạch hội thoại gần nhất, chỉ dùng khi liên quan đến câu hỏi hiện tại. Nếu người dùng hỏi lại cùng ý, không sao chép nguyên văn phần trả lời hoặc gợi ý đã xuất hiện ở đây.\n\nPAGE_CONTEXT: ${pageContext||'không rõ'}\nGhi chú: đây là ngữ cảnh trang/việc học thứ cấp, không phải bằng chứng học thuật.\n\nHãy trả lời trực tiếp câu hỏi hiện tại. Chỉ nối với mạch trước khi thực sự liên quan; không tự thêm mục tiêu, kỳ thi hoặc chủ đề mà người dùng chưa nói.`;
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),TIMEOUT_MS);
   try{
     try{
       const output=await createGeminiWebSearch({systemInstruction:instructions,prompt,signal:controller.signal,mode:'default'});
-      const latencyMs=Date.now()-started;
+      const parsed=parseStudyResponse(output.text,variationMode),latencyMs=Date.now()-started;
       res.setHeader('Server-Timing',`study-ai;dur=${latencyMs}`);
       res.setHeader('X-AI-Provider','gemini-web');
       res.setHeader('X-AI-Model',output.model||geminiAiModel());
-      return res.status(200).json({answer:answerText(output.text),sources:Array.isArray(output.citations)?output.citations.slice(0,6):[],provider:'gemini-web',degraded:false,route:null,latencyMs});
+      res.setHeader('X-AI-Variation',String(variationMode));
+      return res.status(200).json({answer:answerText(parsed.answer),sources:Array.isArray(output.citations)?output.citations.slice(0,6):[],suggestions:parsed.suggestions,provider:'gemini-web',degraded:false,route:null,latencyMs});
     }catch(primaryError){
       if(controller.signal.aborted)throw primaryError;
       const fallback=await createGeminiText({systemInstruction:instructions,prompt,maxOutputTokens:1800,signal:controller.signal,mode:'default'});
-      const latencyMs=Date.now()-started;
+      const parsed=parseStudyResponse(fallback.text,variationMode),latencyMs=Date.now()-started;
       res.setHeader('Server-Timing',`study-ai;dur=${latencyMs}`);
       res.setHeader('X-AI-Provider','gemini');
       res.setHeader('X-AI-Model',fallback.model||geminiAiModel());
-      return res.status(200).json({answer:answerText(fallback.text),sources:[],provider:'gemini',degraded:true,route:null,latencyMs});
+      res.setHeader('X-AI-Variation',String(variationMode));
+      return res.status(200).json({answer:answerText(parsed.answer),sources:[],suggestions:parsed.suggestions,provider:'gemini',degraded:true,route:null,latencyMs});
     }
   }catch(error){
     const latencyMs=Date.now()-started;
