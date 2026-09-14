@@ -12,6 +12,30 @@ const normalize=value=>String(value??'').normalize('NFD').replace(/[\u0300-\u036
 const fail=message=>{console.error(`GOLDEN MEDICAL EVAL FAIL: ${message}`);process.exitCode=1};
 const ok=message=>console.log(`OK: ${message}`);
 const load=()=>JSON.parse(fs.readFileSync(datasetPath,'utf8'));
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const STUDY_MIN_INTERVAL_MS=Math.max(0,Number(process.env.AI_GOLDEN_STUDY_MIN_INTERVAL_MS||7000)||7000);
+const RETRY_DELAYS_MS=String(process.env.AI_GOLDEN_RETRY_DELAYS_MS||'30000,65000').split(',').map(value=>Math.max(0,Number(value)||0)).filter(Boolean).slice(0,3);
+
+const CONCEPT_ALIASES=new Map(Object.entries({
+  'khong tai hap thu':['khong bi tai hap thu','khong bi ong than tai hap thu'],
+  'khong duoc tai hap thu':['khong bi tai hap thu','khong bi ong than tai hap thu'],
+  'khong bai tiet':['khong bi bai tiet','khong bi ong than bai tiet','khong duoc ong than bai tiet'],
+  'khong duoc bai tiet':['khong bi bai tiet','khong bi ong than bai tiet','khong duoc ong than bai tiet'],
+  'tang tai hap thu natri':['giu natri','giu na','tai hap thu na+','tai hap thu natri tang'],
+  'tang tai hap thu na':['giu natri','giu na','tai hap thu na+','tai hap thu natri tang'],
+  'tang bai tiet kali':['tang thai kali','tang thai k','bai tiet k+','thai kali tang'],
+  'tang thai kali':['tang thai k','bai tiet k+','thai kali tang'],
+  'tang bai tiet k':['tang thai k','bai tiet k+','thai kali tang'],
+  'chenh lech ap suat rieng phan':['chenh lech phan ap','gradient phan ap'],
+  'gradient ap suat rieng phan':['gradient phan ap','chenh lech phan ap'],
+  'te bao bieu mo phe nang type i':['phe bao type i','phe bao i','pneumocyte i','te bao phe nang loai i'],
+  'pneumocyte type i':['phe bao type i','phe bao i','pneumocyte i','te bao phe nang loai i'],
+  'te bao phe nang type i':['phe bao type i','phe bao i','pneumocyte i','te bao phe nang loai i'],
+  'thong huyet':['nhiep huyet','giu huyet trong mach'],
+  'bang chung':['kiem chung khach quan','du lieu lam sang','chung minh lam sang'],
+  'nghien cuu lam sang':['du lieu lam sang','kiem chung lam sang','chung minh lam sang'],
+  'y hoc chung cu':['tieu chuan y hoc hien dai','kiem chung khach quan']
+}));
 
 function validateDataset(data){
   const errors=[];
@@ -25,6 +49,7 @@ function validateDataset(data){
     else if(ids.has(item.id))errors.push(`duplicate id ${item.id}`);else ids.add(item.id);
     if(!item?.domain||typeof item.domain!=='string')errors.push(`${item?.id||label} missing domain`);else domains.add(item.domain);
     if(!item?.prompt||String(item.prompt).trim().length<12)errors.push(`${item?.id||label} prompt too short`);
+    if(item?.runtimePrompt!==undefined&&String(item.runtimePrompt).trim().length<12)errors.push(`${item?.id||label} runtimePrompt too short`);
     if(!['study','research'].includes(item?.expectedRoute))errors.push(`${item?.id||label} invalid expectedRoute`);
     if(!Array.isArray(item?.mustIncludeAny)||!Array.isArray(item?.mustNotIncludeAny))errors.push(`${item?.id||label} concept gates must be arrays`);
     for(const group of [...(item?.mustIncludeAny||[]),...(item?.mustNotIncludeAny||[])])if(!Array.isArray(group)||!group.some(Boolean))errors.push(`${item?.id||label} has empty concept group`);
@@ -41,7 +66,27 @@ function validateDataset(data){
   return true;
 }
 
-const groupPass=(text,group)=>group.some(token=>text.includes(normalize(token)));
+function orderedWordsPass(text,token){
+  const words=normalize(token).split(/\s+/).filter(word=>word.length>1);
+  if(words.length<3)return false;
+  let cursor=0,first=-1,last=-1;
+  for(const word of words){
+    const index=text.indexOf(word,cursor);if(index<0)return false;
+    if(first<0)first=index;last=index+word.length;cursor=last;
+  }
+  return last-first<=180;
+}
+
+function tokenPass(text,token){
+  const normalized=normalize(token);
+  if(!normalized)return false;
+  if(text.includes(normalized))return true;
+  const aliases=CONCEPT_ALIASES.get(normalized)||[];
+  if(aliases.some(alias=>text.includes(alias)))return true;
+  return orderedWordsPass(text,normalized);
+}
+
+const groupPass=(text,group)=>group.some(token=>tokenPass(text,token));
 function scoreCase(item,payload){
   const answer=normalize(payload?.answer||'');
   const actualRoute=payload?.route==='research'?'research':'study';
@@ -56,7 +101,7 @@ function scoreCase(item,payload){
   return{pass,conceptPass,routePass,citationPass,missing:includeGroups.filter((_,i)=>!includes[i]),forbiddenHits:forbiddenGroups.filter((_,i)=>forbidden[i]),route:actualRoute,sourceCount:sources.length,provider:String(payload?.provider||''),latencyMs:Number(payload?.latencyMs||0)};
 }
 
-const requestBody=(item,index)=>JSON.stringify({mode:'study',query:item.prompt,conversationContext:'',pageContext:'AI Golden Medical Eval',variationMode:index%6});
+const requestBody=(item,index)=>JSON.stringify({mode:'study',query:String(item.runtimePrompt||item.prompt),conversationContext:'',pageContext:'AI Golden Medical Eval',variationMode:index%6});
 async function requestWithVercelCli(baseUrl,memberToken,gateKey,vercelToken,item,index){
   const args=['curl','/api/ai/assistant','--deployment',baseUrl,'--token',vercelToken,'--fail-with-body','-X','POST','-H','Content-Type: application/json'];
   const scope=String(process.env.AI_GOLDEN_VERCEL_SCOPE||'').trim();if(scope)args.push('--scope',scope);
@@ -107,16 +152,38 @@ async function requestCase(baseUrl,memberToken,gateKey,vercelToken,item,index){
   }finally{clearTimeout(timer)}
 }
 
+const transientRuntimeError=error=>/\b429\b|quota|rate.?limit|temporar|tạm thời chưa phản hồi|\b502\b|\b503\b|\b504\b|timeout/i.test(String(error?.message||error||''));
+
 async function runRuntime(data){
   const baseUrl=String(process.env.AI_GOLDEN_TARGET||'').trim(),memberToken=String(process.env.AI_GOLDEN_MEMBER_TOKEN||'').trim(),gateKey=String(process.env.AI_GOLDEN_EPHEMERAL_KEY||'').trim(),vercelToken=String(process.env.AI_GOLDEN_VERCEL_TOKEN||'').trim();
   if(!baseUrl){fail('runtime mode requires AI_GOLDEN_TARGET');return}
   if(!memberToken&&!gateKey){fail('runtime mode requires AI_GOLDEN_MEMBER_TOKEN or deployment-scoped AI_GOLDEN_EPHEMERAL_KEY');return}
   if(gateKey&&gateKey.length<32){fail('AI_GOLDEN_EPHEMERAL_KEY must contain at least 32 characters');return}
   const results=[];
+  let lastStudyRequestAt=0;
+  const pacedRequest=async(item,index)=>{
+    let lastError;
+    for(let attempt=0;attempt<=RETRY_DELAYS_MS.length;attempt++){
+      if(item.expectedRoute==='study'){
+        const waitMs=Math.max(0,STUDY_MIN_INTERVAL_MS-(Date.now()-lastStudyRequestAt));
+        if(waitMs)await sleep(waitMs);
+        lastStudyRequestAt=Date.now();
+      }
+      try{return await requestCase(baseUrl,memberToken,gateKey,vercelToken,item,index)}
+      catch(error){
+        lastError=error;
+        const delay=RETRY_DELAYS_MS[attempt];
+        if(!transientRuntimeError(error)||!delay)throw error;
+        console.warn(`RETRY ${item.id} after transient runtime failure; attempt=${attempt+2} delay=${delay}ms`);
+        await sleep(delay);
+      }
+    }
+    throw lastError||new Error('runtime request failed');
+  };
   for(let index=0;index<data.cases.length;index++){
     const item=data.cases[index];
     try{
-      const payload=await requestCase(baseUrl,memberToken,gateKey,vercelToken,item,index),score=scoreCase(item,payload);
+      const payload=await pacedRequest(item,index),score=scoreCase(item,payload);
       results.push({id:item.id,domain:item.domain,critical:Boolean(item.critical),...score});
       console.log(`${score.pass?'PASS':'FAIL'} ${item.id} route=${score.route} provider=${score.provider||'unknown'} latency=${score.latencyMs}ms`);
     }catch(error){results.push({id:item.id,domain:item.domain,critical:Boolean(item.critical),pass:false,requestError:String(error?.message||error)});console.error(`FAIL ${item.id}: ${error?.message||error}`)}

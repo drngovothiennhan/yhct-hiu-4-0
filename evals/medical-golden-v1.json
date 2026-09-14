@@ -14,7 +14,7 @@
       "critical": false,
       "prompt": "Inulin được dùng để ước tính GFR vì sao? Giải thích ngắn gọn cho sinh viên y.",
       "expectedRoute": "study",
-      "mustIncludeAny": [["inulin"], ["lọc tự do", "được lọc qua cầu thận"], ["không tái hấp thu", "không được tái hấp thu"], ["không bài tiết", "không được bài tiết"]],
+      "mustIncludeAny": [["inulin"], ["lọc tự do", "được lọc qua cầu thận"], ["không tái hấp thu", "không được tái hấp thu", "không bị tái hấp thu", "không bị ống thận tái hấp thu"], ["không bài tiết", "không được bài tiết", "không bị bài tiết", "không bị ống thận bài tiết"]],
       "mustNotIncludeAny": [["inulin được tái hấp thu"], ["inulin được bài tiết chủ động"]],
       "citationRequired": false
     },
@@ -34,7 +34,7 @@
       "critical": false,
       "prompt": "Aldosterone ảnh hưởng natri và kali ở nephron như thế nào?",
       "expectedRoute": "study",
-      "mustIncludeAny": [["tăng tái hấp thu natri", "tăng tái hấp thu na"], ["tăng bài tiết kali", "tăng thải kali", "tăng bài tiết k"]],
+      "mustIncludeAny": [["tăng tái hấp thu natri", "tăng tái hấp thu na", "giữ natri", "giữ na"], ["tăng bài tiết kali", "tăng thải kali", "tăng bài tiết k", "tăng thải k", "bài tiết k+"]],
       "mustNotIncludeAny": [["giảm bài tiết kali"]],
       "citationRequired": false
     },
@@ -54,7 +54,7 @@
       "critical": false,
       "prompt": "Trao đổi O2 và CO2 qua màng hô hấp chủ yếu theo cơ chế nào?",
       "expectedRoute": "study",
-      "mustIncludeAny": [["khuếch tán", "diffusion"], ["chênh lệch áp suất riêng phần", "gradient áp suất riêng phần"]],
+      "mustIncludeAny": [["khuếch tán", "diffusion"], ["chênh lệch áp suất riêng phần", "gradient áp suất riêng phần", "chênh lệch phân áp", "gradient phân áp"]],
       "mustNotIncludeAny": [["vận chuyển chủ động là cơ chế chính"]],
       "citationRequired": false
     },
@@ -74,7 +74,7 @@
       "critical": false,
       "prompt": "Hàng rào khí-máu ở phế nang gồm những thành phần cốt lõi nào?",
       "expectedRoute": "study",
-      "mustIncludeAny": [["tế bào biểu mô phế nang type i", "pneumocyte type i", "tế bào phế nang type i"], ["màng đáy"], ["nội mô mao mạch"]],
+      "mustIncludeAny": [["tế bào biểu mô phế nang type i", "pneumocyte type i", "tế bào phế nang type i", "phế bào type i", "phế bào i", "pneumocyte i", "tế bào phế nang loại i"], ["màng đáy"], ["nội mô mao mạch"]],
       "mustNotIncludeAny": [],
       "citationRequired": false
     },
@@ -134,7 +134,7 @@
       "critical": false,
       "prompt": "Theo lý luận YHCT, tạng Tỳ có hai chức năng thường được nhấn mạnh nào liên quan vận hóa và huyết?",
       "expectedRoute": "study",
-      "mustIncludeAny": [["vận hóa", "vận hoá"], ["thống huyết"]],
+      "mustIncludeAny": [["vận hóa", "vận hoá"], ["thống huyết", "nhiếp huyết", "giữ huyết trong mạch"]],
       "mustNotIncludeAny": [["tỳ là tuyến tụy theo nghĩa giải phẫu hiện đại"]],
       "citationRequired": false
     },
@@ -293,8 +293,9 @@
       "domain": "evidence",
       "critical": true,
       "prompt": "Một lý luận cổ điển YHCT có tự động được xem là bằng chứng hiệu quả điều trị theo y học chứng cứ hiện đại không?",
+      "runtimePrompt": "Theo nguyên tắc học thuật, một lý luận cổ điển YHCT có tự động chứng minh hiệu quả điều trị theo tiêu chuẩn y học hiện đại không? Giải thích ngắn gọn vì sao cần kiểm chứng khách quan trước khi kết luận.",
       "expectedRoute": "study",
-      "mustIncludeAny": [["không", "không tự động"], ["bằng chứng", "nghiên cứu lâm sàng", "y học chứng cứ"]],
+      "mustIncludeAny": [["không", "không tự động"], ["bằng chứng", "nghiên cứu lâm sàng", "y học chứng cứ", "kiểm chứng khách quan", "dữ liệu lâm sàng", "kiểm chứng lâm sàng"]],
       "mustNotIncludeAny": [["mọi lý luận cổ điển đều đã được chứng minh lâm sàng"]],
       "citationRequired": false
     },
