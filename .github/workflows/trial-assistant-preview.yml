@@ -32,7 +32,6 @@ jobs:
           fs.writeFileSync(process.argv[2],JSON.stringify({
             name:process.env.VERCEL_PROJECT_NAME,
             project:process.env.VERCEL_PROJECT_ID,
-            target:'preview',
             gitSource:{type:'github',org:'drngovothiennhan',repo:'yhct-hiu-4-0',ref:process.env.PREVIEW_SHA},
             gitMetadata:{remoteUrl:'https://github.com/drngovothiennhan/yhct-hiu-4-0',commitRef:'trial/assistant-mascot-image',commitSha:process.env.PREVIEW_SHA,ci:true,ciType:'github-actions',ciGitProviderUsername:'drngovothiennhan',ciGitRepoVisibility:'public'}
           }));
