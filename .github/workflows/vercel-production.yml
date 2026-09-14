@@ -213,7 +213,7 @@ jobs:
             echo "::error title=Golden share access failed::HTTP ${status}: ${detail}"
             exit 86
           fi
-          share_secret="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));if(!b.value)process.exit(2);process.stdout.write(b.value)" "$response_file")"
+          share_secret="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const p=b?.protectionBypass;const value=typeof b?.value==='string'?b.value:typeof p==='string'?p:p&&typeof p==='object'?Object.keys(p)[0]:'';if(!value)process.exit(2);process.stdout.write(value)" "$response_file")"
           rm -f "$response_file"
           echo "::add-mask::${share_secret}"
           echo "share_secret=${share_secret}" >> "$GITHUB_OUTPUT"
