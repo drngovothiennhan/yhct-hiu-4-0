@@ -8,6 +8,8 @@ const mini=read('src/components/ai/UnifiedAiMini.tsx');
 const app=read('src/App.tsx');
 const research=read('src/components/research/ResearchAiMini.tsx');
 const researchCenter=read('src/components/research/ResearchCenter.tsx');
+const researchEvidence=read('src/services/researchEvidenceService.ts');
+const researchResourceApi=read('api/knowledge/resources.js');
 const proposal=read('api/ai/research-proposal.js');
 const proposalUi=read('src/components/research/ResearchProposalBuilder.tsx');
 const quotaMigration=read('supabase/migrations/202609132110_phase19_research_proposal_gemini_quota.sql');
@@ -29,9 +31,12 @@ if((app.match(/<UnifiedAiMini\b/g)||[]).length!==1)fail.push('App must render ex
 need(xz,['hiu.vn','appAssistantQuery'],'official HIU task-assistant source policy');
 need(xzServer,['isResearchIntent',"route:'research'"],'XiaoZhi research handoff');
 
-need(research,['RESEARCH_ROLE=GEMINI_MEDICAL_RESEARCH_LEAD','searchPubMed(text,8)','searchOpenAlex(text,8)','searchClinicalTrials(text,5)','searchDriveRag','searchKnowledge','Dùng tài liệu nội bộ cho lượt này','setUseInternal(false)','Bằng chứng','PICO','Khoảng trống','Phương pháp','Không tạo câu trả lời local thay thế'],'Gemini medical research workbench');
-forbid(research,['buildAcademicFallback','A.I local 0đ','Fallback học thuật cục bộ'],'Research must not synthesize fake local AI answers');
-need(researchCenter,['<ResearchAiMini','searchPubMed(query,12)','searchOpenAlex(query,12)','searchClinicalTrials(query,8)','Khách: không dùng Gemini','Trích xuất ý chính (không A.I)'],'Research Center evidence/AI separation');
+need(research,['RESEARCH_ROLE=GEMINI_MEDICAL_RESEARCH_LEAD','searchResearchEvidence(text,14,controller.signal)','reusePublic','searchDriveRag','searchKnowledge','Dùng tài liệu nội bộ cho lượt này','setUseInternal(false)','Bằng chứng','PICO','Khoảng trống','Phương pháp','Không tạo câu trả lời local thay thế'],'Gemini medical research workbench');
+forbid(research,['searchPubMed(text,8)','searchOpenAlex(text,8)','searchClinicalTrials(text,5)','buildAcademicFallback','A.I local 0đ','Fallback học thuật cục bộ'],'Research must not restore duplicate public fan-out or fake local AI answers');
+need(researchCenter,['<ResearchAiMini','searchResearchEvidence(query,18)','Khách: không dùng Gemini','Trích xuất ý chính (không A.I)'],'Research Center evidence/AI separation');
+need(researchEvidence,["/api/knowledge/resources?action=research",'requestDeadline(12000,signal)'],'Research evidence client uses bounded server retrieval');
+need(researchResourceApi,["action==='research'",'retrievePublicResearchEvidence'],'existing knowledge function owns public Research retrieval');
+forbid(researchCenter,['searchPubMed(query,12)','searchOpenAlex(query,12)','searchClinicalTrials(query,8)'],'Research Center must not restore browser provider fan-out');
 if((researchCenter.match(/<ResearchAiMini\b/g)||[]).length!==1)fail.push('Research Center must render exactly one Research A.I surface');
 forbid(researchCenter,['A.I OpenAlex','OpenAlex A.I','tổng hợp local 0đ','ragInternalConsent'],'Research UI duplicate orchestration');
 
@@ -42,13 +47,13 @@ forbid(proposalUi,['A.I local 0đ','Tinh chỉnh A.I cloud','buildLocalProposalS
 need(quotaMigration,["v_role='admin'","'unlimited',true","v_role in('mod','super_mod','leader') then 5 else 3","interval '6 hours'",'v_used >= v_limit','Approved member required'],'server-authoritative proposal role quota');
 
 need(assistant,['isInternalSource',"startsWith('drive:')","startsWith('central:')",'internalContextConsent',"sources.some(isInternalSource)&&!internalContextConsent", "req.body?.mode==='study'",'handleStudyAssistant'],'shared AI gateway + private-context gate');
-need(geminiProvider,['geminiPrivateContextAllowed=()=>false','process.env.GEMINI_API_KEY'],'server-only Gemini provider');
+need(geminiProvider,['geminiPrivateContextAllowed=()=>false','process.env.GEMINI_API_KEY','geminiModelCandidates','GEMINI_RESEARCH_FALLBACK_MODEL'],'server-only Gemini provider with bounded research failover');
 forbid(assistant,['GEMINI_ALLOW_PRIVATE_CONTEXT'],'private context bypass');
 need(studyClient,["fetch('/api/ai/assistant'","task:'quiz'"],'Study client reuses shared gateway');
 forbid(studyClient,['/api/ai/study-quiz'],'duplicate Study quiz endpoint');
 need(study,["memberAccess(req,'member')","task==='quiz'",'createGroundedQuiz','retrievePublicMedicalEvidence','createGeminiJson','runOpenAiEvidenceQuiz',"provider:'openai-public-evidence'",'sourceIndexes','QUIZ_MODEL_BUSY','X-AI-Evidence-Count'],'transparent resilient Study quiz inside shared gateway');
 forbid(study,['web_search_preview','runOpenAiQuiz',"provider:'openai-web-fallback'"],'retired duplicate quota-sensitive quiz search');
-need(publicEvidence,['api.openalex.org/works','ebi.ac.uk/europepmc','wikipedia.org/w/api.php','publicEvidencePacket','publicEvidenceSources'],'quota-independent public evidence layer');
+need(publicEvidence,['api.openalex.org/works','ebi.ac.uk/europepmc','wikipedia.org/w/api.php','publicEvidencePacket','publicEvidenceSources','retrievePublicResearchEvidence','Panax vietnamensis Ngoc Linh ginseng'],'quota-independent public evidence layer and Research query expansion');
 if(fs.existsSync('api/ai/study-quiz.js'))fail.push('dedicated Study quiz serverless function must remain removed');
 
 need(quizManager,['Ngân hàng đề thi','syncQuizBank','Thêm thủ công → Cập nhật → dùng ngay','thư mục môn','Tên thư mục môn là nội dung người học nhìn thấy','tên tệp DOCX chỉ là dấu vết quản trị','đáp án tô đỏ'],'canonical one-step subject-folder quiz bank manager');
@@ -60,4 +65,4 @@ forbid(bankMigration,['sourceFileName'],'member quiz RPC must not expose source 
 
 if(vercel?.git?.deploymentEnabled!==false)fail.push('Vercel Git auto-deploy must remain disabled so production is gated by Web CI');
 if(fail.length){console.error('AI ROLE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('AI role contract PASS: task assistant, shared evidence-first Gemini Study quiz, Gemini medical Research, role-aware proposal quota and one canonical red-answer bank are isolated and enforced.');
+console.log('AI role contract PASS: task assistant, shared evidence-first Gemini Study quiz, server-bounded Gemini medical Research, role-aware proposal quota and one canonical red-answer bank are isolated and enforced.');
