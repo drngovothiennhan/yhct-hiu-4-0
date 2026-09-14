@@ -1,6 +1,7 @@
 const DEFAULT_GEMINI_MODEL='gemini-3.5-flash-lite';
 const DEFAULT_GEMINI_RESEARCH_MODEL='gemini-3.8-flash';
 const DEFAULT_GEMINI_FALLBACK_MODEL=DEFAULT_GEMINI_RESEARCH_MODEL;
+const DEFAULT_GEMINI_WEB_SEARCH_MODEL='gemini-3.8-flash';
 const MAX_ERROR_TEXT=180;
 const DEFAULT_PRIMARY_TIMEOUT_MS=7500;
 const RESEARCH_PRIMARY_TIMEOUT_MS=10000;
@@ -15,6 +16,7 @@ export const geminiAiModel=(mode='default')=>{
     :process.env.GEMINI_MODEL||DEFAULT_GEMINI_MODEL;
   return String(configured).trim();
 };
+export const geminiWebSearchModel=()=>String(process.env.GEMINI_WEB_SEARCH_MODEL||DEFAULT_GEMINI_WEB_SEARCH_MODEL).trim();
 export const geminiAiConfigured=(mode='default')=>Boolean(geminiAiEnabled()&&geminiAiModel(mode));
 const geminiModelCandidates=mode=>{
   const primary=geminiAiModel(mode);
@@ -111,7 +113,8 @@ export async function createGeminiText({systemInstruction,prompt,maxOutputTokens
 
 export async function createGeminiWebSearch({systemInstruction,prompt,signal,mode='default'}){
   if(!geminiAiConfigured(mode))throw new Error('Gemini configuration missing');
-  const model=geminiAiModel(mode),key=process.env.GEMINI_API_KEY;
+  const model=geminiWebSearchModel(),key=process.env.GEMINI_API_KEY;
+  if(!model)throw new Error('Gemini web-search model missing');
   const input=`${clean(systemInstruction,8000)}\n\n${clean(prompt,20000)}`;
   const response=await fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{
     method:'POST',signal,
