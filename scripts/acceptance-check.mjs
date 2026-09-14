@@ -15,7 +15,7 @@ const required=[
   'src/components/exam/ExamCenter.tsx','src/components/exam/AdaptiveReview.tsx','src/components/exam/PracticeBankQuiz.tsx','src/components/exam/DailyDrivePractice.tsx','src/components/exam/QuestionReasoningGuide.tsx',
   'src/components/admin/LearningContentManagerPanel.tsx','src/components/admin/QuizImportCenter.tsx',
   'src/components/game/HerbGardenGame.tsx','src/components/game/HiuYQuanGame.tsx',
-  'api/ai/assistant.js','api/_lib/study-assistant-handler.js','api/_lib/trusted-quiz-ingest.js','api/_lib/docx-marked-quiz.js','api/ai/research-proposal.js','api/ai/health.js','api/manifest.js',
+  'api/ai/assistant.js','api/_lib/study-assistant-handler.js','api/_lib/public-medical-evidence.js','api/_lib/trusted-quiz-ingest.js','api/_lib/docx-marked-quiz.js','api/ai/research-proposal.js','api/ai/health.js','api/manifest.js',
   'public/service-worker.js','public/manifest.webmanifest','vite.config.ts','vercel.json',
   'supabase/migrations/202609132110_phase19_research_proposal_gemini_quota.sql','supabase/migrations/202609132120_phase19_quiz_bank_data_first.sql','supabase/migrations/202609132145_phase19_quiz_source_sync_revision.sql',
   'docs/PHASE19_STUDY_OS_RESEARCH_AI_ARCHITECTURE.md'
@@ -37,13 +37,15 @@ need(app,['UnifiedAiMini member={member}',"lazy(()=>import('./components/researc
 need(contract,["ModuleId='feed'|'research'|'profile'|'garden'|'notifications'|'schedule'|'drl'|'exam'|'admin'|'acc'", "if(path==='/messages')return'profile'"],'frozen module contract');
 need(main,['requestAnimationFrame(()=>requestAnimationFrame(revealStableApp))','delete root.dataset.appBooting','yhct-prepaint'],'stable first paint');
 
-const mini=read('src/components/ai/UnifiedAiMini.tsx'),assistant=read('api/ai/assistant.js'),studyClient=read('src/services/studyAiService.ts'),study=read('api/_lib/study-assistant-handler.js'),aiCenter=read('src/components/ai/AiCenter.tsx');
+const mini=read('src/components/ai/UnifiedAiMini.tsx'),assistant=read('api/ai/assistant.js'),studyClient=read('src/services/studyAiService.ts'),study=read('api/_lib/study-assistant-handler.js'),publicEvidence=read('api/_lib/public-medical-evidence.js'),aiCenter=read('src/components/ai/AiCenter.tsx');
 need(mini,['researchIntent','openResearch(text)','openStudyAi(text)','Trợ lý tác vụ'],'task-only assistant routing');
 forbid(mini,['askXiaoZhiMini','searchOpenAlex','searchDriveRag','searchKnowledge'],'task assistant academic retrieval');
 need(assistant,["req.body?.mode==='study'",'handleStudyAssistant',"req.body?.mode==='xiaozhi-mini'"],'shared assistant routing');
 need(studyClient,["fetch('/api/ai/assistant'","mode:'study'","task:'quiz'",'A.I chưa tạo đủ số câu hợp lệ','Đề A.I chưa có nguồn web xác minh'],'shared Study client');
 forbid(studyClient,['/api/ai/study-quiz'],'duplicate Study client endpoint');
-need(study,['createGeminiWebSearch','createGeminiText',"task==='quiz'",'createGroundedQuiz','runOpenAiQuiz',"provider:'openai-web-fallback'",'web_search_preview','X-AI-Failover','Gemini quiz has no grounded web source','OpenAI quiz has no grounded web source'],'shared resilient Gemini-first Study gateway');
+need(study,['createGeminiWebSearch','createGeminiText',"task==='quiz'",'createGroundedQuiz','retrievePublicMedicalEvidence','runOpenAiEvidenceQuiz',"provider:'openai-public-evidence'",'X-AI-Evidence-Count','QUIZ_MODEL_BUSY','sourceIndexes'],'shared resilient Gemini-first Study gateway');
+forbid(study,['web_search_preview','runOpenAiQuiz',"provider:'openai-web-fallback'"],'retired duplicate quota-sensitive quiz search');
+need(publicEvidence,['api.openalex.org/works','ebi.ac.uk/europepmc','wikipedia.org/w/api.php','physiology','publicEvidencePacket','publicEvidenceSources'],'quota-independent public evidence retrieval');
 need(aiCenter,['askStudyGemini','AI STUDY OS · GEMINI','ai-center__conversation'],'dedicated Gemini Study workspace');
 
 const research=read('src/components/research/ResearchCenter.tsx'),researchMini=read('src/components/research/ResearchAiMini.tsx'),proposal=read('src/components/research/ResearchProposalBuilder.tsx'),proposalApi=read('api/ai/research-proposal.js'),proposalQuota=read('supabase/migrations/202609132110_phase19_research_proposal_gemini_quota.sql');
@@ -77,4 +79,4 @@ const entries=[];function walkApi(dir,relative=''){for(const entry of fs.readdir
 if(entries.length>12)errors.push(`Vercel Hobby function budget exceeded: ${entries.length}`);
 
 if(errors.length){console.error('ACCEPTANCE CHECK FAILED');errors.forEach(e=>console.error(`- ${e}`));process.exit(1)}
-console.log(`acceptance-ok: ${sourceFiles.length} application source files scanned; shared Study gateway + deterministic red-answer bank + Gemini Research + contextual reasoning + PWA/RBAC gates clean · ${entries.length}/12 functions`);
+console.log(`acceptance-ok: ${sourceFiles.length} application source files scanned; quota-independent public evidence + shared Gemini Study gateway + deterministic red-answer bank + Gemini Research + contextual reasoning + PWA/RBAC gates clean · ${entries.length}/12 functions`);

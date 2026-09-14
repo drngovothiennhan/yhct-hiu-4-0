@@ -14,9 +14,11 @@ const reasoning=read('src/components/exam/QuestionReasoningGuide.tsx');
 const service=read('src/services/practiceQuizService.ts');
 const studyService=read('src/services/studyAiService.ts');
 const studyHandler=read('api/_lib/study-assistant-handler.js');
+const publicEvidence=read('api/_lib/public-medical-evidence.js');
 const assistant=read('api/ai/assistant.js');
 const aiCenter=read('src/components/ai/AiCenter.tsx');
 const exam=read('src/components/exam/ExamCenter.tsx');
+const legacyExam=read('src/components/exam/NationalExamPrepLegacy.tsx');
 const mini=read('src/components/ai/UnifiedAiMini.tsx');
 const mascot=read('src/components/ai/AssistantMascot.tsx');
 const bankSql=read('supabase/migrations/202609132120_phase19_quiz_bank_data_first.sql');
@@ -43,10 +45,13 @@ need(service,['practice_quiz_page_v1','practice_quiz_submit_v1','for(let at=0;at
 need(studyService,['generateStudyGeminiQuiz',"fetch('/api/ai/assistant'","task:'quiz'",'A.I chưa tạo đủ số câu hợp lệ','Đề A.I chưa có nguồn web xác minh'],'generated quiz uses shared resilient grounded gateway');
 forbid(studyService,['/api/ai/study-quiz'],'duplicate Study quiz endpoint must stay removed');
 need(assistant,["req.body?.mode==='study'",'handleStudyAssistant'],'shared assistant must own Study routing');
-need(studyHandler,["task==='quiz'",'createGroundedQuiz','createGeminiWebSearch','runOpenAiQuiz',"provider:'openai-web-fallback'",'invalid_quiz_count','Gemini quiz has no grounded web source','OpenAI quiz has no grounded web source'],'Study quiz is Gemini-first, exact-count, source-grounded and resilient inside shared gateway');
+need(studyHandler,["task==='quiz'",'createGroundedQuiz','retrievePublicMedicalEvidence','createGeminiJson','runOpenAiEvidenceQuiz',"provider:'openai-public-evidence'",'sourceIndexes','QUIZ_MODEL_BUSY','X-AI-Evidence-Count'],'Study quiz is Gemini-first, exact-count, public-evidence-grounded and resilient inside shared gateway');
+forbid(studyHandler,['web_search_preview','runOpenAiQuiz',"provider:'openai-web-fallback'",'Gemini quiz has no grounded web source','OpenAI quiz has no grounded web source'],'quota-sensitive parallel search path must stay retired');
+need(publicEvidence,['api.openalex.org/works','ebi.ac.uk/europepmc','wikipedia.org/w/api.php','physiology','publicEvidencePacket','publicEvidenceSources'],'public evidence must be retrieved independently of model quota');
 need(studyHandler,['conversationContext','giảng viên kiêm cố vấn học tập Y học cổ truyền bậc đại học','THỨ TỰ ƯU TIÊN NGỮ CẢNH BẮT BUỘC','Tuyệt đối không tự bịa rằng người dùng sắp thi'],'Gemini Study chat remains context-first and university-YHCT-advisor scoped');
 need(aiCenter,['slice(-6400)','Giảng viên & cố vấn YHCT hệ đại học','câu hỏi hiện tại luôn được ưu tiên cao nhất','Nếu chưa xác định được chủ đề'],'AI Center preserves recent context and avoids guessing');
 need(exam,["import PracticeBankQuiz from './PracticeBankQuiz'","openBankSource('ai')",'<DailyDrivePractice onChooseGemini',"<PracticeBankQuiz key={bankSource} preferredSource={bankSource} onSourceChange={setBankSource}/>",'Đề HIU hoặc Gemini A.I'],'Quick Review Gemini source routes to generated quiz mode');
+forbid(legacyExam,['DailyDrivePractice','PracticeBankQuiz','AdaptiveReview'],'Standard Exam must not remount sibling Learning Hub workflows');
 
 need(adaptive,['Ôn tập ngắt quãng','subject','count','REVIEW_COUNTS=[5,10,20]','getPracticeQuizConfig','QuestionReasoningGuide'],'adaptive review supports subject/content filtering, count selection and contextual reasoning');
 need(reasoning,['A.I hướng dẫn suy luận','askServerAi','stem','options','subject','topic','selectedIndex',"askServerAi(prompt,'exam'",'KHÔNG tiết lộ đáp án đúng','Dữ kiện quyết định','Loại trừ','Điểm cần nhớ'],'reasoning tutor receives current question context and stays non-answer-leaking before selection');
@@ -56,4 +61,4 @@ forbid(mascot,['fetch(','askServerAi','askXiaoZhiMini'],'mascot remains presenta
 
 if(fs.existsSync('api/ai/study-quiz.js'))fail.push('duplicate api/ai/study-quiz.js must remain removed');
 if(fail.length){console.error('QUIZ LEARNING PIPELINE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('Quiz learning pipeline contract PASS: one-step red-answer bank + shared Gemini-first grounded quiz + contextual reasoning + adaptive review + task-only assistant.');
+console.log('Quiz learning pipeline contract PASS: one-step red-answer bank + quota-independent public evidence + shared Gemini-first generation + contextual reasoning + adaptive review + single-mount Learning Hub.');

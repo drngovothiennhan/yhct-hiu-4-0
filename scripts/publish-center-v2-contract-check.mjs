@@ -15,6 +15,7 @@ const admin=read('src/components/admin/AdminControlCenter.tsx');
 const student=read('src/components/exam/PracticeBankQuiz.tsx');
 const studyService=read('src/services/studyAiService.ts');
 const studyHandler=read('api/_lib/study-assistant-handler.js');
+const publicEvidence=read('api/_lib/public-medical-evidence.js');
 const assistant=read('api/ai/assistant.js');
 
 requireText(migration,/learning_quiz_publish_v1/,'legacy reviewed quiz publication RPC remains intact');
@@ -60,8 +61,13 @@ requireText(studyService,/task:'quiz'/,'generated quiz selects shared Study quiz
 forbidText(studyService,/\/api\/ai\/study-quiz/,'dedicated Study quiz endpoint must stay removed');
 requireText(assistant,/req\.body\?\.mode==='study'\)return handleStudyAssistant/,'assistant gateway owns Study mode');
 requireText(studyHandler,/task==='quiz'/,'Study handler owns generated quiz task');
-requireText(studyHandler,/runOpenAiQuiz/,'shared Study handler retains grounded failover');
-requireText(studyHandler,/Gemini quiz has no grounded web source/,'Gemini path fails closed without sources');
-requireText(studyHandler,/OpenAI quiz has no grounded web source/,'fallback path fails closed without sources');
+requireText(studyHandler,/retrievePublicMedicalEvidence/,'shared Study handler retrieves public evidence independently of model quota');
+requireText(studyHandler,/createGeminiJson/,'Gemini remains primary structured quiz generator');
+requireText(studyHandler,/runOpenAiEvidenceQuiz/,'shared Study handler retains same-evidence generator failover');
+requireText(studyHandler,/sourceIndexes/,'generated questions bind to retrieved public sources');
+requireText(studyHandler,/QUIZ_MODEL_BUSY/,'source retrieval failure is distinct from model quota exhaustion');
+forbidText(studyHandler,/web_search_preview|runOpenAiQuiz|provider:'openai-web-fallback'/,'retired duplicate quota-sensitive web-search fallback must stay removed');
+requireText(publicEvidence,/api\.openalex\.org\/works/,'OpenAlex public evidence retrieval present');
+requireText(publicEvidence,/ebi\.ac\.uk\/europepmc/,'Europe PMC public evidence retrieval present');
 
-console.log('Publish Center Phase 19 contracts: PASS — one-step subject-folder intake, deterministic red-answer ingestion, data-first bank and shared resilient Study quiz.');
+console.log('Publish Center Phase 19.2 contracts: PASS — one-step subject-folder intake, deterministic red-answer ingestion, data-first bank and quota-independent public-evidence Study quiz.');

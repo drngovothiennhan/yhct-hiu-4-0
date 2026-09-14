@@ -12,6 +12,7 @@ assert.equal(aiNavigationTarget('Giải thích âm dương ngũ hành'),null);
 const client=read('src/services/studyAiService.ts');
 const gateway=read('api/ai/assistant.js');
 const studyHandler=read('api/_lib/study-assistant-handler.js');
+const publicEvidence=read('api/_lib/public-medical-evidence.js');
 const researchCenter=read('src/components/research/ResearchCenter.tsx');
 const researchMini=read('src/components/research/ResearchAiMini.tsx');
 const aiCenter=read('src/components/ai/AiCenter.tsx');
@@ -25,12 +26,18 @@ assert.ok(!fs.existsSync(new URL('../api/ai/study-assistant.js',import.meta.url)
 assert.ok(!fs.existsSync(new URL('../api/ai/study-quiz.js',import.meta.url)));
 assert.match(studyHandler,/task==='quiz'/);
 assert.match(studyHandler,/createGroundedQuiz/);
-assert.match(studyHandler,/runOpenAiQuiz/);
-assert.match(studyHandler,/createGeminiWebSearch/);
-assert.match(studyHandler,/openai-web-fallback/);
-assert.match(studyHandler,/web_search_preview/);
-assert.match(studyHandler,/Gemini quiz has no grounded web source/);
-assert.match(studyHandler,/X-AI-Failover/);
+assert.match(studyHandler,/retrievePublicMedicalEvidence/);
+assert.match(studyHandler,/runOpenAiEvidenceQuiz/);
+assert.match(studyHandler,/createGeminiJson/);
+assert.match(studyHandler,/openai-public-evidence/);
+assert.match(studyHandler,/QUIZ_MODEL_BUSY/);
+assert.match(studyHandler,/X-AI-Evidence-Count/);
+assert.match(studyHandler,/sourceIndexes/);
+assert.doesNotMatch(studyHandler,/web_search_preview/,'quiz must not consume a second paid web-search quota');
+assert.match(publicEvidence,/api\.openalex\.org\/works/);
+assert.match(publicEvidence,/ebi\.ac\.uk\/europepmc/);
+assert.match(publicEvidence,/wikipedia\.org\/w\/api\.php/);
+assert.match(publicEvidence,/physiology/);
 assert.match(studyHandler,/study_focus/);
 assert.match(studyHandler,/không coi chúng là bằng chứng học thuật/);
 
@@ -85,7 +92,7 @@ try{
   assert.equal(result.code,200);assert.equal(result.body.provider,'gemini-web');
   searchFails=true;const fallback=await invoke({mode:'study',query:'Tạo câu hỏi ôn tập'});
   assert.equal(fallback.code,200);assert.equal(fallback.body.provider,'gemini');assert.equal(fallback.body.degraded,true);
-  console.log(`Phase 19 shared Study chat + quiz gateway PASS · ${entries.length}/12 serverless functions`);
+  console.log(`Phase 19.2 shared Study chat + quota-independent quiz gateway PASS · ${entries.length}/12 serverless functions`);
 }finally{
   globalThis.fetch=originalFetch;
   if(originalKey===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=originalKey;
