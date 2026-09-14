@@ -97,7 +97,7 @@ function tokenPass(text,token){
   if(!normalized)return false;
   if(text.includes(normalized))return true;
   const aliases=CONCEPT_ALIASES.get(normalized)||[];
-  if(aliases.some(alias=>text.includes(alias)))return true;
+  if(aliases.some(alias=>text.includes(alias)||orderedWordsPass(text,alias)))return true;
   return orderedWordsPass(text,normalized);
 }
 
