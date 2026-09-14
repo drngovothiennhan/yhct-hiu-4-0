@@ -74,8 +74,25 @@ async function requestWithVercelCli(baseUrl,memberToken,gateKey,vercelToken,item
   }
 }
 
+async function requestWithCookieJar(baseUrl,cookieJar,memberToken,gateKey,item,index){
+  const args=['--silent','--show-error','--fail-with-body','--cookie',cookieJar,'--cookie-jar',cookieJar,'-X','POST','-H','Content-Type: application/json'];
+  if(memberToken)args.push('-H',`Authorization: Bearer ${memberToken}`);
+  if(gateKey)args.push('-H',`x-yhct-golden-eval: ${gateKey}`);
+  args.push('-d',requestBody(item,index),`${baseUrl.replace(/\/$/,'')}/api/ai/assistant`);
+  try{
+    const {stdout}=await execFileAsync('curl',args,{encoding:'utf8',maxBuffer:2*1024*1024,timeout:65000});
+    return JSON.parse(String(stdout||'').trim());
+  }catch(error){
+    const body=String(error?.stdout||'').trim();
+    if(body){try{const payload=JSON.parse(body);throw new Error(String(payload?.error||payload?.message||body).slice(0,220))}catch(parseError){if(parseError?.message&&parseError.message!==body)throw parseError}}
+    throw new Error(String(error?.stderr||error?.message||'curl request failed').slice(0,220));
+  }
+}
+
 async function requestCase(baseUrl,memberToken,gateKey,vercelToken,item,index){
   if(vercelToken)return requestWithVercelCli(baseUrl,memberToken,gateKey,vercelToken,item,index);
+  const cookieJar=String(process.env.AI_GOLDEN_COOKIE_JAR||'').trim();
+  if(cookieJar)return requestWithCookieJar(baseUrl,cookieJar,memberToken,gateKey,item,index);
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
   try{
     const headers={'Content-Type':'application/json'};
