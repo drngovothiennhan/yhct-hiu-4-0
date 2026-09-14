@@ -23,11 +23,12 @@ jobs:
     environment: production
     env:
       VERCEL_ORG_ID: team_zMTBj85c4Dh5QoDNIjWqQRTg
-      VERCEL_SCOPE: hiu-yhct
       VERCEL_PROJECT_ID: prj_7DWP3LX30CFALUD1KoNeOR8NlpsQ
       VERCEL_PROJECT_NAME: yhct-hiu-final4-stage
       VERCEL_PRODUCTION_ALIAS: yhct-hiu-final4-stage.vercel.app
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      GIT_REPO_OWNER: drngovothiennhan
+      GIT_REPO_NAME: yhct-hiu-4-0
       CI_PASSED_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
       - name: Require release credentials and exact CI commit
@@ -64,23 +65,6 @@ jobs:
             exit 79
           fi
 
-      - name: Install Vercel CLI for staged production control
-        run: npm install --global vercel@latest --no-audit --no-fund
-
-      - name: Link repository workspace to production project
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p .vercel
-          node - <<'NODE'
-          const fs=require('node:fs');
-          fs.writeFileSync('.vercel/project.json',JSON.stringify({
-            orgId:process.env.VERCEL_ORG_ID,
-            projectId:process.env.VERCEL_PROJECT_ID,
-            projectName:process.env.VERCEL_PROJECT_NAME
-          },null,2));
-          NODE
-
       - name: Verify Vercel token project access
         shell: bash
         run: |
@@ -93,14 +77,7 @@ jobs:
           if [ "$status" != "200" ]; then
             detail="$(node - "$response_file" <<'NODE'
           const fs=require('node:fs');
-          const file=process.argv[2];
-          try {
-            const body=JSON.parse(fs.readFileSync(file,'utf8'));
-            const error=body?.error||body;
-            process.stdout.write(String(error?.message||error?.code||'Access denied').slice(0,400));
-          } catch {
-            process.stdout.write('Unable to read Vercel API error');
-          }
+          try{const body=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));const error=body?.error||body;process.stdout.write(String(error?.message||error?.code||'Access denied').slice(0,400))}catch{process.stdout.write('Unable to read Vercel API error')}
           NODE
             )"
             rm -f "$response_file"
@@ -123,39 +100,91 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          candidate_url="$(vercel deploy --prod --skip-domain --force --yes \
-            --token "$VERCEL_TOKEN" \
-            --scope "$VERCEL_SCOPE" \
-            --env "AI_GOLDEN_EPHEMERAL_KEY=${AI_GOLDEN_EPHEMERAL_KEY}")"
-          candidate_url="$(printf '%s' "$candidate_url" | tail -n 1 | tr -d '\r')"
-          if ! [[ "$candidate_url" =~ ^https://[A-Za-z0-9.-]+\.vercel\.app$ ]]; then
-            echo "::error title=Invalid staged deployment URL::${candidate_url}"
+          request_file="$(mktemp)"
+          response_file="$(mktemp)"
+          node - "$request_file" <<'NODE'
+          const fs=require('node:fs');
+          const output=process.argv[2],sha=process.env.CI_PASSED_SHA,owner=process.env.GIT_REPO_OWNER,repo=process.env.GIT_REPO_NAME;
+          fs.writeFileSync(output,JSON.stringify({
+            name:process.env.VERCEL_PROJECT_NAME,
+            project:process.env.VERCEL_PROJECT_ID,
+            target:'production',
+            autoAssignCustomDomains:false,
+            env:{AI_GOLDEN_EPHEMERAL_KEY:process.env.AI_GOLDEN_EPHEMERAL_KEY},
+            gitSource:{type:'github',org:owner,repo,ref:sha},
+            gitMetadata:{remoteUrl:`https://github.com/${owner}/${repo}`,commitRef:'main',commitSha:sha,ci:true,ciType:'github-actions',ciGitProviderUsername:owner,ciGitRepoVisibility:'public'}
+          }));
+          NODE
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data-binary "@${request_file}" \
+            "https://api.vercel.com/v13/deployments?teamId=${VERCEL_ORG_ID}&forceNew=1")"
+          rm -f "$request_file"
+          if [[ "$status" != "200" && "$status" != "201" && "$status" != "202" ]]; then
+            detail="$(node - "$response_file" <<'NODE'
+          const fs=require('node:fs');try{const b=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));const e=b?.error||b;process.stdout.write(String(e?.message||e?.code||'Deployment create failed').slice(0,600))}catch{process.stdout.write('Unable to read Vercel deployment error')}
+          NODE
+            )"
+            rm -f "$response_file"
+            echo "::error title=Staged deployment creation failed::HTTP ${status}: ${detail}"
             exit 81
           fi
-          if [ "$candidate_url" = "https://${VERCEL_PRODUCTION_ALIAS}" ]; then
-            echo "::error title=Unsafe deployment::Staged candidate unexpectedly equals production alias."
-            exit 81
-          fi
-          echo "candidate_url=${candidate_url}" >> "$GITHUB_OUTPUT"
-          echo "Staged production candidate created without domain promotion."
+          deployment_id="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));if(!b.id)process.exit(2);process.stdout.write(b.id)" "$response_file")"
+          deployment_url="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));if(!b.url)process.exit(2);process.stdout.write('https://'+b.url)" "$response_file")"
+          rm -f "$response_file"
+          echo "deployment_id=${deployment_id}" >> "$GITHUB_OUTPUT"
+          echo "candidate_url=${deployment_url}" >> "$GITHUB_OUTPUT"
+          echo "Created staged production candidate ${deployment_id} with automatic domain assignment disabled."
 
-      - name: Candidate health preflight through Vercel protection
+      - name: Wait for staged candidate readiness and prove production alias is untouched
         shell: bash
+        env:
+          DEPLOYMENT_ID: ${{ steps.stage.outputs.deployment_id }}
         run: |
           set -euo pipefail
-          vercel curl /api/health \
-            --deployment "${{ steps.stage.outputs.candidate_url }}" \
-            --token "$VERCEL_TOKEN" \
-            --scope "$VERCEL_SCOPE" \
-            --fail-with-body --silent --show-error >/tmp/yhct-health.json
-          node -e "const fs=require('node:fs');const s=fs.readFileSync('/tmp/yhct-health.json','utf8');if(!s.trim())process.exit(2);console.log('Candidate health response received.')"
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          for attempt in $(seq 1 120); do
+            status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v13/deployments/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}")"
+            if [ "$status" != "200" ]; then sleep 5; continue; fi
+            state="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.readyState||b.status||'UNKNOWN')" "$response_file")"
+            deployed_sha="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b?.meta?.githubCommitSha||'')" "$response_file")"
+            alias_bound="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(Array.isArray(b.alias)&&b.alias.includes(process.env.VERCEL_PRODUCTION_ALIAS)?'1':'0')" "$response_file")"
+            echo "Candidate state=${state}; production alias bound=${alias_bound}"
+            if [[ "$state" == "ERROR" || "$state" == "CANCELED" ]]; then echo "::error title=Staged Vercel candidate failed::${state}"; exit 82; fi
+            if [ "$state" = "READY" ]; then
+              if [ -n "$deployed_sha" ] && [ "$deployed_sha" != "$CI_PASSED_SHA" ]; then echo "::error title=Candidate commit mismatch::${deployed_sha}"; exit 83; fi
+              if [ "$alias_bound" = "1" ]; then echo "::error title=Unsafe early promotion::Production alias moved before Golden Medical Eval."; exit 84; fi
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error title=Staged Vercel timeout::Candidate did not become READY within 10 minutes."
+          exit 85
+
+      - name: Candidate health preflight
+        shell: bash
+        env:
+          CANDIDATE_URL: ${{ steps.stage.outputs.candidate_url }}
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --output /tmp/yhct-health.json --write-out '%{http_code}' \
+            --header "x-yhct-golden-eval: ${AI_GOLDEN_EPHEMERAL_KEY}" \
+            "${CANDIDATE_URL}/api/health")"
+          if [ "$status" != "200" ]; then
+            echo "::error title=Candidate health failed::Immutable staged deployment returned HTTP ${status}."
+            exit 86
+          fi
+          echo "Candidate health preflight passed."
 
       - name: Live Golden Medical Eval release gate
         shell: bash
         env:
           AI_GOLDEN_TARGET: ${{ steps.stage.outputs.candidate_url }}
-          AI_GOLDEN_VERCEL_TOKEN: ${{ env.VERCEL_TOKEN }}
-          AI_GOLDEN_VERCEL_SCOPE: ${{ env.VERCEL_SCOPE }}
           AI_GOLDEN_REPORT: ai-golden-medical-report.json
         run: |
           set -euo pipefail
@@ -173,28 +202,43 @@ jobs:
       - name: Promote only the Golden-passed staged deployment
         id: promote
         shell: bash
+        env:
+          DEPLOYMENT_ID: ${{ steps.stage.outputs.deployment_id }}
         run: |
           set -euo pipefail
-          vercel promote "${{ steps.stage.outputs.candidate_url }}" \
-            --yes \
-            --token "$VERCEL_TOKEN" \
-            --scope "$VERCEL_SCOPE" \
-            --timeout=5m
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/promote/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}")"
+          if [[ "$status" != "200" && "$status" != "201" && "$status" != "202" ]]; then
+            detail="$(cat "$response_file" | head -c 600)";rm -f "$response_file";echo "::error title=Golden-passed promotion failed::HTTP ${status}: ${detail}";exit 87
+          fi
+          rm -f "$response_file"
           echo "url=https://${VERCEL_PRODUCTION_ALIAS}" >> "$GITHUB_OUTPUT"
 
-      - name: Verify promoted production health
+      - name: Verify promoted exact deployment and production health
         shell: bash
+        env:
+          DEPLOYMENT_ID: ${{ steps.stage.outputs.deployment_id }}
         run: |
           set -euo pipefail
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error "https://${VERCEL_PRODUCTION_ALIAS}/api/health" >/tmp/yhct-production-health.json; then
-              echo "Production health is reachable after Golden-gated promotion."
-              exit 0
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          for attempt in $(seq 1 60); do
+            status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' --header "Authorization: Bearer ${VERCEL_TOKEN}" "https://api.vercel.com/v13/deployments/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}")"
+            if [ "$status" = "200" ]; then
+              alias_bound="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(Array.isArray(b.alias)&&b.alias.includes(process.env.VERCEL_PRODUCTION_ALIAS)?'1':'0')" "$response_file")"
+              if [ "$alias_bound" = "1" ] && curl --fail --silent --show-error "https://${VERCEL_PRODUCTION_ALIAS}/api/health" >/tmp/yhct-production-health.json; then
+                echo "Golden-passed candidate is now the healthy production deployment."
+                exit 0
+              fi
             fi
-            sleep 2
+            sleep 3
           done
-          echo "::error title=Production health failed::Promoted alias did not become healthy."
-          exit 82
+          echo "::error title=Production promotion verification failed::Exact staged deployment was not bound healthy within 3 minutes."
+          exit 88
 
       - name: Real Google Chrome production smoke
         shell: bash
@@ -206,11 +250,7 @@ jobs:
             if node scripts/chrome-real-smoke.mjs && node scripts/chrome-production-content-check.mjs && node scripts/mobile-shell-responsive-check.mjs; then
               exit 0
             fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "::error title=Production Chrome smoke failed::Chrome smoke failed after 3 isolated attempts."
-              exit 1
-            fi
-            echo "::warning::Chrome smoke attempt ${attempt} hit a transient runner/CDP startup failure; cleaning Chrome and retrying."
+            if [ "$attempt" -eq 3 ]; then echo "::error title=Production Chrome smoke failed::Chrome smoke failed after 3 isolated attempts.";exit 1;fi
             pkill -f 'google-chrome.*remote-debugging-port=9222' || true
             pkill -f 'google-chrome.*remote-debugging-port=9223' || true
             pkill -f 'google-chrome.*remote-debugging-port=956' || true
