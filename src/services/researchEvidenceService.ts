@@ -18,7 +18,7 @@ export async function searchResearchEvidence(query:string,limit=18,signal?:Abort
     const response=await fetch('/api/knowledge/resources?action=research',{method:'POST',signal:deadline.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({query:text,limit:Math.max(1,Math.min(Number(limit)||18,24))})});
     const payload=await response.json().catch(()=>null);
     if(!response.ok||payload?.ok!==true)throw new Error(clean(payload?.error,300)||'Nguồn bằng chứng công khai tạm thời chưa phản hồi.');
-    const data=payload.data||{},works=(Array.isArray(data.works)?data.works:[]).map(workOf).filter((work):work is ResearchWork=>Boolean(work));
+    const data=payload.data||{},rawWorks:unknown[]=Array.isArray(data.works)?data.works:[],works=rawWorks.map(workOf).filter((work):work is ResearchWork=>Boolean(work));
     const unavailableProviders=Array.isArray(data.unavailableProviders)?data.unavailableProviders.map((v:unknown)=>clean(v,80)).filter(Boolean).slice(0,4):[];
     return{works,query:clean(data.query)||text,unavailableProviders};
   }catch(error){
