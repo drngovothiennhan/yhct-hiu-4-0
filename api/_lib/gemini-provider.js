@@ -2,9 +2,9 @@ const DEFAULT_GEMINI_MODEL='gemini-3.5-flash-lite';
 const DEFAULT_GEMINI_RESEARCH_MODEL='gemini-3.8-flash';
 const DEFAULT_GEMINI_FALLBACK_MODEL=DEFAULT_GEMINI_RESEARCH_MODEL;
 const MAX_ERROR_TEXT=180;
-const DEFAULT_PRIMARY_TIMEOUT_MS=6000;
-const RESEARCH_PRIMARY_TIMEOUT_MS=6500;
-const FALLBACK_TIMEOUT_MS=7500;
+const DEFAULT_PRIMARY_TIMEOUT_MS=7500;
+const RESEARCH_PRIMARY_TIMEOUT_MS=10000;
+const FALLBACK_TIMEOUT_MS=8500;
 
 const clean=(value,max=2000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 export const geminiAiEnabled=()=>Boolean(process.env.GEMINI_API_KEY)&&process.env.ENABLE_GEMINI_AI!=='false';
@@ -55,7 +55,8 @@ function attemptSignal(parent,timeoutMs){
   if(parent?.aborted)abort();else parent?.addEventListener?.('abort',abort,{once:true});
   return{signal:controller.signal,cleanup(){clearTimeout(timer);parent?.removeEventListener?.('abort',abort)}};
 }
-const retryableGeminiStatus=status=>[404,429,500,502,503,504].includes(Number(status));
+const retryableGeminiStatus=status=>[408,404,429,500,502,503,504].includes(Number(status));
+const transientNetworkError=error=>error?.name==='TypeError'||/fetch failed|network|socket|econnreset|etimedout/i.test(String(error?.message||''));
 
 async function requestGemini(bodyFactory,signal,mode='default'){
   if(!geminiAiConfigured(mode))throw new Error('Gemini configuration missing');
@@ -77,9 +78,9 @@ async function requestGemini(bodyFactory,signal,mode='default'){
     }catch(error){
       lastError=error;
       if(signal?.aborted)throw error;
-      const timedOut=error?.name==='AbortError'&&attempt.signal.aborted,retry=canFallback&&(timedOut||retryableGeminiStatus(error?.status));
+      const timedOut=error?.name==='AbortError'&&attempt.signal.aborted,retry=canFallback&&(timedOut||transientNetworkError(error)||retryableGeminiStatus(error?.status));
       if(!retry)throw error;
-      console.warn(JSON.stringify({event:'gemini_model_failover',mode,from:model,to:models[index+1],reason:timedOut?'timeout':`http_${error?.status||'unknown'}`}));
+      console.warn(JSON.stringify({event:'gemini_model_failover',mode,from:model,to:models[index+1],reason:timedOut?'timeout':transientNetworkError(error)?'network':`http_${error?.status||'unknown'}`}));
     }finally{attempt.cleanup()}
   }
   throw lastError||new Error('Gemini request failed');
