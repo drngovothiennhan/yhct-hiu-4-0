@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
 
+const execFileAsync=promisify(execFile);
 const root=process.cwd();
 const datasetPath=path.resolve(root,process.env.AI_GOLDEN_DATASET||'evals/medical-golden-v1.json');
 const runtime=process.argv.includes('--runtime');
@@ -53,14 +56,31 @@ function scoreCase(item,payload){
   return{pass,conceptPass,routePass,citationPass,missing:includeGroups.filter((_,i)=>!includes[i]),forbiddenHits:forbiddenGroups.filter((_,i)=>forbidden[i]),route:actualRoute,sourceCount:sources.length,provider:String(payload?.provider||''),latencyMs:Number(payload?.latencyMs||0)};
 }
 
-async function requestCase(baseUrl,token,item,index){
+const requestBody=(item,index)=>JSON.stringify({mode:'study',query:item.prompt,conversationContext:'',pageContext:'AI Golden Medical Eval',variationMode:index%6});
+async function requestWithVercelCli(baseUrl,memberToken,gateKey,vercelToken,item,index){
+  const args=['curl','/api/ai/assistant','--deployment',baseUrl,'--token',vercelToken,'--fail-with-body','-X','POST','-H','Content-Type: application/json'];
+  const scope=String(process.env.AI_GOLDEN_VERCEL_SCOPE||'').trim();if(scope)args.push('--scope',scope);
+  if(memberToken)args.push('-H',`Authorization: Bearer ${memberToken}`);
+  if(gateKey)args.push('-H',`x-yhct-golden-eval: ${gateKey}`);
+  args.push('-d',requestBody(item,index));
+  try{
+    const {stdout}=await execFileAsync('vercel',args,{encoding:'utf8',maxBuffer:2*1024*1024,timeout:65000});
+    return JSON.parse(String(stdout||'').trim());
+  }catch(error){
+    const body=String(error?.stdout||'').trim();
+    if(body){try{const payload=JSON.parse(body);throw new Error(String(payload?.error||payload?.message||body).slice(0,220))}catch(parseError){if(parseError?.message&&parseError.message!==body)throw parseError}}
+    throw new Error(String(error?.stderr||error?.message||'vercel curl failed').slice(0,220));
+  }
+}
+
+async function requestCase(baseUrl,memberToken,gateKey,vercelToken,item,index){
+  if(vercelToken)return requestWithVercelCli(baseUrl,memberToken,gateKey,vercelToken,item,index);
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
   try{
-    const response=await fetch(`${baseUrl.replace(/\/$/,'')}/api/ai/assistant`,{
-      method:'POST',signal:controller.signal,
-      headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
-      body:JSON.stringify({mode:'study',query:item.prompt,conversationContext:'',pageContext:'AI Golden Medical Eval',variationMode:index%6})
-    });
+    const headers={'Content-Type':'application/json'};
+    if(memberToken)headers.Authorization=`Bearer ${memberToken}`;
+    if(gateKey)headers['x-yhct-golden-eval']=gateKey;
+    const response=await fetch(`${baseUrl.replace(/\/$/,'')}/api/ai/assistant`,{method:'POST',signal:controller.signal,headers,body:requestBody(item,index)});
     const payload=await response.json().catch(()=>null);
     if(!response.ok)throw new Error(`${response.status} ${String(payload?.error||'request failed').slice(0,180)}`);
     return payload;
@@ -68,13 +88,15 @@ async function requestCase(baseUrl,token,item,index){
 }
 
 async function runRuntime(data){
-  const baseUrl=String(process.env.AI_GOLDEN_TARGET||'').trim(),token=String(process.env.AI_GOLDEN_MEMBER_TOKEN||'').trim();
-  if(!baseUrl||!token){fail('runtime mode requires AI_GOLDEN_TARGET and AI_GOLDEN_MEMBER_TOKEN');return}
+  const baseUrl=String(process.env.AI_GOLDEN_TARGET||'').trim(),memberToken=String(process.env.AI_GOLDEN_MEMBER_TOKEN||'').trim(),gateKey=String(process.env.AI_GOLDEN_EPHEMERAL_KEY||'').trim(),vercelToken=String(process.env.AI_GOLDEN_VERCEL_TOKEN||'').trim();
+  if(!baseUrl){fail('runtime mode requires AI_GOLDEN_TARGET');return}
+  if(!memberToken&&!gateKey){fail('runtime mode requires AI_GOLDEN_MEMBER_TOKEN or deployment-scoped AI_GOLDEN_EPHEMERAL_KEY');return}
+  if(gateKey&&gateKey.length<32){fail('AI_GOLDEN_EPHEMERAL_KEY must contain at least 32 characters');return}
   const results=[];
   for(let index=0;index<data.cases.length;index++){
     const item=data.cases[index];
     try{
-      const payload=await requestCase(baseUrl,token,item,index),score=scoreCase(item,payload);
+      const payload=await requestCase(baseUrl,memberToken,gateKey,vercelToken,item,index),score=scoreCase(item,payload);
       results.push({id:item.id,domain:item.domain,critical:Boolean(item.critical),...score});
       console.log(`${score.pass?'PASS':'FAIL'} ${item.id} route=${score.route} provider=${score.provider||'unknown'} latency=${score.latencyMs}ms`);
     }catch(error){results.push({id:item.id,domain:item.domain,critical:Boolean(item.critical),pass:false,requestError:String(error?.message||error)});console.error(`FAIL ${item.id}: ${error?.message||error}`)}
@@ -102,4 +124,4 @@ async function runRuntime(data){
 
 const data=load();
 if(validateDataset(data)&&!validateOnly)await runRuntime(data);
-if(!process.exitCode&&validateOnly)ok('Golden Medical Eval contract validation passed. Use --runtime with member token for live benchmark.');
+if(!process.exitCode&&validateOnly)ok('Golden Medical Eval contract validation passed. Use --runtime against a staged deployment for the live release gate.');
