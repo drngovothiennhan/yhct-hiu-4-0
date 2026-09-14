@@ -18,6 +18,8 @@ forbidText(home,/StudentHomeLegacy|studyOsV2CanaryEnabled|studyos|yhct:ai:open/i
 forbidText(main,/study-hub-v2\.css/,'V2 CSS must not be imported from the application entry');
 forbidText(home,/student-home\.css|study-hub-v2\.css/,'legacy/V2 CSS must stay out of the Home wrapper');
 requireText(v2Css,/\.study-os-v2/,'V2 styles must remain isolated under the study-os-v2 namespace');
+requireText(v2Css,/\.study-os-v2__focus-layout/,'Home must keep the compact Focus Command layout');
+requireText(v2Css,/\.study-os-v2__continue/,'Home must keep one consolidated continue-learning surface');
 
 requireText(router,/destination:'research'/,'router must preserve dedicated Research destination');
 requireText(router,/destination:'exam'/,'router must preserve canonical exam destination');
@@ -26,14 +28,20 @@ forbidText(router,/fetch\s*\(/,'intent routing must remain deterministic and mus
 forbidText(router,/gemini|openai/i,'intent routing must remain provider-agnostic');
 
 requireText(studyHub,/MY HIU YHCT · AI STUDY OS/,'production Home must identify the unified Study OS surface');
+requireText(studyHub,/DAILY MISSION/,'Home must expose one compact daily mission');
+requireText(studyHub,/TIẾP TỤC HỌC/,'Home must consolidate progress, weak points and spaced review');
+requireText(studyHub,/readReviewCards/,'Home continue-learning state must use real spaced-review data');
+requireText(studyHub,/getPracticeQuizConfig/,'Home weak-folder labels must be constrained to current HIU folders');
+requireText(studyHub,/subscribeStudentJourney/,'Home progress must update from the canonical journey state');
+requireText(studyHub,/yhct-learning-hub-pending-tab-v1/,'Home must deep-link to the intended Learning Hub workflow');
 forbidText(studyHub,/CANARY/,'production Home must not show canary labeling');
 requireText(studyHub,/yhct-ai-center-pending-query-v1/,'ordinary study requests must seed the dedicated AI Center');
 requireText(studyHub,/onNavigate\(['"]ai['"]\)/,'ordinary study requests must route to the dedicated AI Center');
 forbidText(studyHub,/yhct:ai:open/,'Study OS Home must not reopen the floating task assistant for normal learning');
 requireText(studyHub,/yhct-research-pending-query-v1/,'research requests must reuse the existing Research handoff contract');
 requireText(studyHub,/onNavigate\(['"]research['"]\)/,'research intent must route to the existing Research module');
-requireText(studyHub,/onNavigate\(['"]exam['"]\)/,'quiz intent must route to the canonical exam module');
+requireText(studyHub,/onNavigate\(['"]exam['"]\)/,'Learning Hub handoff must route to the canonical exam module');
 forbidText(studyHub,/drive\.google\.com|GEMINI_API_KEY|GOOGLE_AI_API_KEY|OPENAI_API_KEY/,'student V2 must not expose Drive URLs or provider secrets');
 forbidText(studyHub,/OpenAI|provider/i,'student V2 must not expose backend jargon or alternate provider branding');
 
-console.log('AI Study OS V2 converged production contracts: PASS');
+console.log('AI Study OS V2 Focus Command production contracts: PASS');
