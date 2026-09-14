@@ -19,6 +19,8 @@ const bankMigration=read('supabase/migrations/202609132120_phase19_quiz_bank_dat
 const study=read('api/_lib/study-assistant-handler.js');
 const publicEvidence=read('api/_lib/public-medical-evidence.js');
 const studyClient=read('src/services/studyAiService.ts');
+const aiCenter=read('src/components/ai/AiCenter.tsx');
+const diversity=read('api/_lib/ai-response-diversity.js');
 const xz=read('src/services/xiaozhiMiniService.ts');
 const xzServer=read('api/_lib/xiaozhi-mini-handler.js');
 const assistant=read('api/ai/assistant.js');
@@ -46,13 +48,15 @@ need(proposalUi,['Gemini tạo đề cương','Hạn mức theo vai trò · chu 
 forbid(proposalUi,['A.I local 0đ','Tinh chỉnh A.I cloud','buildLocalProposalSections'],'proposal UI must have one Gemini generation path');
 need(quotaMigration,["v_role='admin'","'unlimited',true","v_role in('mod','super_mod','leader') then 5 else 3","interval '6 hours'",'v_used >= v_limit','Approved member required'],'server-authoritative proposal role quota');
 
-need(assistant,['isInternalSource',"startsWith('drive:')","startsWith('central:')",'internalContextConsent',"sources.some(isInternalSource)&&!internalContextConsent", "req.body?.mode==='study'",'handleStudyAssistant'],'shared AI gateway + private-context gate');
+need(assistant,['isInternalSource',"startsWith('drive:')","startsWith('central:')",'internalContextConsent',"sources.some(isInternalSource)&&!internalContextConsent", "req.body?.mode==='study'",'handleStudyAssistant','responseDiversityInstruction','normalizeAiVariation','X-AI-Variation'],'shared AI gateway + private-context + response-diversity gate');
+need(diversity,['QUY TẮC ĐA DẠNG PHẢN HỒI TOÀN HỆ THỐNG','Giữ nguyên sự thật, đáp án đúng, số liệu, nguồn','studySuggestionInstruction','[[NEXT_ACTIONS]]','parseStudyResponse'],'canonical non-repeating response contract');
 need(geminiProvider,['geminiPrivateContextAllowed=()=>false','process.env.GEMINI_API_KEY','geminiModelCandidates','GEMINI_RESEARCH_FALLBACK_MODEL'],'server-only Gemini provider with bounded research failover');
 forbid(assistant,['GEMINI_ALLOW_PRIVATE_CONTEXT'],'private context bypass');
-need(studyClient,["fetch('/api/ai/assistant'","task:'quiz'"],'Study client reuses shared gateway');
+need(studyClient,["fetch('/api/ai/assistant'","task:'quiz'",'variationMode','suggestions:Array.isArray'],'Study client reuses shared gateway and rotates response variation');
 forbid(studyClient,['/api/ai/study-quiz'],'duplicate Study quiz endpoint');
-need(study,["memberAccess(req,'member')","task==='quiz'",'createGroundedQuiz','retrievePublicMedicalEvidence','createGeminiJson','runOpenAiEvidenceQuiz',"provider:'openai-public-evidence'",'sourceIndexes','QUIZ_MODEL_BUSY','X-AI-Evidence-Count'],'transparent resilient Study quiz inside shared gateway');
-forbid(study,['web_search_preview','runOpenAiQuiz',"provider:'openai-web-fallback'"],'retired duplicate quota-sensitive quiz search');
+need(study,["memberAccess(req,'member')","task==='quiz'",'createGroundedQuiz','retrievePublicMedicalEvidence','createGeminiJson','runOpenAiEvidenceQuiz',"provider:'openai-public-evidence'",'sourceIndexes','QUIZ_MODEL_BUSY','X-AI-Evidence-Count','responseDiversityInstruction','studySuggestionInstruction','parseStudyResponse','suggestions:parsed.suggestions'],'transparent resilient and context-diverse Study inside shared gateway');
+need(aiCenter,['suggestions?:string[]','suggestions:reply.suggestions','aria-label="Gợi ý học tiếp theo"','continueWith(action)'],'contextual Study follow-up UX');
+forbid(aiCenter,["continueWith('Tóm tắt câu trả lời ngay trước", "continueWith('Giải thích lại đúng nội dung ngay trước"],'retired fixed repeated Study follow-ups');
 need(publicEvidence,['api.openalex.org/works','ebi.ac.uk/europepmc','wikipedia.org/w/api.php','publicEvidencePacket','publicEvidenceSources','retrievePublicResearchEvidence','Panax vietnamensis Ngoc Linh ginseng'],'quota-independent public evidence layer and Research query expansion');
 if(fs.existsSync('api/ai/study-quiz.js'))fail.push('dedicated Study quiz serverless function must remain removed');
 
@@ -65,4 +69,4 @@ forbid(bankMigration,['sourceFileName'],'member quiz RPC must not expose source 
 
 if(vercel?.git?.deploymentEnabled!==false)fail.push('Vercel Git auto-deploy must remain disabled so production is gated by Web CI');
 if(fail.length){console.error('AI ROLE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('AI role contract PASS: task assistant, shared evidence-first Gemini Study quiz, server-bounded Gemini medical Research, role-aware proposal quota and one canonical red-answer bank are isolated and enforced.');
+console.log('AI role contract PASS: task assistant, contextual non-repeating AI responses, shared evidence-first Gemini Study quiz, server-bounded Gemini medical Research, role-aware proposal quota and one canonical red-answer bank are isolated and enforced.');
