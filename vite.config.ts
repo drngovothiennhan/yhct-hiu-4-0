@@ -24,7 +24,10 @@ export default defineConfig({
   build:{
     target:'es2022',
     sourcemap:false,
-    rollupOptions:{output:{manualChunks:productionChunk}}
+    rollupOptions:{
+      input:{main:'index.html',tuChan:'tu-chan.html'},
+      output:{manualChunks:productionChunk}
+    }
   },
   server:{port:4173}
 });
