@@ -11,13 +11,12 @@ jobs:
   preview:
     runs-on: ubuntu-latest
     timeout-minutes: 12
+    environment: production
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: team_zMTBj85c4Dh5QoDNIjWqQRTg
       VERCEL_PROJECT_ID: prj_7DWP3LX30CFALUD1KoNeOR8NlpsQ
       VERCEL_PROJECT_NAME: yhct-hiu-final4-stage
-      GIT_REPO_OWNER: drngovothiennhan
-      GIT_REPO_NAME: yhct-hiu-4-0
       PREVIEW_SHA: ${{ github.sha }}
     steps:
       - name: Create isolated Vercel preview
@@ -25,10 +24,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${VERCEL_TOKEN:-}" ]; then
-            echo "Missing VERCEL_TOKEN"
-            exit 78
-          fi
+          test -n "${VERCEL_TOKEN:-}" || exit 78
           request_file="$(mktemp)"
           response_file="$(mktemp)"
           node - "$request_file" <<'NODE'
@@ -37,34 +33,17 @@ jobs:
             name:process.env.VERCEL_PROJECT_NAME,
             project:process.env.VERCEL_PROJECT_ID,
             target:'preview',
-            gitSource:{type:'github',org:process.env.GIT_REPO_OWNER,repo:process.env.GIT_REPO_NAME,ref:process.env.PREVIEW_SHA},
-            gitMetadata:{
-              remoteUrl:`https://github.com/${process.env.GIT_REPO_OWNER}/${process.env.GIT_REPO_NAME}`,
-              commitRef:'trial/assistant-mascot-image',
-              commitSha:process.env.PREVIEW_SHA,
-              ci:true,
-              ciType:'github-actions',
-              ciGitProviderUsername:process.env.GIT_REPO_OWNER,
-              ciGitRepoVisibility:'public'
-            }
+            gitSource:{type:'github',org:'drngovothiennhan',repo:'yhct-hiu-4-0',ref:process.env.PREVIEW_SHA},
+            gitMetadata:{remoteUrl:'https://github.com/drngovothiennhan/yhct-hiu-4-0',commitRef:'trial/assistant-mascot-image',commitSha:process.env.PREVIEW_SHA,ci:true,ciType:'github-actions',ciGitProviderUsername:'drngovothiennhan',ciGitRepoVisibility:'public'}
           }));
           NODE
-          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
-            --request POST \
-            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
-            --header 'Content-Type: application/json' \
-            --data-binary "@${request_file}" \
-            "https://api.vercel.com/v13/deployments?teamId=${VERCEL_ORG_ID}&forceNew=1")"
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer ${VERCEL_TOKEN}" --header 'Content-Type: application/json' --data-binary "@${request_file}" "https://api.vercel.com/v13/deployments?teamId=${VERCEL_ORG_ID}&forceNew=1")"
           rm -f "$request_file"
-          if [[ "$status" != "200" && "$status" != "201" && "$status" != "202" ]]; then
-            cat "$response_file"
-            exit 80
-          fi
+          if [[ "$status" != "200" && "$status" != "201" && "$status" != "202" ]]; then cat "$response_file"; exit 80; fi
           deployment_id="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.id||'')" "$response_file")"
           deployment_url="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.url||'')" "$response_file")"
           rm -f "$response_file"
-          test -n "$deployment_id"
-          test -n "$deployment_url"
+          test -n "$deployment_id" && test -n "$deployment_url"
           echo "deployment_id=$deployment_id" >> "$GITHUB_OUTPUT"
           echo "deployment_url=https://$deployment_url" >> "$GITHUB_OUTPUT"
           echo "Preview created: https://$deployment_url"
@@ -79,19 +58,12 @@ jobs:
           response_file="$(mktemp)"
           trap 'rm -f "$response_file"' EXIT
           for attempt in $(seq 1 120); do
-            status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
-              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
-              "https://api.vercel.com/v13/deployments/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}")"
+            status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' --header "Authorization: Bearer ${VERCEL_TOKEN}" "https://api.vercel.com/v13/deployments/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}")"
             if [ "$status" = "200" ]; then
               state="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.readyState||b.status||'UNKNOWN')" "$response_file")"
               echo "Preview state: $state"
-              if [ "$state" = "READY" ]; then
-                echo "READY: $DEPLOYMENT_URL"
-                exit 0
-              fi
-              if [[ "$state" == "ERROR" || "$state" == "CANCELED" ]]; then
-                exit 81
-              fi
+              [ "$state" = "READY" ] && { echo "READY: $DEPLOYMENT_URL"; exit 0; }
+              [[ "$state" == "ERROR" || "$state" == "CANCELED" ]] && exit 81
             fi
             sleep 5
           done
