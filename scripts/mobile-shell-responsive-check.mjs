@@ -13,7 +13,7 @@ await mkdir(outDir,{recursive:true});
 let preview=null;
 let browser=null;
 let ws=null;
-const profile=path.join(os.tmpdir(),`yhct-mobile-shell-${process.pid}`);
+let profile='';
 const watchdog=setTimeout(()=>{console.error('Mobile shell watchdog exceeded 90 seconds.');try{browser?.kill('SIGKILL')}catch{}try{preview?.kill('SIGKILL')}catch{}process.exit(124)},90000);
 
 async function waitPreview(){
@@ -27,8 +27,8 @@ async function waitPreview(){
   throw new Error('Vite preview did not become ready.');
 }
 
-async function cdpUrl(port){
-  for(let i=0;i<160;i++){
+async function cdpUrl(port,tries=90){
+  for(let i=0;i<tries;i++){
     try{
       const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();
       const page=pages.find(item=>item.type==='page');
@@ -36,15 +36,37 @@ async function cdpUrl(port){
     }catch{}
     await sleep(100);
   }
-  throw new Error('Chrome CDP did not become ready.');
+  return'';
+}
+
+async function stopBrowser(){
+  try{ws?.close()}catch{}
+  ws=null;
+  try{if(browser?.exitCode===null)browser.kill('SIGTERM')}catch{}
+  await sleep(150);
+  try{if(browser?.exitCode===null)browser.kill('SIGKILL')}catch{}
+  browser=null;
+  if(profile)await rm(profile,{recursive:true,force:true}).catch(()=>{});
+  profile='';
+}
+
+async function startBrowser(){
+  for(let attempt=1;attempt<=3;attempt++){
+    const port=9566+attempt;
+    profile=path.join(os.tmpdir(),`yhct-mobile-shell-${process.pid}-${attempt}`);
+    await rm(profile,{recursive:true,force:true});
+    browser=spawn(chrome,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--hide-scrollbars',`--remote-debugging-port=${port}`,`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore'});
+    const url=await cdpUrl(port);
+    if(url)return url;
+    console.warn(`Mobile shell Chrome CDP startup attempt ${attempt}/3 failed; retrying with isolated profile.`);
+    await stopBrowser();
+  }
+  throw new Error('Chrome CDP did not become ready after 3 isolated attempts.');
 }
 
 try{
   await waitPreview();
-  await rm(profile,{recursive:true,force:true});
-  const port=9567;
-  browser=spawn(chrome,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--hide-scrollbars',`--remote-debugging-port=${port}`,`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore'});
-  ws=new WebSocket(await cdpUrl(port));
+  ws=new WebSocket(await startBrowser());
   await new Promise((resolve,reject)=>{
     const timer=setTimeout(()=>reject(new Error('Chrome websocket timeout')),5000);
     ws.addEventListener('open',()=>{clearTimeout(timer);resolve()},{once:true});
@@ -83,25 +105,30 @@ try{
   let shellReady=false;
   let mountState=null;
   for(let i=0;i<80;i++){
-    const result=await send('Runtime.evaluate',{expression:`(()=>({nav:Boolean(document.querySelector('.mobile-bottom-nav')),more:Boolean(document.querySelector('.mobile-more-button')),aiRoot:Boolean(document.querySelector('.xz-mini')),aiOrb:Boolean(document.querySelector('.xz-orb'))}))()`,returnByValue:true});
+    const result=await send('Runtime.evaluate',{expression:`(()=>({nav:Boolean(document.querySelector('.mobile-bottom-nav')),more:Boolean(document.querySelector('.mobile-more-button')),aiRoot:Boolean(document.querySelector('.xz-mini')),aiOrb:Boolean(document.querySelector('.xz-orb')),top:Boolean(document.querySelector('.top'))}))()`,returnByValue:true});
     mountState=result.result?.value||null;
-    if(mountState?.nav&&mountState?.more&&mountState?.aiRoot&&mountState?.aiOrb){shellReady=true;break}
+    if(mountState?.nav&&mountState?.more&&mountState?.aiRoot&&mountState?.aiOrb&&mountState?.top){shellReady=true;break}
     await sleep(125);
   }
   if(!shellReady)throw new Error(`Mobile shell controls did not mount: ${JSON.stringify(mountState)}`);
   await sleep(500);
 
-  const result=await send('Runtime.evaluate',{expression:`(()=>{const rect=element=>{const value=element?.getBoundingClientRect();return value?{left:value.left,right:value.right,top:value.top,bottom:value.bottom,width:value.width,height:value.height}:null};const visible=element=>Boolean(element&&getComputedStyle(element).display!=='none'&&getComputedStyle(element).visibility!=='hidden');const html=document.documentElement,main=document.querySelector('main'),nav=document.querySelector('.mobile-bottom-nav'),more=document.querySelector('.mobile-more-button'),fab=document.querySelector('.xz-orb'),aiRoot=document.querySelector('.xz-mini'),buttons=[...document.querySelectorAll('.mobile-bottom-nav>button')];return{mode:html.dataset.viewportMode||'',mobileUi:html.dataset.mobileUi||'',innerWidth,docScrollWidth:html.scrollWidth,bodyScrollWidth:document.body.scrollWidth,mainPaddingBottom:main?parseFloat(getComputedStyle(main).paddingBottom)||0:0,nav:rect(nav),navVisible:visible(nav),navButtonRects:buttons.map(rect),more:rect(more),moreVisible:visible(more),fab:rect(fab),fabVisible:visible(fab),aiRootBottom:aiRoot?getComputedStyle(aiRoot).bottom:null}})()`,returnByValue:true});
+  const result=await send('Runtime.evaluate',{expression:`(()=>{const rect=element=>{const value=element?.getBoundingClientRect();return value?{left:value.left,right:value.right,top:value.top,bottom:value.bottom,width:value.width,height:value.height}:null};const visible=element=>Boolean(element&&getComputedStyle(element).display!=='none'&&getComputedStyle(element).visibility!=='hidden');const intersects=(a,b)=>Boolean(a&&b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top);const html=document.documentElement,main=document.querySelector('main'),top=document.querySelector('.top'),title=document.querySelector('.top-title'),nav=document.querySelector('.mobile-bottom-nav'),more=document.querySelector('.mobile-more-button'),fab=document.querySelector('.xz-orb'),label=document.querySelector('.xz-orb>b'),aiRoot=document.querySelector('.xz-mini'),buttons=[...document.querySelectorAll('.mobile-bottom-nav>button')],topRect=rect(top),titleRect=rect(title),mainRect=rect(main),fabRect=rect(fab),labelRect=rect(label);return{mode:html.dataset.viewportMode||'',mobileUi:html.dataset.mobileUi||'',innerWidth,docScrollWidth:html.scrollWidth,bodyScrollWidth:document.body.scrollWidth,mainPaddingBottom:main?parseFloat(getComputedStyle(main).paddingBottom)||0:0,main:mainRect,top:topRect,topVisible:visible(top),title:titleRect,nav:rect(nav),navVisible:visible(nav),navButtonRects:buttons.map(rect),more:rect(more),moreVisible:visible(more),fab:fabRect,fabVisible:visible(fab),label:labelRect,labelVisible:visible(label),aiRootBottom:aiRoot?getComputedStyle(aiRoot).bottom:null,fabTitleOverlap:intersects(fabRect,titleRect),labelTitleOverlap:intersects(labelRect,titleRect),fabMainOverlap:intersects(fabRect,mainRect),labelMainOverlap:intersects(labelRect,mainRect)}})()`,returnByValue:true});
   const state=result.result.value;
 
   if(state.mode!=='mobile'||state.mobileUi!=='social')throw new Error(`Unexpected mobile shell mode: ${JSON.stringify(state)}`);
   if(state.docScrollWidth>state.innerWidth+3||state.bodyScrollWidth>state.innerWidth+3)throw new Error(`Horizontal overflow: ${JSON.stringify(state)}`);
+  if(!state.topVisible||!state.top||state.top.height<60)throw new Error(`Top app bar not usable: ${JSON.stringify(state)}`);
   if(!state.navVisible||!state.nav||state.nav.height<70)throw new Error(`Bottom navigation not usable: ${JSON.stringify(state)}`);
   if(state.navButtonRects.length!==5||state.navButtonRects.some(item=>!item||item.height<44||item.width<44))throw new Error(`Bottom navigation touch target below 44px: ${JSON.stringify(state)}`);
   if(!state.moreVisible||!state.more||state.more.width<44||state.more.height<44)throw new Error(`More button touch target below 44px: ${JSON.stringify(state)}`);
   if(state.mainPaddingBottom<state.nav.height+20)throw new Error(`Main content lacks bottom-navigation clearance: ${JSON.stringify(state)}`);
-  if(!state.fabVisible||!state.fab)throw new Error(`Unified AI Mini orb missing: ${JSON.stringify(state)}`);
+  if(!state.fabVisible||!state.fab||state.fab.width<44||state.fab.height<44)throw new Error(`Unified AI Mini orb missing or touch target below 44px: ${JSON.stringify(state)}`);
   if(state.fab.bottom>state.nav.top-6)throw new Error(`Unified AI Mini orb overlaps/touches bottom navigation: ${JSON.stringify(state)}`);
+  if(state.fab.top<state.top.top-3||state.fab.bottom>state.top.bottom+3)throw new Error(`Unified AI Mini orb escapes top app-bar safe zone: ${JSON.stringify(state)}`);
+  if(state.labelVisible&&state.label&&(state.label.top<state.top.top-3||state.label.bottom>state.top.bottom+3))throw new Error(`Unified AI Mini label escapes top app-bar safe zone: ${JSON.stringify(state)}`);
+  if(state.fabTitleOverlap||state.labelTitleOverlap)throw new Error(`Unified AI Mini overlaps top title: ${JSON.stringify(state)}`);
+  if(state.fabMainOverlap||state.labelMainOverlap)throw new Error(`Unified AI Mini overlaps main study content: ${JSON.stringify(state)}`);
 
   const screenshot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
   await writeFile(path.join(outDir,'phase7-mobile-shell.png'),Buffer.from(screenshot.data,'base64'));
@@ -109,12 +136,8 @@ try{
   console.log('MOBILE SHELL RESPONSIVE PASS',JSON.stringify(state));
 }finally{
   clearTimeout(watchdog);
-  try{ws?.close()}catch{}
-  try{if(browser?.exitCode===null)browser.kill('SIGTERM')}catch{}
-  await sleep(150);
-  try{if(browser?.exitCode===null)browser.kill('SIGKILL')}catch{}
+  await stopBrowser();
   try{if(preview?.exitCode===null)preview.kill('SIGTERM')}catch{}
   await sleep(100);
   try{if(preview?.exitCode===null)preview.kill('SIGKILL')}catch{}
-  await rm(profile,{recursive:true,force:true}).catch(()=>{});
 }
