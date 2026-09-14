@@ -12,6 +12,7 @@ const systemAdmin=read('src/components/admin/SystemAdminCenter.tsx');
 const health=read('api/ai/health.js');
 const aiOps=read('src/components/admin/AiOperationsPanel.tsx');
 const registry=read('src/modules/ai/providers/registry.ts');
+const memberAccessSource=read('api/_lib/member-access.js');
 
 for(const token of ['PUBLIC_SOURCE_BUDGET=2','CENTRAL_SOURCE_BUDGET=2','DRIVE_SOURCE_BUDGET=2','balancedResearchSources(literature,knowledge,drive.sources,internalEnabled)'])need(research,token,'Research source budget');
 forbid(research,'sources=[...knowledge,...drive.sources,...literature].slice(0,6)','Research must not let internal sources starve public evidence');
@@ -49,5 +50,35 @@ need(registry,"id:'gemini-server',label:'Gemini Server Runtime',kind:'cloud-llm'
 need(registry,"id:'openai',label:'OpenAI Cloud Runtime',kind:'cloud-llm',state:'optional'",'OpenAI canonical fallback registry state');
 need(registry,'never runtime liveness/readiness','Registry must document architecture-only state');
 
+for(const token of ["requestPath(req)!=='/api/ai/assistant'","VERCEL_PROJECT_PRODUCTION_URL","-golden.vercel.app","timingSafeEqual(left,right)"])need(memberAccessSource,token,'Golden Medical auth boundary');
+const savedEnv={
+  AI_GOLDEN_EPHEMERAL_KEY:process.env.AI_GOLDEN_EPHEMERAL_KEY,
+  VERCEL_URL:process.env.VERCEL_URL,
+  VERCEL_PROJECT_PRODUCTION_URL:process.env.VERCEL_PROJECT_PRODUCTION_URL
+};
+try{
+  const goldenKey='g'.repeat(64),deploymentHost='yhct-hiu-final4-stage-candidate-hiu-yhct.vercel.app',productionHost='yhct-hiu-final4-stage.vercel.app',goldenHost='yhct-hiu-final4-stage-golden.vercel.app';
+  process.env.AI_GOLDEN_EPHEMERAL_KEY=goldenKey;
+  process.env.VERCEL_URL=deploymentHost;
+  process.env.VERCEL_PROJECT_PRODUCTION_URL=productionHost;
+  const {memberAccess}=await import('../api/_lib/member-access.js');
+  const request=(host,key=goldenKey,url='/api/ai/assistant')=>({url,headers:{host,'x-yhct-golden-eval':key}});
+  const allowedAlias=await memberAccess(request(goldenHost),'member');
+  if(!allowedAlias.ok||allowedAlias.memberId!=='golden-medical-eval')failures.push('Golden Medical auth must allow the exact isolated Golden alias with the deployment-scoped key');
+  const allowedDeployment=await memberAccess(request(deploymentHost),'member');
+  if(!allowedDeployment.ok)failures.push('Golden Medical auth must allow the immutable deployment host with the deployment-scoped key');
+  const wrongKey=await memberAccess(request(goldenHost,'x'.repeat(64)),'member');
+  if(wrongKey.ok||wrongKey.status!==401)failures.push('Golden Medical auth must reject a wrong ephemeral key');
+  const wrongHost=await memberAccess(request('yhct-hiu-final4-stage-attacker.vercel.app'),'member');
+  if(wrongHost.ok||wrongHost.status!==401)failures.push('Golden Medical auth must reject non-canonical hosts');
+  const wrongRoute=await memberAccess(request(goldenHost,goldenKey,'/api/ai/diagnostics'),'member');
+  if(wrongRoute.ok||wrongRoute.status!==401)failures.push('Golden Medical auth must be limited to /api/ai/assistant');
+  delete process.env.AI_GOLDEN_EPHEMERAL_KEY;
+  const noServerKey=await memberAccess(request(goldenHost),'member');
+  if(noServerKey.ok||noServerKey.status!==401)failures.push('Golden Medical auth must fail closed when the server key is absent');
+}finally{
+  for(const [key,value] of Object.entries(savedEnv)){if(value===undefined)delete process.env[key];else process.env[key]=value}
+}
+
 if(failures.length){console.error('AI HEALTH PHASE10 FAILED');for(const failure of failures)console.error(`- ${failure}`);process.exit(1)}
-console.log('AI Health Phase 10 PASS: balanced Research provenance, redacted diagnostics, privacy-safe XiaoZhi telemetry, truthful configured/liveness semantics and Gemini-first registry are enforced.');
+console.log('AI Health Phase 10 PASS: balanced Research provenance, redacted diagnostics, privacy-safe XiaoZhi telemetry, truthful configured/liveness semantics, Gemini-first registry and fail-closed Golden Medical auth are enforced.');
