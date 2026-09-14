@@ -60,6 +60,7 @@ const requestBody=(item,index)=>JSON.stringify({mode:'study',query:item.prompt,c
 async function requestWithVercelCli(baseUrl,memberToken,gateKey,vercelToken,item,index){
   const args=['curl','/api/ai/assistant','--deployment',baseUrl,'--token',vercelToken,'--fail-with-body','-X','POST','-H','Content-Type: application/json'];
   const scope=String(process.env.AI_GOLDEN_VERCEL_SCOPE||'').trim();if(scope)args.push('--scope',scope);
+  const bypassSecret=String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET||'').trim();if(bypassSecret)args.push('--protection-bypass',bypassSecret);
   if(memberToken)args.push('-H',`Authorization: Bearer ${memberToken}`);
   if(gateKey)args.push('-H',`x-yhct-golden-eval: ${gateKey}`);
   args.push('-d',requestBody(item,index));
@@ -78,6 +79,8 @@ async function requestCase(baseUrl,memberToken,gateKey,vercelToken,item,index){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
   try{
     const headers={'Content-Type':'application/json'};
+    const bypassSecret=String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET||'').trim();
+    if(bypassSecret)headers['x-vercel-protection-bypass']=bypassSecret;
     if(memberToken)headers.Authorization=`Bearer ${memberToken}`;
     if(gateKey)headers['x-yhct-golden-eval']=gateKey;
     const response=await fetch(`${baseUrl.replace(/\/$/,'')}/api/ai/assistant`,{method:'POST',signal:controller.signal,headers,body:requestBody(item,index)});
