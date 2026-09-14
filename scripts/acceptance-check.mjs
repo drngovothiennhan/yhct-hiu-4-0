@@ -9,7 +9,7 @@ const forbid=(body,tokens,label)=>{for(const token of tokens)if(body.includes(to
 
 const required=[
   'src/App.tsx','src/main.tsx','src/theme.ts','src/types/index.ts','src/modules/moduleContract.ts','src/modules/ModuleBoundary.tsx',
-  'src/services/authService.ts','src/services/studyAiService.ts','src/services/practiceQuizService.ts','src/services/driveRagService.ts','src/services/academicTranslationService.ts',
+  'src/services/authService.ts','src/services/studyAiService.ts','src/services/practiceQuizService.ts','src/services/driveRagService.ts','src/services/academicTranslationService.ts','src/services/researchEvidenceService.ts',
   'src/components/ai/UnifiedAiMini.tsx','src/components/ai/AiCenter.tsx','src/components/ai/AssistantMascot.tsx',
   'src/components/research/ResearchCenter.tsx','src/components/research/ResearchAiMini.tsx','src/components/research/ResearchProposalBuilder.tsx',
   'src/components/exam/ExamCenter.tsx','src/components/exam/AdaptiveReview.tsx','src/components/exam/PracticeBankQuiz.tsx','src/components/exam/DailyDrivePractice.tsx','src/components/exam/QuestionReasoningGuide.tsx',
@@ -48,10 +48,12 @@ forbid(study,['web_search_preview','runOpenAiQuiz',"provider:'openai-web-fallbac
 need(publicEvidence,['api.openalex.org/works','ebi.ac.uk/europepmc','wikipedia.org/w/api.php','physiology','publicEvidencePacket','publicEvidenceSources'],'quota-independent public evidence retrieval');
 need(aiCenter,['askStudyGemini','AI STUDY OS · GEMINI','ai-center__conversation'],'dedicated Gemini Study workspace');
 
-const research=read('src/components/research/ResearchCenter.tsx'),researchMini=read('src/components/research/ResearchAiMini.tsx'),proposal=read('src/components/research/ResearchProposalBuilder.tsx'),proposalApi=read('api/ai/research-proposal.js'),proposalQuota=read('supabase/migrations/202609132110_phase19_research_proposal_gemini_quota.sql');
-need(research,['searchPubMed(query,12)','searchOpenAlex(query,12)','searchClinicalTrials(query,8)','<ResearchAiMini','Khách: không dùng Gemini'],'Research Center evidence/AI separation');
-forbid(research,['summarizeOpenAlex','Research A.I tổng hợp nguồn vừa tìm','ragInternalConsent'],'retired Research surfaces');
-need(researchMini,['RESEARCH_ROLE=GEMINI_MEDICAL_RESEARCH_LEAD','searchPubMed(text,8)','searchOpenAlex(text,8)','searchClinicalTrials(text,5)','Dùng tài liệu nội bộ cho lượt này','setUseInternal(false)','PUBLIC_SOURCE_BUDGET=2','CENTRAL_SOURCE_BUDGET=2','DRIVE_SOURCE_BUDGET=2','Không tạo câu trả lời local thay thế'],'Gemini medical Research workbench');
+const research=read('src/components/research/ResearchCenter.tsx'),researchMini=read('src/components/research/ResearchAiMini.tsx'),researchEvidenceClient=read('src/services/researchEvidenceService.ts'),proposal=read('src/components/research/ResearchProposalBuilder.tsx'),proposalApi=read('api/ai/research-proposal.js'),proposalQuota=read('supabase/migrations/202609132110_phase19_research_proposal_gemini_quota.sql');
+need(research,['searchResearchEvidence(query,18)','<ResearchAiMini','Khách: không dùng Gemini'],'Research Center evidence/AI separation');
+forbid(research,['searchPubMed(query,12)','searchOpenAlex(query,12)','searchClinicalTrials(query,8)','summarizeOpenAlex','Research A.I tổng hợp nguồn vừa tìm','ragInternalConsent'],'retired Research surfaces and browser provider fan-out');
+need(researchEvidenceClient,["/api/knowledge/resources?action=research",'searchResearchEvidence'],'canonical Research evidence client');
+need(researchMini,['RESEARCH_ROLE=GEMINI_MEDICAL_RESEARCH_LEAD','searchResearchEvidence(text,14,controller.signal)','reusePublic','Dùng tài liệu nội bộ cho lượt này','setUseInternal(false)','PUBLIC_SOURCE_BUDGET=2','CENTRAL_SOURCE_BUDGET=2','DRIVE_SOURCE_BUDGET=2','Không tạo câu trả lời local thay thế'],'Gemini medical Research workbench');
+forbid(researchMini,['searchPubMed(text,8)','searchOpenAlex(text,8)','searchClinicalTrials(text,5)'],'duplicate Research A.I public provider fan-out');
 need(proposal,['Gemini tạo đề cương','quota.remaining','6 giờ','unlimited'],'role-aware proposal quota UX');
 need(proposalApi,['research_proposal_quota_v1','createGeminiJson','Không dùng bản nháp local thay thế'],'Gemini proposal gateway');
 need(proposalQuota,["interval '6 hours'","v_role='admin'","v_role in('mod','super_mod','leader')",'then 5 else 3'],'server-authoritative proposal quota');

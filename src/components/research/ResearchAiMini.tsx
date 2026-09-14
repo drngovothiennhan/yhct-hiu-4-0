@@ -1,7 +1,8 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {Bot,Database,ExternalLink,FileText,FlaskConical,Languages,SearchCheck,Send,Sparkles,Target} from 'lucide-react';
 import type {Member} from '../../types';
-import {searchClinicalTrials,searchOpenAlex,searchPubMed,type ResearchWork} from '../../services/researchService';
+import type {ResearchWork} from '../../services/researchService';
+import {searchResearchEvidence} from '../../services/researchEvidenceService';
 import {askServerAi,type AiCitation,type AiSource} from '../../modules/ai';
 import {translateAcademic} from '../../services/academicTranslationService';
 import {searchDriveRag} from '../../services/driveRagService';
@@ -9,11 +10,12 @@ import {referenceLabel,searchKnowledge,type CentralKnowledgeHit} from '../../ser
 import '../../research-ai-leader.css';
 
 type Task='evidence'|'pico'|'gap'|'methods'|'translate';
-type Props={member:Member;works:ResearchWork[];query:string;onOpenProposal:(title?:string)=>void};
+type Props={member:Member;works:ResearchWork[];evidenceQuery:string;query:string;onOpenProposal:(title?:string)=>void};
 type ThreadMessage={id:string;role:'user'|'assistant';text:string;citations?:AiCitation[];meta?:string};
 const PENDING_KEY='yhct-research-pending-query-v1';
 const MAX_SOURCES=6,PUBLIC_SOURCE_BUDGET=2,CENTRAL_SOURCE_BUDGET=2,DRIVE_SOURCE_BUDGET=2;
 const clean=(v:string)=>v.replace(/\s+/g,' ').trim();
+const comparable=(v:string)=>clean(v).toLocaleLowerCase('vi');
 const message=(role:ThreadMessage['role'],text:string,extra:Pick<ThreadMessage,'citations'|'meta'>|{}={}):ThreadMessage=>({id:crypto.randomUUID(),role,text,...extra});
 const dedupe=(items:ResearchWork[])=>[...new Map(items.map(w=>[(w.doi||w.url||w.id).toLowerCase(),w])).values()];
 const asSources=(items:ResearchWork[]):AiSource[]=>items.slice(0,MAX_SOURCES).map(w=>({id:`${w.provider}:${w.id}`,title:w.title,text:`${w.abstract||w.title} ${w.authors.join(', ')} ${w.source} ${w.year||''}`.slice(0,4200),url:w.url}));
@@ -30,7 +32,7 @@ const taskInstruction:Record<Exclude<Task,'translate'>,string>={
 };
 const tabs:[Task,string,JSX.Element][]=[['evidence','Bằng chứng',<SearchCheck/>],['pico','PICO',<Target/>],['gap','Khoảng trống',<Sparkles/>],['methods','Phương pháp',<FlaskConical/>],['translate','Dịch',<Languages/>]];
 
-export default function ResearchAiMini({member,works,query,onOpenProposal}:Props){
+export default function ResearchAiMini({member,works,evidenceQuery,query,onOpenProposal}:Props){
  const [task,setTask]=useState<Task>('evidence'),[input,setInput]=useState(''),[messages,setMessages]=useState<ThreadMessage[]>([]),[busy,setBusy]=useState(false),[status,setStatus]=useState('Gemini Research sẵn sàng'),[useInternal,setUseInternal]=useState(false),[target,setTarget]=useState<'vi'|'en'>('vi');
  const pending=useRef<AbortController|null>(null);
  const seed=useMemo(()=>clean(input||query),[input,query]);
@@ -40,9 +42,14 @@ export default function ResearchAiMini({member,works,query,onOpenProposal}:Props
    const text=seed;if(!text||busy||task==='translate')return;const controller=new AbortController();pending.current=controller;setBusy(true);setStatus('Gemini Research đang truy xuất và đối chiếu nguồn…');setMessages(xs=>[...xs,message('user',text)].slice(-12));
    const internalEnabled=useInternal;setUseInternal(false);
    try{
-     const [pubmed,openalex,trials,drive,central]=await Promise.all([searchPubMed(text,8).catch(()=>[]),searchOpenAlex(text,8).catch(()=>[]),searchClinicalTrials(text,5).catch(()=>[]),internalEnabled?searchDriveRag(text,4,controller.signal):Promise.resolve({sources:[],degraded:false}),internalEnabled?searchKnowledge(text,'all',4).catch(()=>[]):Promise.resolve([])]);
+     const reusePublic=works.length>0&&comparable(evidenceQuery)===comparable(text);
+     const [publicEvidence,drive,central]=await Promise.all([
+       reusePublic?Promise.resolve({works,query:evidenceQuery,unavailableProviders:[]}):searchResearchEvidence(text,14,controller.signal).catch(()=>({works:[] as ResearchWork[],query:text,unavailableProviders:[]})),
+       internalEnabled?searchDriveRag(text,4,controller.signal):Promise.resolve({sources:[],degraded:false}),
+       internalEnabled?searchKnowledge(text,'all',4).catch(()=>[]):Promise.resolve([])
+     ]);
      if(controller.signal.aborted)return;
-     const publicWorks=dedupe([...pubmed,...openalex,...trials,...works]).slice(0,14),literature=asSources(publicWorks),knowledge=centralSources(central),sources=balancedResearchSources(literature,knowledge,drive.sources,internalEnabled);
+     const publicWorks=dedupe(publicEvidence.works).slice(0,14),literature=asSources(publicWorks),knowledge=centralSources(central),sources=balancedResearchSources(literature,knowledge,drive.sources,internalEnabled);
      const prompt=['RESEARCH_ROLE=GEMINI_MEDICAL_RESEARCH_LEAD',`TASK=${task}`,`QUESTION=${text}`,taskInstruction[task],'Ưu tiên y học chứng cứ. Phân biệt dữ liệu quan sát, thử nghiệm, tổng quan và ý kiến. Nếu nguồn không đủ để kết luận, phải nói rõ “chưa đủ bằng chứng”.','Mọi khẳng định thực nghiệm quan trọng phải dựa vào SOURCE IDs được hệ thống cung cấp. Không bịa DOI/PMID/tác giả/số liệu.','Trả lời bằng tiếng Việt, cấu trúc rõ, cụ thể; không viết lời dẫn sáo rỗng. Cuối cùng đề xuất tối đa 3 bước nghiên cứu tiếp theo.'].join('\n');
      const result=await askServerAi(prompt,'research',sources,controller.signal,{useInternal:internalEnabled});if(controller.signal.aborted)return;
      if(result.degraded){setStatus('Gemini Research hiện chưa khả dụng. Không tạo câu trả lời local thay thế; các nguồn đã tìm vẫn được giữ bên dưới.');return}
@@ -53,7 +60,7 @@ export default function ResearchAiMini({member,works,query,onOpenProposal}:Props
  return <section className="research-ai-mini research-ai-leader research-ai-workbench" aria-label="Gemini Research workbench">
    <header className="research-workbench-head"><div><span className="kicker">GEMINI · MEDICAL RESEARCH</span><h3><Bot/> Research A.I</h3><p>Bộ não nghiên cứu: truy xuất → đối chiếu bằng chứng → phân tích → hành động. Không có câu trả lời local giả lập.</p></div><button className="secondary" onClick={()=>onOpenProposal(seed)}><FileText/> Tạo đề cương</button></header>
    <div className="research-ai-tabs research-task-tabs">{tabs.map(([id,label,icon])=><button key={id} className={task===id?'active':''} onClick={()=>setTask(id)}>{icon}{label}</button>)}</div>
-   <label className="research-internal-toggle"><Database/><span><b>Dùng tài liệu nội bộ cho lượt này</b><small>{useInternal?'Cho phép đối chiếu Drive/Central RAG một lần':'Mặc định chỉ dùng PubMed · OpenAlex · ClinicalTrials.gov'}</small></span><input type="checkbox" checked={useInternal} disabled={busy||task==='translate'} onChange={e=>setUseInternal(e.target.checked)}/><i aria-hidden="true"/></label>
+   <label className="research-internal-toggle"><Database/><span><b>Dùng tài liệu nội bộ cho lượt này</b><small>{useInternal?'Cho phép đối chiếu Drive/Central RAG một lần':'Mặc định chỉ dùng PubMed/Europe PMC · OpenAlex · ClinicalTrials.gov'}</small></span><input type="checkbox" checked={useInternal} disabled={busy||task==='translate'} onChange={e=>setUseInternal(e.target.checked)}/><i aria-hidden="true"/></label>
    {task==='translate'&&<div className="research-translate-head"><span>Dịch học thuật</span><select value={target} onChange={e=>setTarget(e.target.value as 'vi'|'en')}><option value="vi">→ Tiếng Việt</option><option value="en">→ English</option></select></div>}
    <div className="research-thread" aria-live="polite">{messages.length===0?<div className="research-thread-empty"><Bot/><b>{task==='evidence'?'Đặt câu hỏi cần bằng chứng':task==='pico'?'Nhập câu hỏi cần chuẩn hóa PICO':task==='gap'?'Nhập chủ đề cần tìm khoảng trống':task==='methods'?'Nhập câu hỏi/đề tài cần thiết kế phương pháp':'Dán đoạn văn cần dịch'}</b><p>Kết quả A.I chỉ xuất hiện khi Gemini xử lý thành công. Nguồn học thuật vẫn được giữ độc lập để bạn tự kiểm chứng.</p></div>:messages.map(item=><article key={item.id} className={`research-thread-message ${item.role}`}><p>{item.text}</p>{item.citations?.length?<div className="research-thread-sources">{item.citations.map(c=>c.url?<a key={c.id} href={c.url} target="_blank" rel="noreferrer noopener"><ExternalLink/>{c.label}</a>:<span key={c.id}>{c.label}</span>)}</div>:null}{item.meta&&<small>{item.meta}</small>}</article>)}</div>
    <form className="research-leader-compose" onSubmit={e=>{e.preventDefault();void(task==='translate'?translate():ask())}}><textarea maxLength={5000} value={input} onChange={e=>setInput(e.target.value)} placeholder={query?`Phân tích tiếp: ${query}`:'Nhập câu hỏi nghiên cứu, chủ đề YHCT, PICO, khoảng trống hoặc phương pháp…'}/><button className="research-ai-primary" type="submit" disabled={busy||!seed}><Send/>{busy?'Đang xử lý…':task==='translate'?'Dịch':'Phân tích bằng Gemini'}</button></form>

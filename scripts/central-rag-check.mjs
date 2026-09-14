@@ -6,6 +6,7 @@ const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 const fail=message=>{console.error(`CENTRAL-RAG FAIL: ${message}`);process.exitCode=1};
 const ok=message=>console.log(`OK: ${message}`);
 const requireText=(text,needle,label)=>text.includes(needle)?ok(label):fail(`${label} (missing ${needle})`);
+const forbidText=(text,needle,label)=>!text.includes(needle)?ok(label):fail(`${label} (forbidden ${needle})`);
 
 const baseMigration=read('supabase/migrations/20260908121556_ai_knowledge_central_rag_v1.sql');
 const evidenceMigration=read('supabase/migrations/202609081925_ai_knowledge_evidence_pubmed_scholar_v1.sql');
@@ -18,6 +19,8 @@ const health=read('api/ai/health.js');
 const mini=read('src/components/ai/UnifiedAiMini.tsx');
 const research=read('src/components/research/ResearchCenter.tsx');
 const researchMini=read('src/components/research/ResearchAiMini.tsx');
+const researchEvidence=read('src/services/researchEvidenceService.ts');
+const researchApi=read('api/knowledge/resources.js');
 
 requireText(baseMigration,'create table if not exists public.ai_knowledge_items','base central knowledge table is versioned in repo');
 const baseSeeds=[...baseMigration.matchAll(/\('(?:formula|herb|acupoint)-/g)].length;
@@ -84,11 +87,14 @@ requireText(researchMini,'centralSources','Research A.I Mini maps central eviden
 requireText(researchMini,'h.evidence','Research A.I Mini includes publication evidence in source context');
 requireText(researchMini,'h.authoritySources','Research A.I Mini includes WHO/NCCIH/Cochrane authority evidence in source context');
 requireText(researchMini,'Dùng tài liệu nội bộ cho lượt này','Research A.I visibly exposes explicit one-request internal-context opt-in');
-requireText(researchMini,'Mặc định chỉ dùng PubMed · OpenAlex · ClinicalTrials.gov','Research A.I clearly states its default public-evidence scope without provider-choice UX');
+requireText(researchMini,'Mặc định chỉ dùng PubMed/Europe PMC · OpenAlex · ClinicalTrials.gov','Research A.I clearly states its default public-evidence scope without provider-choice UX');
 requireText(researchMini,'setUseInternal(false)','Research A.I consumes internal-context consent after each request');
 requireText(researchMini,'result.citations','Research A.I visibly renders server-validated source-backed provenance');
 requireText(researchMini,'các nguồn đã tìm vẫn được giữ bên dưới','Research A.I fails closed without fabricating a local answer while preserving independently retrieved evidence');
-requireText(research,'searchOpenAlex(query,12)','Research Center retains academic OpenAlex retrieval');
+requireText(research,'searchResearchEvidence(query,18)','Research Center uses the canonical public evidence client');
+requireText(researchEvidence,"/api/knowledge/resources?action=research",'Research client crosses one bounded server boundary');
+requireText(researchApi,"action==='research'",'existing knowledge function owns public Research retrieval');
+for(const old of ['searchPubMed(query,12)','searchOpenAlex(query,12)','searchClinicalTrials(query,8)'])forbidText(research,old,`Research Center excludes browser provider fan-out ${old}`);
 requireText(research,'Bằng chứng công khai','Research Center independently exposes public evidence for verification');
 if(!mini.includes('centralKnowledgeService')&&!mini.includes('searchKnowledge(')&&!mini.includes('searchOpenAlex')&&!mini.includes('searchDriveRag'))ok('Global A.I Mini is cleanly separated from academic RAG');else fail('Global A.I Mini must not load academic RAG providers');
 
@@ -102,4 +108,4 @@ requireText(health,"evidenceSources:['pubmed','doi','google_scholar','who','ncci
 requireText(health,'offlineFallback:true','AI health advertises offline fallback');
 requireText(health,'authority>=8&&who>=3&&nccih>=4&&cochrane>=1','AI health requires live authority-source minimums');
 
-if(!process.exitCode)ok('Central RAG acceptance passed with public evidence default, request-scoped internal RAG and academic retrieval isolated to Research Center');
+if(!process.exitCode)ok('Central RAG acceptance passed with public evidence default, request-scoped internal RAG and server-bounded academic retrieval isolated to Research Center');

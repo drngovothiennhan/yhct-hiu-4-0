@@ -1,6 +1,8 @@
 const DEFAULT_GEMINI_MODEL='gemini-3.5-flash-lite';
 const DEFAULT_GEMINI_RESEARCH_MODEL='gemini-3.8-flash';
 const MAX_ERROR_TEXT=180;
+const RESEARCH_PRIMARY_TIMEOUT_MS=6500;
+const RESEARCH_FALLBACK_TIMEOUT_MS=7500;
 
 const clean=(value,max=2000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 export const geminiAiEnabled=()=>Boolean(process.env.GEMINI_API_KEY)&&process.env.ENABLE_GEMINI_AI!=='false';
@@ -12,6 +14,12 @@ export const geminiAiModel=(mode='default')=>{
   return String(configured).trim();
 };
 export const geminiAiConfigured=(mode='default')=>Boolean(geminiAiEnabled()&&geminiAiModel(mode));
+const geminiModelCandidates=mode=>{
+  const primary=geminiAiModel(mode);
+  if(mode!=='research')return[primary];
+  const fallback=String(process.env.GEMINI_RESEARCH_FALLBACK_MODEL||DEFAULT_GEMINI_MODEL).trim();
+  return[...new Set([primary,fallback].filter(Boolean))];
+};
 
 function extractText(payload){
   const parts=[];
@@ -39,50 +47,62 @@ function extractInteraction(payload){
   return{text,citations:[...new Map(citations.map(item=>[item.url,item])).values()].slice(0,6)};
 }
 
-async function requestGemini(body,signal,mode='default'){
+function attemptSignal(parent,timeoutMs){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs),abort=()=>controller.abort(parent?.reason);
+  if(parent?.aborted)abort();else parent?.addEventListener?.('abort',abort,{once:true});
+  return{signal:controller.signal,cleanup(){clearTimeout(timer);parent?.removeEventListener?.('abort',abort)}};
+}
+const retryableGeminiStatus=status=>[404,429,500,502,503,504].includes(Number(status));
+
+async function requestGemini(bodyFactory,signal,mode='default'){
   if(!geminiAiConfigured(mode))throw new Error('Gemini configuration missing');
-  const model=geminiAiModel(mode),key=process.env.GEMINI_API_KEY;
-  const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{
-    method:'POST',signal,
-    headers:{'Content-Type':'application/json','x-goog-api-key':key},
-    body:JSON.stringify(body)
-  });
-  if(!response.ok){
-    const detail=await response.json().catch(()=>null),message=clean(detail?.error?.message||'',MAX_ERROR_TEXT);
-    throw new Error(`Gemini ${response.status}${message?` ${message}`:''}`);
+  const models=geminiModelCandidates(mode),key=process.env.GEMINI_API_KEY;let lastError=null;
+  for(let index=0;index<models.length;index++){
+    const model=models[index],canFallback=mode==='research'&&index<models.length-1,attempt=attemptSignal(signal,canFallback?RESEARCH_PRIMARY_TIMEOUT_MS:RESEARCH_FALLBACK_TIMEOUT_MS);
+    try{
+      const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{
+        method:'POST',signal:attempt.signal,
+        headers:{'Content-Type':'application/json','x-goog-api-key':key},
+        body:JSON.stringify(bodyFactory(model))
+      });
+      if(!response.ok){
+        const detail=await response.json().catch(()=>null),message=clean(detail?.error?.message||'',MAX_ERROR_TEXT),error=new Error(`Gemini ${response.status}${message?` ${message}`:''}`);error.status=response.status;throw error;
+      }
+      const payload=await response.json(),text=extractText(payload);
+      if(!text)throw new Error('Gemini returned an empty answer');
+      return{text,model};
+    }catch(error){
+      lastError=error;
+      if(signal?.aborted)throw error;
+      const timedOut=error?.name==='AbortError'&&attempt.signal.aborted,retry=canFallback&&(timedOut||retryableGeminiStatus(error?.status));
+      if(!retry)throw error;
+      console.warn(JSON.stringify({event:'gemini_model_failover',mode,from:model,to:models[index+1],reason:timedOut?'timeout':`http_${error?.status||'unknown'}`}));
+    }finally{attempt.cleanup()}
   }
-  const payload=await response.json(),text=extractText(payload);
-  if(!text)throw new Error('Gemini returned an empty answer');
-  return{text,model};
+  throw lastError||new Error('Gemini request failed');
 }
 
-function generationConfig(mode,maxOutputTokens,jsonSchema=null){
-  const model=geminiAiModel(mode),research38=mode==='research'&&model.startsWith('gemini-3.8-');
-  const config={maxOutputTokens:Math.max(256,Math.min(Number(maxOutputTokens)||1800,5000))};
-  if(research38){config.thinkingConfig={thinkingLevel:'medium'}}
+function generationConfig(mode,maxOutputTokens,jsonSchema=null,model=geminiAiModel(mode)){
+  const research38=mode==='research'&&model.startsWith('gemini-3.8-'),config={maxOutputTokens:Math.max(256,Math.min(Number(maxOutputTokens)||1800,5000))};
+  if(research38)config.thinkingConfig={thinkingLevel:'medium'};
   else config.temperature=mode==='research'?.18:.2;
   if(jsonSchema){config.responseMimeType='application/json';config.responseJsonSchema=jsonSchema}
   return config;
 }
 
 export async function createGeminiJson({systemInstruction,prompt,schema,maxOutputTokens=1800,signal,mode='default'}){
-  const body={
+  return requestGemini(model=>({
     system_instruction:{parts:[{text:clean(systemInstruction,8000)}]},
     contents:[{role:'user',parts:[{text:clean(prompt,24000)}]}],
-    generationConfig:generationConfig(mode,maxOutputTokens,schema)
-  };
-  return requestGemini(body,signal,mode);
+    generationConfig:generationConfig(mode,maxOutputTokens,schema,model)
+  }),signal,mode);
 }
 
 export async function createGeminiText({systemInstruction,prompt,maxOutputTokens=1100,signal,mode='default'}){
-  const config=generationConfig(mode,maxOutputTokens);
-  if(!geminiAiModel(mode).startsWith('gemini-3.8-'))config.temperature=mode==='research'?.25:.35;
-  const body={
-    system_instruction:{parts:[{text:clean(systemInstruction,8000)}]},
-    contents:[{role:'user',parts:[{text:clean(prompt,20000)}]}],
-    generationConfig:config
-  };
-  return requestGemini(body,signal,mode);
+  return requestGemini(model=>{
+    const config=generationConfig(mode,maxOutputTokens,null,model);if(!model.startsWith('gemini-3.8-'))config.temperature=mode==='research'?.25:.35;
+    return{system_instruction:{parts:[{text:clean(systemInstruction,8000)}]},contents:[{role:'user',parts:[{text:clean(prompt,20000)}]}],generationConfig:config};
+  },signal,mode);
 }
 
 export async function createGeminiWebSearch({systemInstruction,prompt,signal,mode='default'}){
