@@ -12,6 +12,8 @@ const TIMEOUT_MS=42000;
 const safe=(value:unknown,max=7000)=>String(value??'').replace(/\s+/g,' ').trim().slice(0,max);
 const validSafety=new Set(['educational','needs_source_check','refuse_clinical_advice']);
 const validConfidence=new Set(['high','medium','low']);
+let variationTurn=Math.abs(Date.now())%6;
+const nextVariationMode=()=>{variationTurn=(variationTurn+1)%6;return variationTurn};
 
 function normalizeAnswer(value:unknown):AiRuntimeAnswer{
   if(!value||typeof value!=='object')throw new AiRuntimeError('invalid','A.I gateway trả về dữ liệu không hợp lệ.');
@@ -29,9 +31,9 @@ function normalizeAnswer(value:unknown):AiRuntimeAnswer{
 export async function askServerAi(query:string,mode:AiMode='fast',sources:AiSource[]=[],signal?:AbortSignal,options:AiRequestOptions={}):Promise<AiRuntimeAnswer>{
   const text=safe(query,4000);if(text.length<2)throw new AiRuntimeError('invalid','Câu hỏi quá ngắn.');
   const {data:{session}}=await supabase.auth.getSession();if(!session?.access_token)throw new AiRuntimeError('auth','Đăng nhập thành viên để dùng A.I cloud; tra cứu cục bộ vẫn hoạt động.');
-  ensureActive(signal);const deadline=requestDeadline(TIMEOUT_MS,signal);
+  ensureActive(signal);const deadline=requestDeadline(TIMEOUT_MS,signal),variationMode=nextVariationMode();
   try{
-    const response=await fetch('/api/ai/assistant',{method:'POST',signal:deadline.signal,headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({query:text,mode,internalContextConsent:options.useInternal===true,sources:sources.slice(0,6).map(s=>({id:safe(s.id,120),title:safe(s.title,240),text:safe(s.text,4200),url:s.url?safe(s.url,1200):null}))})});
+    const response=await fetch('/api/ai/assistant',{method:'POST',signal:deadline.signal,headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({query:text,mode,variationMode,internalContextConsent:options.useInternal===true,sources:sources.slice(0,6).map(s=>({id:safe(s.id,120),title:safe(s.title,240),text:safe(s.text,4200),url:s.url?safe(s.url,1200):null}))})});
     if(response.status===401||response.status===403)throw new AiRuntimeError('auth','Phiên đăng nhập không đủ quyền dùng A.I cloud.');
     if(!response.ok)throw new AiRuntimeError('network',`A.I gateway lỗi ${response.status}.`);
     return normalizeAnswer(await response.json());
