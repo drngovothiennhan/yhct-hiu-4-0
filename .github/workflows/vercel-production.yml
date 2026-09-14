@@ -235,5 +235,6 @@ jobs:
             echo "- Staged candidate: ${{ steps.stage.outputs.candidate_url }}"
             echo "- Golden Medical live gate: passed"
             echo "- Production alias: ${{ steps.promote.outputs.url }}"
-            echo "- Production Chrome smoke + structural mobile assistant gate: passed"
+            echo "- Production Chrome smoke: passed on 390x844 mobile and 1440x1000 desktop"
+            echo "- Structural mobile assistant gate: passed"
           } >> "$GITHUB_STEP_SUMMARY"
