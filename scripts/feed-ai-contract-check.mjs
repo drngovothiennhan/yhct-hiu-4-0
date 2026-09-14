@@ -22,10 +22,10 @@ const checks=[
   ['TCM news surface is no longer mounted in academic feed',!feed.includes("TcmNewsRotator")&&!feed.includes('news-rail')&&feed.includes('data-news-surface="hidden"')],
   ['desktop feed collapses the removed news row',homeFeedCss.includes('grid-template-areas:"main side"')&&homeFeedCss.includes('grid-template-areas:"widgets main side"')&&main.includes("import './home-feed-phase4.css'" )],
   ['Home wrapper has converged to StudyHubV2 only',home.includes("lazy(()=>import('./StudyHubV2'))")&&home.includes('<StudyHubV2 {...props}/></Suspense>')&&!home.includes('StudentHomeLegacy')&&!home.includes('studyOsV2CanaryEnabled')],
-  ['Study Home uses learner journey focus and daily target',studyHub.includes('readStudentJourney')&&studyHub.includes('preferences?.focus')&&studyHub.includes('preferences?.dailyMinutes')],
+  ['Study Home uses learner journey focus and daily target',studyHub.includes('readStudentJourney')&&studyHub.includes('subscribeStudentJourney')&&studyHub.includes('preferences?.focus')&&studyHub.includes('preferences?.dailyMinutes')],
   ['Study Home has one command surface with deterministic routing',studyHub.includes('routeStudyOsRequest')&&studyHub.includes('study-os-v2__command')&&studyHub.includes("onNavigate('ai')")&&studyHub.includes("onNavigate('research')")&&studyHub.includes("onNavigate('exam')")],
-  ['Study Home delegates academic answering to Gemini Study instead of floating task assistant',studyHub.includes('Gemini phụ trách hỏi đáp theo ngữ cảnh')&&studyHub.includes('yhct-ai-center-pending-query-v1')&&!studyHub.includes('yhct:ai:open')],
-  ['Study Home keeps three focused learning cards',studyHub.includes('HỌC TIẾP')&&studyHub.includes('QUIZ & ÔN LUYỆN')&&studyHub.includes('NGHIÊN CỨU')&&studyCss.includes('.study-os-v2__grid')],
+  ['Study Home delegates academic answering to the dedicated Gemini Study surface',studyHub.includes('yhct-ai-center-pending-query-v1')&&studyHub.includes("onNavigate('ai')")&&!studyHub.includes('yhct:ai:open')],
+  ['Study Home converges to Focus Command, Daily Mission and one Continue Learning surface',studyHub.includes('DAILY MISSION')&&studyHub.includes('TIẾP TỤC HỌC')&&studyHub.includes('study-os-v2__focus-layout')&&studyCss.includes('.study-os-v2__focus-layout')&&studyCss.includes('.study-os-v2__continue')&&!studyCss.includes('.study-os-v2__grid')],
   ['Home no longer owns install, sharing or performance controls',!studyHub.includes('getPwaInstallStatus')&&!studyHub.includes('requestPwaInstall')&&!studyHub.includes('getPerformancePreference')&&!studyHub.includes('setPerformancePreference')&&!studyHub.includes('<b>Chia sẻ</b>')&&!studyHub.includes('<b>Cài ứng dụng</b>')],
   ['Settings owns PWA install, sharing and performance preferences',settings.includes('requestPwaInstall')&&settings.includes('Chia sẻ ứng dụng')&&settings.includes('getPerformancePreference')&&settings.includes('setPerformancePreference')&&settings.includes('performance-mode-settings')],
   ['academic feed caps system AI cards to latest three',feed.includes('.filter(isSystemAiPost).sort((a,b)=>postTime(b)-postTime(a)).slice(0,3)')],
@@ -48,4 +48,4 @@ const checks=[
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks)console.log(`${ok?'PASS':'FAIL'} ${name}`);
 if(failed.length){console.error(`Study Home/Feed/Settings/ACC/Garden contract failed: ${failed.map(([name])=>name).join(', ')}`);process.exit(1)}
-console.log('Converged Study Home + centralized Settings + Gemini Study handoff + feed/ACC/garden contract passed.');
+console.log('Focus Command Study Home + centralized Settings + Gemini Study handoff + feed/ACC/garden contract passed.');
