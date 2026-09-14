@@ -2,6 +2,7 @@ const DEFAULT_GEMINI_MODEL='gemini-3.5-flash-lite';
 const DEFAULT_GEMINI_RESEARCH_MODEL='gemini-3.8-flash';
 const DEFAULT_GEMINI_FALLBACK_MODEL=DEFAULT_GEMINI_RESEARCH_MODEL;
 const DEFAULT_GEMINI_WEB_SEARCH_MODEL='gemini-3.8-flash';
+const DEFAULT_GEMINI_WEB_SEARCH_FALLBACK_MODEL='gemini-3.6-flash';
 const MAX_ERROR_TEXT=180;
 const DEFAULT_PRIMARY_TIMEOUT_MS=7500;
 const RESEARCH_PRIMARY_TIMEOUT_MS=10000;
@@ -17,6 +18,10 @@ export const geminiAiModel=(mode='default')=>{
   return String(configured).trim();
 };
 export const geminiWebSearchModel=()=>String(process.env.GEMINI_WEB_SEARCH_MODEL||DEFAULT_GEMINI_WEB_SEARCH_MODEL).trim();
+const geminiWebSearchModels=()=>[...new Set([
+  geminiWebSearchModel(),
+  String(process.env.GEMINI_WEB_SEARCH_FALLBACK_MODEL||DEFAULT_GEMINI_WEB_SEARCH_FALLBACK_MODEL).trim()
+].filter(Boolean))];
 export const geminiAiConfigured=(mode='default')=>Boolean(geminiAiEnabled()&&geminiAiModel(mode));
 const geminiModelCandidates=mode=>{
   const primary=geminiAiModel(mode);
@@ -42,13 +47,26 @@ function extractInteraction(payload){
     for(const block of Array.isArray(step?.content)?step.content:[]){
       if(typeof block?.text==='string')parts.push(block.text);
       for(const annotation of Array.isArray(block?.annotations)?block.annotations:[]){
-        const raw=annotation?.url_citation||annotation,url=String(raw?.url||'').trim();
+        const raw=annotation?.url_citation||annotation,url=String(raw?.url||raw?.uri||'').trim();
         if(!url.startsWith('https://'))continue;
         citations.push({title:clean(raw?.title||url,220),url});
       }
     }
   }
   const text=[...new Set(parts.map(value=>value.trim()).filter(Boolean))].join('\n').trim();
+  return{text,citations:[...new Map(citations.map(item=>[item.url,item])).values()].slice(0,6)};
+}
+
+function extractGroundedGenerateContent(payload){
+  const text=extractText(payload),citations=[];
+  for(const candidate of Array.isArray(payload?.candidates)?payload.candidates:[]){
+    const chunks=Array.isArray(candidate?.groundingMetadata?.groundingChunks)?candidate.groundingMetadata.groundingChunks:[];
+    for(const chunk of chunks){
+      const web=chunk?.web||{},url=String(web?.uri||web?.url||'').trim();
+      if(!url.startsWith('https://'))continue;
+      citations.push({title:clean(web?.title||url,220),url});
+    }
+  }
   return{text,citations:[...new Map(citations.map(item=>[item.url,item])).values()].slice(0,6)};
 }
 
@@ -111,23 +129,49 @@ export async function createGeminiText({systemInstruction,prompt,maxOutputTokens
   },signal,mode);
 }
 
-export async function createGeminiWebSearch({systemInstruction,prompt,signal,mode='default'}){
-  if(!geminiAiConfigured(mode))throw new Error('Gemini configuration missing');
-  const model=geminiWebSearchModel(),key=process.env.GEMINI_API_KEY;
-  if(!model)throw new Error('Gemini web-search model missing');
-  const input=`${clean(systemInstruction,8000)}\n\n${clean(prompt,20000)}`;
+async function requestInteractionWebSearch(model,input,key,signal){
   const response=await fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{
     method:'POST',signal,
     headers:{'Content-Type':'application/json','x-goog-api-key':key},
     body:JSON.stringify({model,input,tools:[{type:'google_search'}]})
   });
   if(!response.ok){
-    const detail=await response.json().catch(()=>null),message=clean(detail?.error?.message||'',MAX_ERROR_TEXT);
-    throw new Error(`Gemini ${response.status}${message?` ${message}`:''}`);
+    const detail=await response.json().catch(()=>null),message=clean(detail?.error?.message||'',MAX_ERROR_TEXT),error=new Error(`Gemini web interaction ${response.status}${message?` ${message}`:''}`);error.status=response.status;throw error;
   }
   const parsed=extractInteraction(await response.json());
-  if(!parsed.text)throw new Error('Gemini returned an empty answer');
+  if(!parsed.text)throw new Error('Gemini web interaction returned an empty answer');
+  if(!parsed.citations.length)throw new Error('Gemini web interaction returned no citations');
   return{...parsed,model};
+}
+
+async function requestGenerateContentWebSearch(model,input,key,signal){
+  const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{
+    method:'POST',signal,
+    headers:{'Content-Type':'application/json','x-goog-api-key':key},
+    body:JSON.stringify({contents:[{role:'user',parts:[{text:input}]}],tools:[{google_search:{}}]})
+  });
+  if(!response.ok){
+    const detail=await response.json().catch(()=>null),message=clean(detail?.error?.message||'',MAX_ERROR_TEXT),error=new Error(`Gemini grounded generateContent ${response.status}${message?` ${message}`:''}`);error.status=response.status;throw error;
+  }
+  const parsed=extractGroundedGenerateContent(await response.json());
+  if(!parsed.text)throw new Error('Gemini grounded generateContent returned an empty answer');
+  if(!parsed.citations.length)throw new Error('Gemini grounded generateContent returned no citations');
+  return{...parsed,model};
+}
+
+export async function createGeminiWebSearch({systemInstruction,prompt,signal,mode='default'}){
+  if(!geminiAiConfigured(mode))throw new Error('Gemini configuration missing');
+  const models=geminiWebSearchModels(),key=process.env.GEMINI_API_KEY,input=`${clean(systemInstruction,8000)}\n\n${clean(prompt,20000)}`;
+  if(!models.length)throw new Error('Gemini web-search model missing');
+  let lastError=null;
+  try{return await requestInteractionWebSearch(models[0],input,key,signal)}
+  catch(error){lastError=error;console.warn(JSON.stringify({event:'gemini_web_search_failover',transport:'interactions',model:models[0],reason:`http_${error?.status||'unknown'}`}))}
+  for(const model of models){
+    if(signal?.aborted)throw lastError||new Error('Gemini web search aborted');
+    try{return await requestGenerateContentWebSearch(model,input,key,signal)}
+    catch(error){lastError=error;console.warn(JSON.stringify({event:'gemini_web_search_failover',transport:'generateContent',model,reason:`http_${error?.status||'unknown'}`}))}
+  }
+  throw lastError||new Error('Gemini web search failed');
 }
 
 export async function probeGeminiModel(model,{timeoutMs=7000}={}){
