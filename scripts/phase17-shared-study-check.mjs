@@ -47,8 +47,8 @@ assert.match(publicEvidence,/rankResearchRows\(rows,original,english,limit\)/,'q
 assert.match(publicEvidence,/searchOpenAlex\(english,signal,6\)/,'medical retrieval must use normalized medical aliases');
 assert.match(studyHandler,/study_focus/);
 assert.match(studyHandler,/không coi chúng là bằng chứng học thuật/);
-assert.match(aiCenter,/messages\.slice\(-8\)/,'client must bound Study history before upload');
-assert.match(aiCenter,/slice\(-4200\)/,'client must cap Study context payload');
+assert.match(aiCenter,/messages\.slice\(-12\)/,'client must keep a deeper but bounded Study history before upload');
+assert.match(aiCenter,/slice\(-6500\)/,'client must cap deeper Study context payload');
 assert.match(geminiProvider,/GEMINI_FALLBACK_MODEL/,'default Gemini workloads need a bounded alternate model');
 assert.match(geminiProvider,/canFallback=index<models\.length-1/,'Gemini fallback must work outside Research mode');
 
@@ -58,8 +58,8 @@ assert.match(expanded.english,/endocrinology/);
 assert.equal(needsStudyWebSearch('Tạng tượng là gì?'),false);
 assert.equal(needsStudyWebSearch('Thông tin WHO mới nhất hôm nay về YHCT'),true);
 const longContext=Array.from({length:12},(_,i)=>`${i%2?'GEMINI STUDY':'NGƯỜI DÙNG'}: lượt ${i} ${'x'.repeat(500)}`).join('\n');
-assert.ok(selectStudyConversationContext('Tạng tượng là gì?',longContext).length<=2600);
-assert.ok(selectStudyConversationContext('Tiếp tục phần này',longContext).length<=3600);
+assert.ok(selectStudyConversationContext('Tạng tượng là gì?',longContext).length<=3600);
+assert.ok(selectStudyConversationContext('Tiếp tục phần này',longContext).length<=5000);
 assert.equal(systemToolsRequired('Điểm rèn luyện của tôi hiện bao nhiêu?','fast'),true);
 assert.equal(systemToolsRequired('Giải thích tạng tượng','fast'),false);
 
