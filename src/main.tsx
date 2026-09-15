@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import AppErrorBoundary from './components/system/AppErrorBoundary';
+import SelfRegistrationPortal from './components/auth/SelfRegistrationPortal';
 import {bootstrapThemeState} from './theme';
 import './design-system/tokens.css';
 import './styles.css';
@@ -32,10 +33,11 @@ import './xiaozhi-mini-v10.css';
 import './feed-avatar-v10.css';
 import './home-feed-phase4.css';
 import './responsive-phase7.css';
+import './member-registration.css';
 
 bootstrapThemeState();
 
-ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><AppErrorBoundary><App/></AppErrorBoundary></React.StrictMode>);
+ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><AppErrorBoundary><App/><SelfRegistrationPortal/></AppErrorBoundary></React.StrictMode>);
 
 const revealStableApp=()=>{
   const root=document.documentElement;
