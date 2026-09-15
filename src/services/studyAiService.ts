@@ -1,4 +1,4 @@
-import {ensureActive,requestDeadline} from './aiRequest';
+import {apiUrl,ensureActive,requestDeadline} from './aiRequest';
 import {supabase} from './authService';
 
 export type StudyAiSource={title:string;url:string};
@@ -20,7 +20,7 @@ export async function askStudyGemini(query:string,conversationContext='',pageCon
   ensureActive(signal);
   const deadline=requestDeadline(45000,signal),variationMode=nextVariationMode();
   try{
-    const response=await fetch('/api/ai/assistant',{
+    const response=await fetch(apiUrl('/api/ai/assistant'),{
       method:'POST',
       signal:deadline.signal,
       headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
@@ -48,7 +48,7 @@ export async function generateStudyGeminiQuiz(topic:string,count:number,signal?:
   ensureActive(signal);
   const deadline=requestDeadline(65000,signal),variationMode=nextVariationMode();
   try{
-    const response=await fetch('/api/ai/assistant',{
+    const response=await fetch(apiUrl('/api/ai/assistant'),{
       method:'POST',
       signal:deadline.signal,
       headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
