@@ -1,23 +1,24 @@
 import fs from 'node:fs';
 
 const css=fs.readFileSync('src/app-assistant-ai.css','utf8');
-const responsive=fs.readFileSync('src/responsive-phase7.css','utf8');
 const app=fs.readFileSync('src/App.tsx','utf8');
 const fail=[];
 const need=(body,token,label)=>{if(!body.includes(token))fail.push(`${label}: missing ${token}`)};
 
-need(app,'className="mobile-assistant-slot"','assistant must have a structural header slot');
-need(app,'<div className="top-actions"><span className="badge">','assistant slot must live in header actions');
+need(app,'className="mobile-assistant-slot"','assistant mount point must remain available in header actions');
 need(css,'@media(max-width:760px)','mobile assistant breakpoint');
-need(css,'.mobile-assistant-slot{display:grid','mobile assistant slot must participate in layout');
-need(css,'.mobile-assistant-slot .app-assistant{position:relative!important','mobile assistant root must be structural, not viewport-fixed');
-need(css,'.mobile-assistant-slot .app-assistant .xz-orb{position:relative!important','mobile launcher must remain inside its slot');
-need(css,'transform:none!important','mobile launcher must ignore roaming transform');
-need(css,'.mobile-assistant-slot .app-assistant .xz-orb>b{position:static!important','assistant label must use normal slot flow');
+need(css,'.mobile-assistant-slot{display:contents!important','mobile mount point must not reserve a fixed drag box');
+need(css,'.mobile-assistant-slot .app-assistant{position:fixed!important','mobile assistant root must float at viewport level');
+need(css,'touch-action:none!important','mobile launcher must capture touch drag instead of browser panning');
+need(css,'will-change:transform!important','mobile launcher must preserve translate3d movement');
+need(css,'cursor:grab!important','mobile launcher must advertise draggable interaction');
 need(css,'bottom:calc(72px + env(safe-area-inset-bottom,0px))!important','assistant panel must clear bottom navigation');
 need(css,'.phase14-shell[data-active-module="ai"] .mobile-assistant-slot{visibility:hidden!important','assistant must not duplicate AI surface');
-need(responsive,'.top-actions{','header actions must reserve layout space');
-need(responsive,'.mobile-assistant-slot{','responsive shell must reserve assistant width');
-if(/@media\(max-width:760px\)[\s\S]*?\.mobile-assistant-slot \.app-assistant \.xz-orb\{[^}]*(?:top|right|bottom|left):\s*\d+px!important/.test(css))fail.push('mobile launcher must not use viewport coordinate docking inside its structural slot');
-if(fail.length){console.error('MOBILE ASSISTANT SAFE-ZONE FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('Mobile assistant safe-zone PASS: mascot is structurally mounted in the header action row, roaming transform is disabled on mobile, and only the dialog remains fixed above bottom navigation.');
+
+const mobileBlock=css.slice(css.indexOf('@media(max-width:760px)'));
+if(/\.mobile-assistant-slot \.app-assistant \.xz-orb\{[^}]*transform\s*:\s*none!important/.test(mobileBlock))fail.push('mobile launcher must not suppress the inline translate3d drag transform');
+if(/\.mobile-assistant-slot \.app-assistant\{[^}]*position\s*:\s*relative!important/.test(mobileBlock))fail.push('mobile assistant root must not be locked to the header slot');
+if(/\.mobile-assistant-slot \.app-assistant \.xz-orb\{[^}]*touch-action\s*:\s*manipulation!important/.test(mobileBlock))fail.push('touch-action: manipulation blocks reliable free dragging');
+
+if(fail.length){console.error('MOBILE ASSISTANT TOUCH/DRAG FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
+console.log('Mobile assistant touch/drag PASS: launcher floats above the app shell, touch panning is disabled on the launcher, translate3d remains active, and the dialog clears bottom navigation.');
