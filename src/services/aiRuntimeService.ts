@@ -1,4 +1,4 @@
-import {requestDeadline,ensureActive} from './aiRequest';
+import {apiUrl,requestDeadline,ensureActive} from './aiRequest';
 import {supabase} from './authService';
 
 export type AiMode='fast'|'research'|'exam';
@@ -33,7 +33,7 @@ export async function askServerAi(query:string,mode:AiMode='fast',sources:AiSour
   const {data:{session}}=await supabase.auth.getSession();if(!session?.access_token)throw new AiRuntimeError('auth','Đăng nhập thành viên để dùng A.I cloud; tra cứu cục bộ vẫn hoạt động.');
   ensureActive(signal);const deadline=requestDeadline(TIMEOUT_MS,signal),variationMode=nextVariationMode();
   try{
-    const response=await fetch('/api/ai/assistant',{method:'POST',signal:deadline.signal,headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({query:text,mode,variationMode,internalContextConsent:options.useInternal===true,sources:sources.slice(0,6).map(s=>({id:safe(s.id,120),title:safe(s.title,240),text:safe(s.text,4200),url:s.url?safe(s.url,1200):null}))})});
+    const response=await fetch(apiUrl('/api/ai/assistant'),{method:'POST',signal:deadline.signal,headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({query:text,mode,variationMode,internalContextConsent:options.useInternal===true,sources:sources.slice(0,6).map(s=>({id:safe(s.id,120),title:safe(s.title,240),text:safe(s.text,4200),url:s.url?safe(s.url,1200):null}))})});
     if(response.status===401||response.status===403)throw new AiRuntimeError('auth','Phiên đăng nhập không đủ quyền dùng A.I cloud.');
     if(!response.ok)throw new AiRuntimeError('network',`A.I gateway lỗi ${response.status}.`);
     return normalizeAnswer(await response.json());
