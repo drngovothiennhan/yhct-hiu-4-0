@@ -16,9 +16,10 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
-      - uses: android-actions/setup-android@v3
       - name: Install Android API 36 SDK
-        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "platform-tools"
       - run: npm install --ignore-scripts --no-audit --no-fund
       - run: npm run build
       - run: npx cap add android || true
