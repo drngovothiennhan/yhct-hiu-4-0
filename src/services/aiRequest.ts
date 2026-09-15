@@ -1,3 +1,5 @@
+import {Capacitor} from '@capacitor/core';
+
 /** One cancellable deadline per request; abort never starts a fallback. */
 export function requestDeadline(timeoutMs:number,parent?:AbortSignal){
   const controller=new AbortController();
@@ -7,3 +9,10 @@ export function requestDeadline(timeoutMs:number,parent?:AbortSignal){
   return{signal:controller.signal,dispose(){clearTimeout(timer);parent?.removeEventListener('abort',abort)}};
 }
 export function ensureActive(signal?:AbortSignal){if(signal?.aborted)throw new DOMException('Đã hủy yêu cầu','AbortError')}
+
+const configuredApiOrigin=String(import.meta.env.VITE_API_ORIGIN||'https://yhct-hiu-final4-stage-hiu-yhct.vercel.app').trim().replace(/\/$/,'');
+/** Web keeps same-origin API routes; native Capacitor uses the stable hosted API origin. */
+export function apiUrl(path:string){
+  const normalized=path.startsWith('/')?path:`/${path}`;
+  return Capacitor.isNativePlatform()?`${configuredApiOrigin}${normalized}`:normalized;
+}
