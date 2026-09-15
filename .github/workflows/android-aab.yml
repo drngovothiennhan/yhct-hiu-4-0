@@ -1,8 +1,9 @@
-name: Android AAB
+name: Android AAB API 36
 on:
   workflow_dispatch:
   push:
-    tags: ['v*']
+    branches:
+      - release/playstore-api36-20260916
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,12 +16,22 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android API 36 SDK
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
       - run: npm install --ignore-scripts --no-audit --no-fund
       - run: npm run build
       - run: npx cap add android || true
       - run: npx cap sync android
-      - run: cd android && ./gradlew bundleRelease
+      - name: Target Android 16 / API 36
+        run: |
+          sed -i 's/compileSdkVersion = 35/compileSdkVersion = 36/' android/variables.gradle
+          sed -i 's/targetSdkVersion = 35/targetSdkVersion = 36/' android/variables.gradle
+          grep -E 'compileSdkVersion|targetSdkVersion' android/variables.gradle
+      - name: Build release AAB
+        run: cd android && ./gradlew bundleRelease
       - uses: actions/upload-artifact@v4
         with:
-          name: yhct-hiu-aab
+          name: yhct-hiu-api36-aab
           path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
