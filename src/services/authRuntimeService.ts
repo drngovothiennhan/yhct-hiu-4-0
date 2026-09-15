@@ -3,6 +3,9 @@ import { mapMember,persistMemberSession,SUPABASE_PUBLISHABLE_KEY,SUPABASE_URL,su
 
 const withTimeout=<T>(promise:PromiseLike<T>,ms:number)=>new Promise<T>((resolve,reject)=>{const timer=window.setTimeout(()=>reject(new Error('timeout')),ms);Promise.resolve(promise).then(value=>{window.clearTimeout(timer);resolve(value)},error=>{window.clearTimeout(timer);reject(error)})});
 
+export type SelfRegistrationInput={studentCode:string;fullName:string;className:string;faculty:string;email:string;password:string};
+export type SelfRegistrationResult={ok:boolean;studentCode:string;awaitingEmail:boolean;driveSync?:{configured:boolean;synced:boolean;reason?:string|null}};
+
 export async function loginOptimized(studentCode:string,password:string):Promise<Member>{
   const controller=new AbortController();
   const timer=window.setTimeout(()=>controller.abort(),8000);
@@ -19,6 +22,26 @@ export async function loginOptimized(studentCode:string,password:string):Promise
     if((error as Error).name==='AbortError'||(error as Error).message==='timeout')throw new Error('Máy chủ xác thực chưa phản hồi trong 8 giây. Vui lòng thử lại.');
     throw error;
   }finally{window.clearTimeout(timer)}
+}
+
+export async function registerMemberSelf(input:SelfRegistrationInput):Promise<SelfRegistrationResult>{
+  const controller=new AbortController();
+  const timer=window.setTimeout(()=>controller.abort(),15000);
+  try{
+    const response=await fetch(`${SUPABASE_URL}/functions/v1/member-register`,{method:'POST',headers:{apikey:SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({studentCode:input.studentCode.trim(),fullName:input.fullName.trim(),className:input.className.trim(),faculty:input.faculty.trim(),email:input.email.trim(),password:input.password}),signal:controller.signal});
+    const body=await response.json().catch(()=>({})) as Record<string,unknown>;
+    if(!response.ok)throw new Error(String(body.error||'Không thể đăng ký thành viên'));
+    return body as unknown as SelfRegistrationResult;
+  }catch(error){
+    if((error as Error).name==='AbortError')throw new Error('Yêu cầu đăng ký quá thời gian chờ. Vui lòng thử lại.');
+    throw error;
+  }finally{window.clearTimeout(timer)}
+}
+
+export async function resendMemberActivation(email:string):Promise<void>{
+  const redirectTo=`${window.location.origin}/?member_activation=done`;
+  const {error}=await supabase.auth.resend({type:'signup',email:email.trim().toLowerCase(),options:{emailRedirectTo:redirectTo}});
+  if(error)throw new Error('Không thể gửi lại email kích hoạt lúc này.');
 }
 
 export async function changeMemberPassword(currentPassword:string,newPassword:string):Promise<void>{
