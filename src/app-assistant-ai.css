@@ -15,7 +15,7 @@
 @media(max-width:760px){
   .phase14-shell .top{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
   .mobile-assistant-slot{display:contents!important}
-  .mobile-assistant-slot .app-assistant{position:fixed!important;left:10px!important;right:auto!important;top:auto!important;bottom:76px!important;width:auto!important;height:auto!important;z-index:1260!important;display:block!important;pointer-events:none!important}
+  .mobile-assistant-slot .app-assistant{position:fixed!important;left:10px!important;right:auto!important;top:auto!important;bottom:84px!important;width:auto!important;height:auto!important;z-index:1260!important;display:block!important;pointer-events:none!important}
   .mobile-assistant-slot .app-assistant .xz-orb{position:relative!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;width:49px!important;height:49px!important;min-width:49px!important;min-height:49px!important;padding:0!important;display:grid!important;place-items:center!important;touch-action:none!important;cursor:grab!important;pointer-events:auto!important;will-change:transform!important}
   .mobile-assistant-slot .app-assistant .xz-orb:active{cursor:grabbing!important}
   .mobile-assistant-slot .app-assistant .xz-orb>span,.mobile-assistant-slot .app-assistant .xz-orb .assistant-mascot{width:44px!important;height:44px!important}
