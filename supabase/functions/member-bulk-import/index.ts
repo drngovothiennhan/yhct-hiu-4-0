@@ -48,14 +48,20 @@ Deno.serve(async(req:Request)=>{
       seen.add(row.student_code);valid.push(row)
     }
     const codes=valid.map(x=>x.student_code)
-    const {data:existing,error:existingError}=codes.length?await admin.from('club_members').select('student_code,full_name').in('student_code',codes):{data:[],error:null}
-    if(existingError)throw existingError
-    const existingMap=new Map((existing||[]).map((x:any)=>[String(x.student_code).toUpperCase(),x]))
+    const [memberLookup,registrationLookup]=codes.length?await Promise.all([
+      admin.from('club_members').select('student_code,full_name').in('student_code',codes),
+      admin.from('member_registration_requests').select('student_code,full_name,status').in('student_code',codes).in('status',['awaiting_email','activated'])
+    ]):[{data:[],error:null},{data:[],error:null}]
+    if(memberLookup.error)throw memberLookup.error
+    if(registrationLookup.error)throw registrationLookup.error
+    const existingMap=new Map<string,{full_name:string;reason?:string}>()
+    for(const x of memberLookup.data||[])existingMap.set(String((x as any).student_code).toUpperCase(),{full_name:String((x as any).full_name||'')})
+    for(const x of registrationLookup.data||[]){const code=String((x as any).student_code).toUpperCase();if(!existingMap.has(code))existingMap.set(code,{full_name:String((x as any).full_name||''),reason:(x as any).status==='awaiting_email'?'MSSV đã đăng ký trực tuyến và đang chờ kích hoạt email.':'MSSV đã được kích hoạt từ đăng ký trực tuyến.'})}
     const duplicates:any[]=[],created:any[]=[],failed:any[]=[]
     const publicRow=(row:any)=>({row:row.row,source_row:row.source_row,mssv:row.student_code,ho_ten:row.full_name,lop:row.class_name,contact:row.contact,ban:row.organizational_unit})
     for(const row of valid){
       const duplicate=existingMap.get(row.student_code)
-      if(duplicate){duplicates.push({...publicRow(row),existing_name:(duplicate as any).full_name});continue}
+      if(duplicate){duplicates.push({...publicRow(row),existing_name:duplicate.full_name,reason:duplicate.reason});continue}
       const password=tempPassword(),loginEmail=`${row.student_code}@members.yhct-hiu.app`
       const {data:authCreated,error:authError}=await admin.auth.admin.createUser({
         email:loginEmail,password,email_confirm:true,
@@ -70,7 +76,7 @@ Deno.serve(async(req:Request)=>{
         student_code:row.student_code,class_name:row.class_name||null,organizational_unit:row.organizational_unit||null,
         role:'member',status:'approved',login_enabled:true,position_title:'Hội viên',source_file:clean(body.file_name||'bulk-import',255)
       }).select('id').single()
-      if(memberError){await admin.auth.admin.deleteUser(authCreated.user.id).catch(()=>{});if((memberError as any).code==='23505'){const {data:raceDuplicate}=await admin.from('club_members').select('full_name').eq('student_code',row.student_code).maybeSingle();duplicates.push({...publicRow(row),existing_name:raceDuplicate?.full_name||row.full_name,reason:'MSSV vừa được tạo bởi một phiên import khác.'})}else failed.push({...publicRow(row),reason:memberError.message});continue}
+      if(memberError){await admin.auth.admin.deleteUser(authCreated.user.id).catch(()=>{});if((memberError as any).code==='23505'){const {data:raceDuplicate}=await admin.from('club_members').select('full_name').eq('student_code',row.student_code).maybeSingle();duplicates.push({...publicRow(row),existing_name:raceDuplicate?.full_name||row.full_name,reason:'MSSV vừa được tạo bởi một phiên khác.'})}else failed.push({...publicRow(row),reason:memberError.message});continue}
       const {error:linkError}=await admin.auth.admin.updateUserById(authCreated.user.id,{app_metadata:{member_id:member.id,provisioned_by:'member-bulk-import',must_change_password:true}})
       if(linkError){await admin.from('club_members').delete().eq('id',member.id).catch(()=>{});await admin.auth.admin.deleteUser(authCreated.user.id).catch(()=>{});failed.push({...publicRow(row),reason:'Không thể liên kết tài khoản xác thực với hồ sơ thành viên.'});continue}
       created.push({...publicRow(row),username:row.student_code,temporary_password:password})
