@@ -59,7 +59,7 @@ export default function AiCenter({member,onOpenResearch}:{member:Member;onOpenRe
     }catch(error){if(controller.signal.aborted||id!==turn.current)return;setStatus((error as Error).message||'Gemini Study chưa thể xử lý yêu cầu lúc này.')}
     finally{if(id===turn.current){request.current=null;setBusy(false)}}
   };
-  useEffect(()=>{let seed='';try{seed=clean(localStorage.getItem(AI_PENDING_KEY)||'');if(seed)localStorage.removeItem(AI_PENDING_KEY)}catch{}if(seed)void send(seed)},[]);
+  useEffect(()=>{let seed='';try{seed=clean(localStorage.getItem(AI_PENDING_KEY)||'');if(seed)localStorage.removeItem(AI_PENDING_KEY)}catch{}if(seed)setQuery(seed);if(seed)void send(seed)},[]);
   const openResearch=(seed:string)=>{try{localStorage.setItem(RESEARCH_PENDING_KEY,seed)}catch{}onOpenResearch()};
   const submit=(event:FormEvent)=>{event.preventDefault();void send()};
   const continueWith=(instruction:string)=>void send(instruction);
