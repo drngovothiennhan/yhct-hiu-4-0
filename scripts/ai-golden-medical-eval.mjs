@@ -116,7 +116,7 @@ const forbiddenGroupPass=(text,group)=>group.some(token=>forbiddenTokenPass(text
 
 function scoreCase(item,payload){
   const rawAnswer=String(payload?.answer||''),answer=normalize(rawAnswer),actualRoute=payload?.route==='research'?'research':'study',includeGroups=item.mustIncludeAny||[],forbiddenGroups=item.mustNotIncludeAny||[];
-  const includes=includeGroups.map(group=>groupPass(answer,group)),forbidden=forbiddenGroups.map(group=>forbiddenTokenPass(answer,group));
+  const includes=includeGroups.map(group=>groupPass(answer,group)),forbidden=forbiddenGroups.map(group=>forbiddenGroupPass(answer,group));
   const conceptPass=includes.every(Boolean)&&forbidden.every(hit=>!hit),routePass=actualRoute===item.expectedRoute,sources=Array.isArray(payload?.sources)?payload.sources.filter(source=>String(source?.url||'').startsWith('https://')):[],citationPass=!item.citationRequired||sources.length>0,pass=conceptPass&&routePass&&citationPass;
   return{pass,conceptPass,routePass,citationPass,missing:includeGroups.filter((_,i)=>!includes[i]),forbiddenHits:forbiddenGroups.filter((_,i)=>forbidden[i]),route:actualRoute,sourceCount:sources.length,provider:String(payload?.provider||''),latencyMs:Number(payload?.latencyMs||0),...(pass?{}:{answerExcerpt:rawAnswer.replace(/\s+/g,' ').trim().slice(0,700)})};
 }
