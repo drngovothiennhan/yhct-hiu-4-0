@@ -159,18 +159,77 @@ async function requestGenerateContentWebSearch(model,input,key,signal){
   return{...parsed,model};
 }
 
+const currentQuestion=value=>{
+  const raw=String(value??''),match=raw.match(/CÂU HỎI HIỆN TẠI:\s*([^\n]+)/i);
+  return clean(match?.[1]||raw,520);
+};
+const publicEvidenceQuery=value=>{
+  const original=currentQuestion(value),plain=original.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').toLowerCase();
+  if(/tang huyet ap|hypertension/.test(plain))return'hypertension guideline adults';
+  if(/hoat dong the luc|physical activity/.test(plain))return'WHO physical activity adults guideline';
+  return original;
+};
+async function publicEvidenceRows(prompt,signal){
+  const query=publicEvidenceQuery(prompt),rows=[];
+  try{
+    const url=new URL('https://www.ebi.ac.uk/europepmc/webservices/rest/search');
+    url.searchParams.set('query',query);url.searchParams.set('format','json');url.searchParams.set('resultType','core');url.searchParams.set('pageSize','6');
+    const response=await fetch(url,{signal,headers:{accept:'application/json','user-agent':'HIU-YHCT-StudyOS/4.0'}});
+    if(response.ok){
+      const payload=await response.json();
+      for(const item of Array.isArray(payload?.resultList?.result)?payload.resultList.result:[]){
+        const source=clean(item?.source||'MED',24),id=clean(item?.id||item?.pmid||item?.pmcid||'',100),title=clean(item?.title,260),snippet=clean(item?.abstractText,1800);
+        if(!id||!title)continue;
+        rows.push({title,url:`https://europepmc.org/article/${encodeURIComponent(source)}/${encodeURIComponent(id)}`,snippet,provider:'Europe PMC'});
+        if(rows.length>=6)break;
+      }
+    }
+  }catch{}
+  if(rows.length)return rows;
+  try{
+    const url=new URL('https://api.openalex.org/works');url.searchParams.set('search',query);url.searchParams.set('per-page','6');url.searchParams.set('select','id,doi,title,publication_year');
+    const response=await fetch(url,{signal,headers:{accept:'application/json','user-agent':'HIU-YHCT-StudyOS/4.0'}});
+    if(response.ok){
+      const payload=await response.json();
+      for(const item of Array.isArray(payload?.results)?payload.results:[]){
+        const title=clean(item?.title,260),doi=String(item?.doi||'').replace(/^https?:\/\/(?:dx\.)?doi\.org\//i,''),id=String(item?.id||'').trim(),urlValue=doi?`https://doi.org/${doi}`:id.startsWith('https://')?id:'';
+        if(title&&urlValue)rows.push({title,url:urlValue,snippet:'',provider:'OpenAlex'});
+        if(rows.length>=6)break;
+      }
+    }
+  }catch{}
+  return rows;
+}
+async function requestPublicEvidenceWebFallback(systemInstruction,prompt,signal,mode,lastError){
+  const rows=await publicEvidenceRows(prompt,signal);
+  if(!rows.length)throw lastError||new Error('Public evidence fallback unavailable');
+  const citations=rows.map(({title,url})=>({title,url})).filter(item=>item.url.startsWith('https://')).slice(0,6);
+  const evidence=rows.map((item,index)=>`[${index}] ${item.title}\nNguồn: ${item.provider}\nURL: ${item.url}${item.snippet?`\nTrích yếu: ${item.snippet}`:''}`).join('\n\n');
+  const output=await createGeminiText({
+    systemInstruction:`${systemInstruction} Google Search đang bị giới hạn quota. Chỉ dùng gói nguồn công khai Europe PMC/OpenAlex bên dưới cho các thông tin cần nguồn; không bịa URL hay tuyên bố đã truy xuất Google Search.`,
+    prompt:`${prompt}\n\nGÓI NGUỒN CÔNG KHAI DỰ PHÒNG:\n${evidence}`,
+    maxOutputTokens:1800,signal,mode
+  });
+  console.warn(JSON.stringify({event:'gemini_web_search_public_evidence_fallback',sources:citations.length,model:output.model}));
+  return{text:output.text,citations,model:output.model};
+}
+
 export async function createGeminiWebSearch({systemInstruction,prompt,signal,mode='default'}){
   if(!geminiAiConfigured(mode))throw new Error('Gemini configuration missing');
   const models=geminiWebSearchModels(),key=process.env.GEMINI_API_KEY,input=`${clean(systemInstruction,8000)}\n\n${clean(prompt,20000)}`;
   if(!models.length)throw new Error('Gemini web-search model missing');
   let lastError=null;
   try{return await requestInteractionWebSearch(models[0],input,key,signal)}
-  catch(error){lastError=error;console.warn(JSON.stringify({event:'gemini_web_search_failover',transport:'interactions',model:models[0],reason:`http_${error?.status||'unknown'}`}))}
+  catch(error){
+    lastError=error;console.warn(JSON.stringify({event:'gemini_web_search_failover',transport:'interactions',model:models[0],reason:`http_${error?.status||'unknown'}`}));
+    if(Number(error?.status)===429&&!signal?.aborted)return requestPublicEvidenceWebFallback(systemInstruction,prompt,signal,mode,error);
+  }
   for(const model of models){
     if(signal?.aborted)throw lastError||new Error('Gemini web search aborted');
     try{return await requestGenerateContentWebSearch(model,input,key,signal)}
     catch(error){lastError=error;console.warn(JSON.stringify({event:'gemini_web_search_failover',transport:'generateContent',model,reason:`http_${error?.status||'unknown'}`}))}
   }
+  if(!signal?.aborted)try{return await requestPublicEvidenceWebFallback(systemInstruction,prompt,signal,mode,lastError)}catch(error){lastError=error}
   throw lastError||new Error('Gemini web search failed');
 }
 
