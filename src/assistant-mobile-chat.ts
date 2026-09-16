@@ -24,13 +24,17 @@ const removeLegacyEmptyCopy=(root:Document|Element)=>{
   root.querySelectorAll(LEGACY_EMPTY_COPY_SELECTOR).forEach((node)=>node.remove());
 };
 
-const conversationFromNode=(node:Node|null):HTMLElement|null=>{
+const containingConversation=(node:Node|null):HTMLElement|null=>{
   const element=node instanceof Element?node:node?.parentElement;
   if(!element)return null;
   if(element.matches(CONVERSATION_SELECTOR))return element as HTMLElement;
-  const parent=element.closest(CONVERSATION_SELECTOR);
-  if(parent)return parent as HTMLElement;
-  return element.querySelector<HTMLElement>(CONVERSATION_SELECTOR);
+  return element.closest<HTMLElement>(CONVERSATION_SELECTOR);
+};
+
+const addedConversation=(node:Node):HTMLElement|null=>{
+  const direct=containingConversation(node);
+  if(direct)return direct;
+  return node instanceof Element?node.querySelector<HTMLElement>(CONVERSATION_SELECTOR):null;
 };
 
 const scrollOpenConversation=(immediate=false)=>{
@@ -42,11 +46,11 @@ const observeConversation=()=>{
   const observer=new MutationObserver((records)=>{
     const conversations=new Set<HTMLElement>();
     for(const record of records){
-      const direct=conversationFromNode(record.target);
+      const direct=containingConversation(record.target);
       if(direct)conversations.add(direct);
       record.addedNodes.forEach((node)=>{
         if(node instanceof Element)removeLegacyEmptyCopy(node);
-        const added=conversationFromNode(node);
+        const added=addedConversation(node);
         if(added)conversations.add(added);
       });
     }
