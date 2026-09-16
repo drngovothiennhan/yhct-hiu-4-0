@@ -68,7 +68,7 @@ forbid(bank,['sourceFileName'],'member-facing source filename leakage');
 
 const practice=read('src/components/exam/PracticeBankQuiz.tsx'),adaptive=read('src/components/exam/AdaptiveReview.tsx'),reasoning=read('src/components/exam/QuestionReasoningGuide.tsx');
 need(practice,['Đề HIU','Đề Gemini','generateStudyGeminiQuiz','QuestionReasoningGuide','recordReview'],'source-first practice experience');
-need(adaptive,['REVIEW_COUNTS=[5,10,20]','getPracticeQuizConfig','QuestionReasoningGuide'],'subject-aware spaced review');
+need(adaptive,['REVIEW_COUNTS=[5,10,20,0]','getPracticeQuizConfig','QuestionReasoningGuide'],'subject-aware spaced review');
 need(reasoning,['KHÔNG tiết lộ đáp án đúng','Dữ kiện quyết định','Loại trừ','Điểm cần nhớ',"askServerAi(prompt,'exam'"],'contextual non-answer-leaking reasoning');
 
 const sw=read('public/service-worker.js'),pkg=JSON.parse(read('package.json'));
