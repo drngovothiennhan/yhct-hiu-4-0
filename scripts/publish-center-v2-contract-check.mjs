@@ -47,7 +47,7 @@ requireText(bankMigration,/where active is true/,'folder registry compatibility 
 forbidText(bankMigration,/sourceFileName/,'member quiz RPC must not leak source filenames');
 
 requireText(admin,/LearningContentManagerPanel/,'system admins receive canonical learning-management surface');
-requireText(student,/HIU_QUESTION_COUNTS=\[10,20,30,50\]/,'HIU bank keeps bounded selected counts');
+requireText(student,/HIU_QUESTION_COUNTS=\[5,10,20,30,50,0\]/,'HIU bank offers bounded counts and paged all mode');
 requireText(student,/AI_QUESTION_COUNTS=\[5,10,20\]/,'A.I generated quiz keeps tighter counts');
 requireText(student,/Nguồn → thư mục\/chủ đề → số câu → học/,'student workflow remains source → folder/topic → count → study');
 requireText(student,/Thư mục HIU/,'HIU bank uses folder-based member taxonomy');
