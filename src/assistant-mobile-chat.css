@@ -1,0 +1,32 @@
+/* Focused mobile assistant layout override. Keep the composer visible and give the conversation the only flexible row. */
+.app-assistant-panel .xz-empty p{display:none!important}
+
+@media(max-width:600px){
+  .app-assistant-panel{height:min(58dvh,480px)!important;max-height:calc(100dvh - 116px)!important;grid-template-rows:auto auto minmax(0,1fr) auto auto auto!important}
+  .app-assistant-panel .xz-header{padding:8px 9px 7px!important}
+  .app-assistant-panel .app-assistant-shortcuts{padding:4px 7px!important;gap:4px!important}
+  .app-assistant-panel .app-assistant-shortcuts button{min-height:34px!important;padding:5px 8px!important}
+  .app-assistant-panel .xz-conversation{min-height:0!important;max-height:none!important;overflow-y:auto!important;padding:2px 7px 5px!important;gap:5px!important;scroll-padding-block:6px 12px!important}
+  .app-assistant-panel .xz-empty{height:0!important;min-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important}
+  .app-assistant-panel .xz-compose{margin:0 7px 5px!important;grid-template-columns:34px minmax(0,1fr) 34px!important;min-height:42px!important}
+  .app-assistant-panel .xz-compose input{min-width:0!important;padding:7px 3px!important}
+  .app-assistant-panel .xz-footer{padding:4px 7px!important;gap:6px!important;flex-wrap:nowrap!important;overflow-x:auto!important;overflow-y:hidden!important;white-space:nowrap!important;scrollbar-width:none}
+  .app-assistant-panel .xz-footer::-webkit-scrollbar{display:none}
+  .app-assistant-panel .xz-footer>*{flex:0 0 auto!important}
+  .app-assistant-panel .xz-status{margin:0 7px 4px!important}
+  .app-assistant-panel .xz-cancel{margin-inline:7px!important}
+}
+
+@supports selector(:has(*)){
+  @media(max-width:600px){
+    .app-assistant-panel:has(.xz-empty){height:auto!important;grid-template-rows:auto auto auto auto auto auto!important}
+    .app-assistant-panel:has(.xz-empty) .xz-conversation{display:none!important}
+  }
+}
+
+@media(max-width:760px){
+  .mobile-assistant-slot .app-assistant-panel{height:min(58dvh,480px)!important;max-height:calc(100dvh - 116px)!important}
+  @supports selector(:has(*)){
+    .mobile-assistant-slot .app-assistant-panel:has(.xz-empty){height:auto!important}
+  }
+}

@@ -34,6 +34,8 @@ import './feed-avatar-v10.css';
 import './home-feed-phase4.css';
 import './responsive-phase7.css';
 import './member-registration.css';
+import './assistant-mobile-chat.css';
+import './assistant-mobile-chat';
 
 bootstrapThemeState();
 
