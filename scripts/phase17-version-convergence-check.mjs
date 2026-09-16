@@ -25,9 +25,12 @@ need(home,/StudyHubV2/,'StudentHome must use canonical StudyHubV2');
 forbid(home,/StudentHomeLegacy|studyOsV2CanaryEnabled|studyos=legacy|student-home\.css|yhct:ai:open/i,'legacy Home runtime detected');
 need(app,/tab==='ai'&&member&&<AiCenter/,'dedicated AI Center must remain canonical');
 need(aiCenter,/askStudyGemini/,'Gemini Study must remain learning answer path');
-forbid(mini,/askXiaoZhiMini/,'task assistant must not regain academic answering');
-need(mini,/openStudyAi\(text\)/,'task assistant must hand study intent to Gemini Study');
+forbid(mini,/askXiaoZhiMini/,'global XiaoZhi UI must not depend on the legacy helper');
+need(mini,/askXiaoZhiPublic/,'XiaoZhi must answer ordinary external questions through public web');
+need(mini,/mode:'xiaozhi-mini'/,'XiaoZhi must use the shared public-web gateway');
+need(mini,/openResearch\(text\)/,'deep research intent must hand off to Research A.I');
 need(assistant,/mode==='study'.*handleStudyAssistant/s,'Study chat and generated quiz must share existing assistant gateway');
+need(assistant,/mode==='xiaozhi-mini'.*handleXiaoZhiMini/s,'XiaoZhi public web must share existing assistant gateway');
 if(fs.existsSync(new URL('../api/ai/study-assistant.js',import.meta.url)))fail('standalone Study chat endpoint must remain removed');
 if(fs.existsSync(new URL('../api/ai/study-quiz.js',import.meta.url)))fail('standalone Study quiz endpoint must remain removed');
 need(study,/task==='quiz'/,'shared Study handler must route quiz task');
@@ -72,4 +75,4 @@ need(deployment,/workflow_run\.head_branch == 'main'/,'production must target ma
 
 const entries=[];function walk(dir,relative=''){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){if(entry.name.startsWith('_')||entry.name.startsWith('.'))continue;const name=relative+entry.name;if(entry.isDirectory())walk(new URL(`${entry.name}/`,dir),`${name}/`);else if(/\.(?:js|mjs|cjs|ts|tsx|py|go|rb)$/.test(name)&&!name.endsWith('.d.ts'))entries.push(`api/${name}`)}}walk(new URL('../api/',import.meta.url));
 if(entries.length>12)fail(`Vercel Hobby function budget exceeded: ${entries.length}`);
-console.log(`Phase 19.2 version convergence PASS · one Study OS Home · one subject-folder red-answer bank Update · shared quota-independent public evidence quiz · Gemini Research · task-only assistant · V20 clinic · release-aware PWA · ${entries.length}/12 functions`);
+console.log(`Phase 19.2 version convergence PASS · one Study OS Home · XiaoZhi system-task + public-web assistant · one subject-folder red-answer bank Update · shared quota-independent public evidence quiz · Gemini Research · V20 clinic · release-aware PWA · ${entries.length}/12 functions`);
