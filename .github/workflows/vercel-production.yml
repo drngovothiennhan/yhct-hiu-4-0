@@ -146,7 +146,8 @@ jobs:
         run: |
           set -euo pipefail
           response_file="$(mktemp)"
-          trap 'rm -f "$response_file"' EXIT
+          production_file="$(mktemp)"
+          trap 'rm -f "$response_file" "$production_file"' EXIT
           for attempt in $(seq 1 120); do
             status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
               --header "Authorization: Bearer ${VERCEL_TOKEN}" \
@@ -154,12 +155,20 @@ jobs:
             if [ "$status" != "200" ]; then sleep 5; continue; fi
             state="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.readyState||b.status||'UNKNOWN')" "$response_file")"
             deployed_sha="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b?.meta?.githubCommitSha||'')" "$response_file")"
-            alias_bound="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(Array.isArray(b.alias)&&b.alias.includes(process.env.VERCEL_PRODUCTION_ALIAS)?'1':'0')" "$response_file")"
-            echo "Candidate state=${state}; production alias bound=${alias_bound}"
+            echo "Candidate state=${state}"
             if [[ "$state" == "ERROR" || "$state" == "CANCELED" ]]; then echo "::error title=Staged Vercel candidate failed::${state}"; exit 82; fi
             if [ "$state" = "READY" ]; then
               if [ -n "$deployed_sha" ] && [ "$deployed_sha" != "$CI_PASSED_SHA" ]; then echo "::error title=Candidate commit mismatch::${deployed_sha}"; exit 83; fi
-              if [ "$alias_bound" = "1" ]; then echo "::error title=Unsafe early promotion::Production alias moved before Golden Medical Eval."; exit 84; fi
+              production_status="$(curl --silent --show-error --output "$production_file" --write-out '%{http_code}' \
+                --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+                "https://api.vercel.com/v13/deployments/${VERCEL_PRODUCTION_ALIAS}?teamId=${VERCEL_ORG_ID}")"
+              if [ "$production_status" != "200" ]; then
+                echo "::error title=Cannot prove production isolation::Production alias lookup returned HTTP ${production_status}."
+                exit 84
+              fi
+              production_id="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.id||'')" "$production_file")"
+              if [ "$production_id" = "$DEPLOYMENT_ID" ]; then echo "::error title=Unsafe early promotion::Production URL resolved to candidate before Golden Medical Eval."; exit 84; fi
+              echo "Production remains on ${production_id}; candidate is isolated."
               exit 0
             fi
             sleep 5
@@ -294,17 +303,26 @@ jobs:
           response_file="$(mktemp)"
           trap 'rm -f "$response_file"' EXIT
           for attempt in $(seq 1 60); do
-            status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' --header "Authorization: Bearer ${VERCEL_TOKEN}" "https://api.vercel.com/v13/deployments/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}")"
+            status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v13/deployments/${VERCEL_PRODUCTION_ALIAS}?teamId=${VERCEL_ORG_ID}")"
             if [ "$status" = "200" ]; then
-              alias_bound="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(Array.isArray(b.alias)&&b.alias.includes(process.env.VERCEL_PRODUCTION_ALIAS)?'1':'0')" "$response_file")"
-              if [ "$alias_bound" = "1" ] && curl --fail --silent --show-error "https://${VERCEL_PRODUCTION_ALIAS}/api/health" >/tmp/yhct-production-health.json; then
-                echo "Golden-passed candidate is now the healthy production deployment."
-                exit 0
+              resolved_id="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.id||'')" "$response_file")"
+              state="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.readyState||b.status||'UNKNOWN')" "$response_file")"
+              deployed_sha="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b?.meta?.githubCommitSha||'')" "$response_file")"
+              echo "Production URL resolves to ${resolved_id} state=${state}"
+              if [ "$resolved_id" = "$DEPLOYMENT_ID" ] && [ "$state" = "READY" ]; then
+                if [ -n "$deployed_sha" ] && [ "$deployed_sha" != "$CI_PASSED_SHA" ]; then echo "::error title=Promoted commit mismatch::${deployed_sha}"; exit 89; fi
+                health_status="$(curl --silent --show-error --output /tmp/yhct-production-health.json --write-out '%{http_code}' "https://${VERCEL_PRODUCTION_ALIAS}/api/health" || true)"
+                if [ "$health_status" = "200" ] && node -e "const fs=require('node:fs');const body=JSON.parse(fs.readFileSync('/tmp/yhct-production-health.json','utf8'));if(body?.ok!==true)process.exit(1)"; then
+                  echo "Golden-passed candidate is now the exact healthy production deployment."
+                  exit 0
+                fi
               fi
             fi
             sleep 3
           done
-          echo "::error title=Production promotion verification failed::Exact staged deployment was not bound healthy within 3 minutes."
+          echo "::error title=Production promotion verification failed::Production URL did not resolve to the exact healthy staged deployment within 3 minutes."
           exit 89
 
       - name: Real Google Chrome production smoke
