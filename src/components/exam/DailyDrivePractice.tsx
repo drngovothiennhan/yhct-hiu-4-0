@@ -9,9 +9,9 @@ import '../../daily-drive-practice.css';
 import '../../daily-drive-practice-controls.css';
 
 const DAILY_COUNTS=[5,10,20] as const;
-type DailyDrivePracticeProps={onChooseGemini?:()=>void};
+type DailyDrivePracticeProps={onChooseGemini?:()=>void;onChooseAll?:(subject:string)=>void};
 
-export default function DailyDrivePractice({onChooseGemini}:DailyDrivePracticeProps){
+export default function DailyDrivePractice({onChooseGemini,onChooseAll}:DailyDrivePracticeProps){
   const member=readCachedMember(),answerLock=useRef(false);
   const [config,setConfig]=useState<DailyPracticeConfig|null>(null),[session,setSession]=useState<DailyPracticeSession|null>(null),[subjects,setSubjects]=useState<string[]>([]),[selectedSubject,setSelectedSubject]=useState(''),[selectedCount,setSelectedCount]=useState<(typeof DAILY_COUNTS)[number]>(10),[idx,setIdx]=useState(0),[feedback,setFeedback]=useState<Record<string,DailyPracticeAnswer>>({}),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
   const current=session?.questions?.[idx],answers=session?.answers||{},selected=current?answers[current.id]:undefined,answeredCount=Object.keys(answers).length,total=session?.questionCount||session?.questions.length||0;
@@ -25,14 +25,14 @@ export default function DailyDrivePractice({onChooseGemini}:DailyDrivePracticePr
   const chooseHiu=()=>{if(busy)return;setMsg('')};
   const chooseGemini=()=>{if(busy)return;onChooseGemini?.()};
   return <section className="daily-drive panel" aria-label="Ôn tập nhanh hằng ngày từ Đề HIU hoặc Đề Gemini">
-    <header className="daily-drive__head"><div><span className="daily-drive__kicker"><BookOpenCheck/> ÔN TẬP NHANH</span><h2>5 · 10 · 20 câu mỗi ngày</h2><p>Nguồn → thư mục → số câu → học. Đề HIU dùng ngân hàng đã duyệt; Đề Gemini chuyển sang trình tạo đề A.I theo chủ đề.</p></div></header>
+    <header className="daily-drive__head"><div><span className="daily-drive__kicker"><BookOpenCheck/> ÔN TẬP NHANH</span><h2>5 · 10 · 20 câu hoặc toàn bộ</h2><p>Nguồn → thư mục → số câu → học. Đề HIU dùng ngân hàng đã duyệt; Đề Gemini chuyển sang trình tạo đề A.I theo chủ đề.</p></div></header>
     <div className="daily-drive__source-switch" role="group" aria-label="Chọn nguồn đề ôn tập">
       <button type="button" className="active" aria-pressed="true" disabled={busy} onClick={chooseHiu}><FileCheck2/><span><b>Đề HIU</b><small>Ngân hàng đã duyệt</small></span></button>
       <button type="button" className="ai" aria-pressed="false" disabled={busy} onClick={chooseGemini}><Bot/><span><b>Đề Gemini <em>A.I</em></b><small>A.I soạn theo chủ đề</small></span></button>
     </div>
     <div className="daily-drive__setup" aria-label="Chọn thư mục và số câu">
       <label><span>Thư mục HIU</span><select value={selectedSubject} disabled={busy||guest} onChange={event=>setSelectedSubject(event.target.value)}><option value="">Tất cả thư mục HIU</option>{subjects.map(item=><option key={item} value={item}>{item}</option>)}</select></label>
-      <div><span>Số câu</span><div className="daily-drive__count-picker" role="group" aria-label="Số câu ôn tập nhanh">{DAILY_COUNTS.map(count=><button key={count} type="button" className={selectedCount===count?'active':''} disabled={busy||!config?.ready} onClick={()=>setSelectedCount(count)}><b>{count}</b><small>câu</small></button>)}</div></div>
+      <div><span>Số câu</span><div className="daily-drive__count-picker" role="group" aria-label="Số câu ôn tập nhanh">{DAILY_COUNTS.map(count=><button key={count} type="button" className={selectedCount===count?'active':''} disabled={busy||!config?.ready} onClick={()=>setSelectedCount(count)}><b>{count}</b><small>câu</small></button>)}<button type="button" disabled={busy||!config?.ready} onClick={()=>onChooseAll?.(selectedSubject)}><b>Toàn bộ</b><small>luyện theo đợt</small></button></div></div>
       <button className="daily-drive__apply" disabled={busy||!config?.ready} onClick={()=>void openToday(selectedCount,selectedSubject,Boolean(session))}><BookOpenCheck/>{guest?'Cần đăng nhập':session?'Đổi bộ':`Học ${selectedCount} câu`}</button>
       {session&&<small>Đổi thư mục hoặc số câu rồi nhấn “Đổi bộ”; tiến độ của bộ hiện tại sẽ được tạo lại.</small>}
     </div>
