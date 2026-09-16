@@ -17,6 +17,16 @@
   .app-assistant-panel .xz-cancel{margin-inline:7px!important}
 }
 
+@supports selector(:has(*)){
+  @media(max-width:600px){
+    .app-assistant-panel:has(.xz-empty){height:auto!important;grid-template-rows:auto auto auto auto auto auto!important}
+    .app-assistant-panel:has(.xz-empty) .xz-conversation{display:none!important}
+  }
+}
+
 @media(max-width:760px){
   .mobile-assistant-slot .app-assistant-panel{height:min(58dvh,480px)!important;max-height:calc(100dvh - 116px)!important}
+  @supports selector(:has(*)){
+    .mobile-assistant-slot .app-assistant-panel:has(.xz-empty){height:auto!important}
+  }
 }
