@@ -3,6 +3,7 @@ import fs from 'node:fs';
 const css=fs.readFileSync('src/app-assistant-ai.css','utf8');
 const chatCss=fs.readFileSync('src/assistant-mobile-chat.css','utf8');
 const chatRuntime=fs.readFileSync('src/assistant-mobile-chat.ts','utf8');
+const xiaoZhi=fs.readFileSync('api/_lib/xiaozhi-mini-handler.js','utf8');
 const main=fs.readFileSync('src/main.tsx','utf8');
 const app=fs.readFileSync('src/App.tsx','utf8');
 const fail=[];
@@ -26,12 +27,16 @@ need(css,'height:min(64dvh,520px)!important','base mobile dialog must stay compa
 
 need(main,"import './assistant-mobile-chat.css';",'mobile assistant focused CSS override must load last');
 need(main,"import './assistant-mobile-chat';",'mobile assistant auto-scroll runtime must load');
-need(chatCss,'height:min(58dvh,480px)!important','mobile assistant dialog must use the tighter viewport height');
-need(chatCss,'flex-wrap:nowrap!important','mobile assistant footer must stay on one compact row');
+need(chatCss,'grid-template-rows:auto auto 112px auto auto auto!important','mobile assistant must reserve one four-line conversation viewport');
+need(chatCss,'height:112px!important;min-height:112px!important;max-height:112px!important','mobile conversation viewport must remain a stable four-line scroll window');
+need(chatCss,'grid-template-columns:repeat(4,minmax(0,1fr))!important','voice, movement, new-session and left-corner controls must stay on one mobile row');
+need(chatCss,'.xz-footer>button:nth-of-type(5){grid-column:1/-1!important','Research A.I must remain separate from the compact four-control row');
 need(chatCss,'.app-assistant-panel .xz-empty{height:0!important','empty assistant content must not reserve vertical space');
 need(chatRuntime,'new MutationObserver','assistant must react when new chat turns are rendered');
 need(chatRuntime,'top:conversation.scrollHeight','assistant must scroll to the newest rendered turn');
 need(chatRuntime,'window.visualViewport','assistant must recover newest-turn visibility when the mobile keyboard changes the viewport');
+need(xiaoZhi,'Ưu tiên hiểu câu hiện tại theo mạch LOCAL_CONTEXT gần nhất','assistant public route must explicitly resolve follow-up context');
+need(xiaoZhi,'Tối đa 3 câu ngắn cho câu hỏi thông thường','assistant public answer style must remain concise');
 
 const mobileBlock=css.slice(css.indexOf('@media(max-width:760px)'));
 if(/\.mobile-assistant-slot \.app-assistant \.xz-orb\{[^}]*transform\s*:\s*none!important/.test(mobileBlock))fail.push('mobile launcher must not suppress the inline translate3d drag transform');
@@ -39,7 +44,7 @@ if(/\.mobile-assistant-slot \.app-assistant\{[^}]*position\s*:\s*relative!import
 if(/\.mobile-assistant-slot \.app-assistant \.xz-orb\{[^}]*touch-action\s*:\s*manipulation!important/.test(mobileBlock))fail.push('touch-action: manipulation blocks reliable free dragging');
 
 if(fail.length){console.error('MOBILE ASSISTANT TOUCH/CHAT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('Mobile assistant touch/chat PASS: launcher drag remains safe, dialog clears bottom navigation, chat content is compact, newest turns auto-scroll into view, and keyboard viewport changes preserve the composer/message area.');
+console.log('Mobile assistant touch/chat PASS: four-line chat viewport, one-row primary controls, contextual concise public routing, launcher drag, auto-scroll and keyboard recovery are enforced.');
 
 const slotAt=app.indexOf('className="mobile-assistant-slot"');
 const headerAt=app.indexOf('<main><header className="top"');
