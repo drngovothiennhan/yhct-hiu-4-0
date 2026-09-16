@@ -10,8 +10,8 @@ export function requestDeadline(timeoutMs:number,parent?:AbortSignal){
 }
 export function ensureActive(signal?:AbortSignal){if(signal?.aborted)throw new DOMException('Đã hủy yêu cầu','AbortError')}
 
-const NATIVE_API_ORIGIN='https://yhct-hiu-final4-stage-hiu-yhct.vercel.app';
-/** Web keeps same-origin API routes; native Capacitor uses the stable hosted API origin. */
+const NATIVE_API_ORIGIN='https://yhct-hiu-final4-stage.vercel.app';
+/** Web keeps same-origin API routes; native Capacitor uses the stable public hosted API origin. */
 export function apiUrl(path:string){
   const normalized=path.startsWith('/')?path:`/${path}`;
   return Capacitor.isNativePlatform()?`${NATIVE_API_ORIGIN}${normalized}`:normalized;
