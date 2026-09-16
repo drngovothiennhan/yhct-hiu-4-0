@@ -45,7 +45,7 @@ export default function AiCenter({member,onOpenResearch}:{member:Member;onOpenRe
   const stop=()=>{turn.current++;request.current?.abort();request.current=null;setBusy(false);setStatus('Đã dừng yêu cầu.')};
   const reset=()=>{stop();setFreshSession(true);setMessages([]);setResourceHits([]);setQuery('');setStatus('');try{localStorage.removeItem(AI_PENDING_KEY)}catch{}};
   const send=async(value=query)=>{
-    const text=clean(value);if(!text||busy)return;
+    const text=clean(value);if(!text||request.current)return;
     const id=++turn.current,controller=new AbortController();request.current=controller;setBusy(true);setStatus('');setQuery('');setResourceHits([]);
     const user:Message={id:crypto.randomUUID(),role:'user',text};setMessages(current=>[...current,user]);
     try{
@@ -59,7 +59,8 @@ export default function AiCenter({member,onOpenResearch}:{member:Member;onOpenRe
     }catch(error){if(controller.signal.aborted||id!==turn.current)return;setStatus((error as Error).message||'Gemini Study chưa thể xử lý yêu cầu lúc này.')}
     finally{if(id===turn.current){request.current=null;setBusy(false)}}
   };
-  useEffect(()=>{let seed='';try{seed=clean(localStorage.getItem(AI_PENDING_KEY)||'');if(seed)localStorage.removeItem(AI_PENDING_KEY)}catch{}if(seed)setQuery(seed);if(seed)void send(seed)},[]);
+  useEffect(()=>{let alive=true;queueMicrotask(()=>{if(!alive)return;let seed='';try{seed=clean(localStorage.getItem(AI_PENDING_KEY)||'');if(seed)localStorage.removeItem(AI_PENDING_KEY)}catch{}if(seed)setQuery(seed);if(seed)void send(seed)});return()=>{alive=false}},[]);
+  useEffect(()=>()=>{turn.current++;request.current?.abort();request.current=null},[]);
   const openResearch=(seed:string)=>{try{localStorage.setItem(RESEARCH_PENDING_KEY,seed)}catch{}onOpenResearch()};
   const submit=(event:FormEvent)=>{event.preventDefault();void send()};
   const continueWith=(instruction:string)=>void send(instruction);
@@ -82,6 +83,6 @@ export default function AiCenter({member,onOpenResearch}:{member:Member;onOpenRe
       {busy&&<div className="ai-center__thinking"><LoaderCircle/>Gemini đang xử lý theo ngữ cảnh gần nhất…</div>}
     </div>
     {status&&<div className="ai-center__status" role="status">{status}</div>}
-    <form className="ai-center__composer" onSubmit={submit}><textarea value={query} onChange={event=>setQuery(event.target.value)} placeholder="Hỏi phần YHCT hoặc môn học bạn đang cần…" maxLength={2200} rows={2}/><button type="submit" disabled={busy||!clean(query)} aria-label="Gửi câu hỏi cho Gemini"><Send/></button></form>
+    <form className="ai-center__composer" onSubmit={submit}><textarea aria-label="Câu hỏi học tập" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Hỏi phần YHCT hoặc môn học bạn đang cần…" maxLength={2200} rows={2}/><button type="submit" disabled={busy||!clean(query)} aria-label="Gửi câu hỏi cho Gemini"><Send/></button></form>
   </section>;
 }
