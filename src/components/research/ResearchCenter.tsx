@@ -4,6 +4,7 @@ import type {Member} from '../../types';
 import {extractiveSummary,ingestLocalFiles,listPublicDriveFolder,loadPersistedRagDocuments,persistRagDocuments,retrieveLocalRag,type RagDocument,type ResearchWork} from '../../services/researchService';
 import {searchResearchEvidence} from '../../services/researchEvidenceService';
 import {consumeGuestSearchQuota,formatQuotaCountdown,GUEST_SEARCH_LIMIT,readGuestSearchQuota,suggestResearchTopics} from '../../services/researchLocalAi';
+import DocumentLibrary from './DocumentLibrary';
 import ResearchAiMini from './ResearchAiMini';
 import ResearchProposalBuilder from './ResearchProposalBuilder';
 
@@ -43,6 +44,7 @@ export default function ResearchCenter({member,onLogin}:Props){
   const proposalQuotaLabel=!member?'':member.role==='admin'?'Research A.I + tạo đề cương Gemini không giới hạn':(['mod','super_mod','leader'].includes(member.role)?'Research A.I + 5 lượt tạo đề cương Gemini / 6 giờ':'Research A.I + 3 lượt tạo đề cương Gemini / 6 giờ');
 
   return <section className="research-center research-center-v2">
+    <DocumentLibrary memberId={member?.id} onLogin={login}/>
     <div className="research-hero"><div className="research-hero-copy"><span className="kicker">TRUNG TÂM NGHIÊN CỨU Y DƯỢC CỔ TRUYỀN HIU 4.0</span><h2>Research Center <Sparkles/></h2><p>Gemini Research là bộ não phân tích; PubMed/Europe PMC · OpenAlex · ClinicalTrials.gov là lớp bằng chứng; tài liệu nội bộ chỉ được dùng khi thành viên chủ động bật cho từng lượt.</p>{member?<span className="research-access-pill member"><Database/> Thành viên: {proposalQuotaLabel}</span>:<span className="research-access-pill guest"><LockKeyhole/> Khách: không dùng Gemini · còn {remaining}/{GUEST_SEARCH_LIMIT} lượt tra cứu công khai · reset {countdown}</span>}</div><div className="research-hero-stats"><div className="research-stat"><Database/><strong>{works.length}</strong><span>kết quả y văn</span></div><div className="research-stat"><HardDrive/><strong>{docs.length}</strong><span>tài liệu cục bộ</span></div></div></div>
 
     {member?<ResearchAiMini member={member} works={works} evidenceQuery={evidenceQuery} query={q} onOpenProposal={openProposal}/>:<section className="research-ai-guest-lock"><LockKeyhole/><div><b>Research A.I dành cho thành viên đã đăng nhập</b><p>Khách có thể tra cứu nguồn công khai nhưng không được gửi nội dung cho Gemini và không được tạo đề cương A.I.</p></div><button onClick={login}>Đăng nhập</button></section>}

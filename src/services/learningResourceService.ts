@@ -40,3 +40,10 @@ export async function findRelatedLearningResources(query:string,limit=6):Promise
     return{row,score};
   }).filter(item=>item.score>0||tokens.length===0).sort((a,b)=>b.score-a.score||Date.parse(b.row.updatedAt||'0')-Date.parse(a.row.updatedAt||'0')).slice(0,bounded).map(({row})=>({resourceKey:row.resourceKey,title:row.title,resourceType:row.resourceType,mimeType:row.mimeType,updatedAt:row.updatedAt}));
 }
+
+export async function listPublishedLearningResources(signal?:AbortSignal):Promise<LearningResourceHit[]>{
+  const request=supabase.rpc('learning_resource_list_v1',{p_limit:100,p_include_drafts:false});
+  const {data,error}=await (signal?request.abortSignal(signal):request);
+  if(error)throw error;
+  return (Array.isArray(data)?data:[]).map(safeRow).filter((row):row is ResourceRow=>Boolean(row&&row.status==='published'&&row.audience==='members'));
+}

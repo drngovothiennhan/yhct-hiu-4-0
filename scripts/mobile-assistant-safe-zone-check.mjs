@@ -5,7 +5,7 @@ const app=fs.readFileSync('src/App.tsx','utf8');
 const fail=[];
 const need=(body,token,label)=>{if(!body.includes(token))fail.push(`${label}: missing ${token}`)};
 
-need(app,'className="mobile-assistant-slot"','assistant mount point must remain available in header actions');
+need(app,'className="mobile-assistant-slot"','assistant mount point must remain available outside the filtered header');
 need(css,'@media(max-width:760px)','mobile assistant breakpoint');
 need(css,'.mobile-assistant-slot{display:contents!important','mobile mount point must not reserve a fixed drag box');
 need(css,'.mobile-assistant-slot .app-assistant{position:fixed!important','mobile assistant root must float at viewport level');
@@ -22,3 +22,7 @@ if(/\.mobile-assistant-slot \.app-assistant \.xz-orb\{[^}]*touch-action\s*:\s*ma
 
 if(fail.length){console.error('MOBILE ASSISTANT TOUCH/DRAG FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
 console.log('Mobile assistant touch/drag PASS: launcher floats above the app shell, touch panning is disabled on the launcher, translate3d remains active, and the dialog clears bottom navigation.');
+
+const slotAt=app.indexOf('className="mobile-assistant-slot"');
+const headerAt=app.indexOf('<main><header className="top"');
+if(!(slotAt>=0&&slotAt<headerAt))throw new Error('Assistant must be mounted before main/header so backdrop-filter cannot clip fixed controls');
