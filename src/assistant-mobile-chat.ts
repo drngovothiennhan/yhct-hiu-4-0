@@ -1,5 +1,6 @@
 const CONVERSATION_SELECTOR='.app-assistant-panel .xz-conversation';
 const COMPOSER_SELECTOR='.app-assistant-panel .xz-compose';
+const LEGACY_EMPTY_COPY_SELECTOR='.app-assistant-panel .xz-empty p';
 
 let scrollFrame=0;
 
@@ -18,6 +19,11 @@ const scrollToLatest=(conversation:HTMLElement,immediate=false)=>{
   });
 };
 
+const removeLegacyEmptyCopy=(root:Document|Element)=>{
+  if(root instanceof Element&&root.matches(LEGACY_EMPTY_COPY_SELECTOR))root.remove();
+  root.querySelectorAll(LEGACY_EMPTY_COPY_SELECTOR).forEach((node)=>node.remove());
+};
+
 const conversationFromNode=(node:Node|null):HTMLElement|null=>{
   const element=node instanceof Element?node:node?.parentElement;
   if(!element)return null;
@@ -32,12 +38,14 @@ const scrollOpenConversation=(immediate=false)=>{
 };
 
 const observeConversation=()=>{
+  removeLegacyEmptyCopy(document);
   const observer=new MutationObserver((records)=>{
     const conversations=new Set<HTMLElement>();
     for(const record of records){
       const direct=conversationFromNode(record.target);
       if(direct)conversations.add(direct);
       record.addedNodes.forEach((node)=>{
+        if(node instanceof Element)removeLegacyEmptyCopy(node);
         const added=conversationFromNode(node);
         if(added)conversations.add(added);
       });
