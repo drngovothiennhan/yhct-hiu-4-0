@@ -16,8 +16,8 @@ export default function SelfRegistrationPortal(){
   const [activationNotice,setActivationNotice]=useState(()=>new URLSearchParams(window.location.search).get('member_activation')==='done');
 
   useEffect(()=>{
-    const {data:{subscription}}=supabase.auth.onAuthStateChange((event)=>{
-      if(event==='SIGNED_IN'||event==='INITIAL_SESSION'){if(readCachedMember())setHidden(true)}
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
+      if((event==='SIGNED_IN'||event==='INITIAL_SESSION')&&session)setHidden(true);
       if(event==='SIGNED_OUT')setHidden(false);
     });
     return()=>subscription.unsubscribe();
