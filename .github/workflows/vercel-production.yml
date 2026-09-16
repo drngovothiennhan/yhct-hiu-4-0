@@ -294,17 +294,24 @@ jobs:
           response_file="$(mktemp)"
           trap 'rm -f "$response_file"' EXIT
           for attempt in $(seq 1 60); do
-            status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' --header "Authorization: Bearer ${VERCEL_TOKEN}" "https://api.vercel.com/v13/deployments/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}")"
+            status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' --header "Authorization: Bearer ${VERCEL_TOKEN}" "https://api.vercel.com/v13/deployments/${VERCEL_PRODUCTION_ALIAS}?teamId=${VERCEL_ORG_ID}")"
             if [ "$status" = "200" ]; then
-              alias_bound="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(Array.isArray(b.alias)&&b.alias.includes(process.env.VERCEL_PRODUCTION_ALIAS)?'1':'0')" "$response_file")"
-              if [ "$alias_bound" = "1" ] && curl --fail --silent --show-error "https://${VERCEL_PRODUCTION_ALIAS}/api/health" >/tmp/yhct-production-health.json; then
-                echo "Golden-passed candidate is now the healthy production deployment."
-                exit 0
+              resolved_id="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b?.id||'')" "$response_file")"
+              resolved_sha="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b?.meta?.githubCommitSha||'')" "$response_file")"
+              if [ "$resolved_id" = "$DEPLOYMENT_ID" ]; then
+                if [ -n "$resolved_sha" ] && [ "$resolved_sha" != "$CI_PASSED_SHA" ]; then
+                  echo "::error title=Production commit mismatch::Production alias resolved to ${resolved_id} at unexpected commit ${resolved_sha}."
+                  exit 89
+                fi
+                if curl --fail --silent --show-error "https://${VERCEL_PRODUCTION_ALIAS}/api/health" >/tmp/yhct-production-health.json && node -e "const fs=require('node:fs');const body=JSON.parse(fs.readFileSync('/tmp/yhct-production-health.json','utf8'));if(body?.ok!==true)process.exit(1)"; then
+                  echo "Golden-passed candidate is now the healthy production deployment."
+                  exit 0
+                fi
               fi
             fi
             sleep 3
           done
-          echo "::error title=Production promotion verification failed::Exact staged deployment was not bound healthy within 3 minutes."
+          echo "::error title=Production promotion verification failed::Production alias did not resolve to the exact healthy staged deployment within 3 minutes."
           exit 89
 
       - name: Real Google Chrome production smoke
