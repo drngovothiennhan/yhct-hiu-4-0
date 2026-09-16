@@ -27,11 +27,11 @@ const assistant=read('api/ai/assistant.js');
 const geminiProvider=read('api/_lib/gemini-provider.js');
 const vercel=JSON.parse(read('vercel.json'));
 
-need(mini,['Trợ lý tác vụ','researchIntent','openResearch(text)','openStudyAi(text)'],'AI Mini task assistant');
-forbid(mini,['askXiaoZhiMini','searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge'],'AI Mini academic boundary');
-if((app.match(/<UnifiedAiMini\b/g)||[]).length!==1)fail.push('App must render exactly one global task assistant launcher');
-need(xz,['hiu.vn','appAssistantQuery'],'official HIU task-assistant source policy');
-need(xzServer,['isResearchIntent',"route:'research'"],'XiaoZhi research handoff');
+need(mini,['Trợ lý XiaoZhi','researchIntent','openResearch(text)','askXiaoZhiPublic',"mode:'xiaozhi-mini'",'tìm nguồn Internet công khai'],'AI Mini XiaoZhi task + public web assistant');
+forbid(mini,['searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge'],'AI Mini direct academic retrieval boundary');
+if((app.match(/<UnifiedAiMini\b/g)||[]).length!==1)fail.push('App must render exactly one global XiaoZhi assistant launcher');
+need(xz,['hiu.vn','appAssistantQuery'],'legacy official HIU task-assistant source policy');
+need(xzServer,['isResearchIntent',"route:'research'",'createGeminiWebSearch'],'XiaoZhi public web + research handoff');
 
 need(research,['RESEARCH_ROLE=GEMINI_MEDICAL_RESEARCH_LEAD','searchResearchEvidence(text,14,controller.signal)','reusePublic','searchDriveRag','searchKnowledge','Dùng tài liệu nội bộ cho lượt này','setUseInternal(false)','Bằng chứng','PICO','Khoảng trống','Phương pháp','Không tạo câu trả lời local thay thế'],'Gemini medical research workbench');
 forbid(research,['searchPubMed(text,8)','searchOpenAlex(text,8)','searchClinicalTrials(text,5)','buildAcademicFallback','A.I local 0đ','Fallback học thuật cục bộ'],'Research must not restore duplicate public fan-out or fake local AI answers');
@@ -69,4 +69,4 @@ forbid(bankMigration,['sourceFileName'],'member quiz RPC must not expose source 
 
 if(vercel?.git?.deploymentEnabled!==false)fail.push('Vercel Git auto-deploy must remain disabled so production is gated by Web CI');
 if(fail.length){console.error('AI ROLE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('AI role contract PASS: task assistant, contextual non-repeating AI responses, shared evidence-first Gemini Study quiz, server-bounded Gemini medical Research, role-aware proposal quota and one canonical red-answer bank are isolated and enforced.');
+console.log('AI role contract PASS: XiaoZhi system-task + public-web assistant, contextual non-repeating AI responses, shared evidence-first Gemini Study quiz, server-bounded Gemini medical Research, role-aware proposal quota and one canonical red-answer bank are isolated and enforced.');
