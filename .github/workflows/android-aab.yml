@@ -21,15 +21,36 @@ jobs:
         run: npx tsc -b && npx vite build
       - run: npx cap add android || true
       - run: npx cap sync android
-      - name: Target Android 16 / API 36
+      - name: Target Android 16 / API 36 and bump release
         run: |
           sed -i 's/compileSdkVersion = 35/compileSdkVersion = 36/' android/variables.gradle
           sed -i 's/targetSdkVersion = 35/targetSdkVersion = 36/' android/variables.gradle
+          sed -i 's/versionCode 1/versionCode 2/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "1.0.1"/' android/app/build.gradle
           grep -E 'compileSdkVersion|targetSdkVersion' android/variables.gradle
+          grep -E 'versionCode|versionName' android/app/build.gradle
+      - name: Install HIU YHCT launcher icon
+        run: |
+          if ! command -v convert >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y imagemagick
+          fi
+          for spec in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            density="${spec%%:*}"
+            size="${spec##*:}"
+            dir="android/app/src/main/res/mipmap-${density}"
+            mkdir -p "$dir"
+            convert public/pwa-icon-512.png -resize "${size}x${size}" "$dir/ic_launcher.png"
+            cp "$dir/ic_launcher.png" "$dir/ic_launcher_round.png"
+          done
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+          test -s android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          identify android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
       - name: Build release AAB
         run: cd android && ./gradlew bundleRelease
       - uses: actions/upload-artifact@v4
         with:
-          name: yhct-hiu-api36-native-aab
+          name: yhct-hiu-api36-v2-logo-aab
           path: android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
