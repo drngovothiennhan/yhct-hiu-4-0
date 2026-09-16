@@ -1,8 +1,8 @@
-const CACHE='yhct-hiu-4-final4-v5-atomic-theme-pwa-v22-release-aware';
+const CACHE='yhct-hiu-4-final4-v5-atomic-theme-pwa-v23-approved-logo';
 const SCOPE_URL=new URL(self.registration.scope);
 const ROOT=SCOPE_URL.pathname.endsWith('/')?SCOPE_URL.pathname:`${SCOPE_URL.pathname}/`;
 const path=name=>new URL(name,self.registration.scope).pathname;
-const SHELL=[path('./'),path('yhct-system-mark.svg')];
+const SHELL=[path('./'),path('club-yhct-logo.svg')];
 const LEGACY_MANIFESTS=[path('manifest.webmanifest'),path('api/manifest')];
 const NAV_TIMEOUT_MS=8000;
 
