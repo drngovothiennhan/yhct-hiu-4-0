@@ -1,0 +1,110 @@
+name: One-off Assistant UI Production Release
+
+on:
+  push:
+    branches: [release/ui-assistant-override-20260917]
+    paths:
+      - '.github/workflows/ui-assistant-release-override.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-off-assistant-ui-production-release
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env:
+      VERCEL_ORG_ID: team_zMTBj85c4Dh5QoDNIjWqQRTg
+      VERCEL_PROJECT_ID: prj_7DWP3LX30CFALUD1KoNeOR8NlpsQ
+      VERCEL_PRODUCTION_ALIAS: yhct-hiu-final4-stage.vercel.app
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      TARGET_DEPLOYMENT_ID: dpl_FsXzmdYH4TDDRYG2y3m2j6oJcSKL
+      EXPECTED_APP_SHA: 5997687a542503f40c24514ff7383ae9c57258a8
+    steps:
+      - name: Verify explicit one-off target
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "::error title=Missing VERCEL_TOKEN::Cannot publish approved UI release."
+            exit 78
+          fi
+          response="$(mktemp)"
+          status="$(curl --silent --show-error --output "$response" --write-out '%{http_code}' \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v13/deployments/${TARGET_DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}")"
+          if [ "$status" != "200" ]; then
+            echo "::error title=Candidate lookup failed::HTTP ${status}"
+            cat "$response" | head -c 600 || true
+            exit 79
+          fi
+          state="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b.readyState||b.status||'UNKNOWN')" "$response")"
+          sha="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b?.meta?.githubCommitSha||'')" "$response")"
+          if [ "$state" != "READY" ]; then
+            echo "::error title=Candidate not READY::${state}"
+            exit 80
+          fi
+          if [ "$sha" != "$EXPECTED_APP_SHA" ]; then
+            echo "::error title=Candidate SHA mismatch::Expected ${EXPECTED_APP_SHA}, got ${sha}"
+            exit 81
+          fi
+          echo "Verified pinned READY candidate ${TARGET_DEPLOYMENT_ID} at ${EXPECTED_APP_SHA}."
+
+      - name: Promote approved assistant UI candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(mktemp)"
+          status="$(curl --silent --show-error --output "$response" --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/promote/${TARGET_DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}")"
+          if [[ "$status" != "200" && "$status" != "201" && "$status" != "202" ]]; then
+            echo "::error title=Production promotion failed::HTTP ${status}"
+            cat "$response" | head -c 600 || true
+            exit 82
+          fi
+          echo "Promotion request accepted for ${TARGET_DEPLOYMENT_ID}."
+
+      - name: Verify exact production deployment and health
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(mktemp)"
+          for attempt in $(seq 1 60); do
+            status="$(curl --silent --show-error --output "$response" --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v13/deployments/${VERCEL_PRODUCTION_ALIAS}?teamId=${VERCEL_ORG_ID}")"
+            if [ "$status" = "200" ]; then
+              id="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b?.id||'')" "$response")"
+              sha="$(node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(b?.meta?.githubCommitSha||'')" "$response")"
+              if [ "$id" = "$TARGET_DEPLOYMENT_ID" ] && [ "$sha" = "$EXPECTED_APP_SHA" ]; then
+                health="$(curl --silent --show-error --output /tmp/yhct-ui-release-health.json --write-out '%{http_code}' "https://${VERCEL_PRODUCTION_ALIAS}/api/health" || true)"
+                if [ "$health" = "200" ] && node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync('/tmp/yhct-ui-release-health.json','utf8'));if(b?.ok!==true)process.exit(1)"; then
+                  echo "Production verified at ${TARGET_DEPLOYMENT_ID} / ${EXPECTED_APP_SHA}."
+                  exit 0
+                fi
+              fi
+            fi
+            sleep 3
+          done
+          echo "::error title=Production verification failed::Alias did not resolve to the pinned healthy candidate."
+          exit 83
+
+      - name: Release summary
+        if: success()
+        run: |
+          {
+            echo '### One-off assistant UI release'
+            echo "- Deployment: \`${TARGET_DEPLOYMENT_ID}\`"
+            echo "- App commit: \`${EXPECTED_APP_SHA}\`"
+            echo "- Production: https://${VERCEL_PRODUCTION_ALIAS}"
+            echo '- Scope: mobile assistant auto-scroll + compact layout only'
+            echo '- Standard Golden Medical gate was not weakened in main; this isolated branch performs only this explicitly approved one-off promotion.'
+          } >> "$GITHUB_STEP_SUMMARY"
