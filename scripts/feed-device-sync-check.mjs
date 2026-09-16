@@ -75,6 +75,10 @@ async function runDeviceOnce(name,width,height,port,expected,attempt){
     }
     if(!ready)throw new Error(`${name}: page did not finish loading.`);
 
+    const community=await send('Runtime.evaluate',{expression:`(()=>{const details=document.querySelector('.home-community-secondary');const summary=details?.querySelector('summary');if(!details||!summary)return false;if(!details.open)summary.click();return true})()`,returnByValue:true});
+    if(!community?.result?.value)throw new Error(`${name}: community feed surface was not available.`);
+    await sleep(250);
+
     let state=null;
     for(let i=0;i<60;i++){
       const evaluated=await send('Runtime.evaluate',{expression:`(()=>{const text=document.body?.innerText||'';const aside=document.querySelector('aside');const bottom=document.querySelector('.mobile-bottom-nav');const cards=[...document.querySelectorAll('[data-post-id]')];const renderedIds=cards.map(card=>card.getAttribute('data-post-id')).filter(Boolean);return{pathname:location.pathname,innerWidth:innerWidth,mode:document.documentElement.dataset.viewportMode||'',appReady:document.documentElement.dataset.appReady||'',heading:document.querySelector('.top-title h1')?.textContent||'',hasExpected:renderedIds.includes(${JSON.stringify(expected.id)}),renderedIds:renderedIds.slice(0,6),hasLegacyDemo:text.includes('Trần An Nhiên')||text.includes('Đau thắt lưng do hàn thấp'),hasSyncError:text.includes('Không thể đồng bộ bảng tin'),asideVisible:!!aside&&getComputedStyle(aside).display!=='none',bottomNavVisible:!!bottom&&getComputedStyle(bottom).display!=='none'}})()`,returnByValue:true});
