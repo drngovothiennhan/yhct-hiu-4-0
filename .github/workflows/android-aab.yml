@@ -6,7 +6,7 @@ on:
       version_code:
         description: 'Play versionCode candidate'
         required: true
-        default: '4'
+        default: '5'
         type: string
       version_name:
         description: 'Play versionName candidate'
@@ -26,7 +26,7 @@ concurrency:
 
 env:
   EXPECTED_APPLICATION_ID: edu.hiu.yhct40
-  RELEASE_VERSION_CODE: ${{ github.event_name == 'workflow_dispatch' && inputs.version_code || '4' }}
+  RELEASE_VERSION_CODE: ${{ github.event_name == 'workflow_dispatch' && inputs.version_code || '5' }}
   RELEASE_VERSION_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.version_name || '1.0.3' }}
 
 jobs:
@@ -140,7 +140,7 @@ jobs:
       - name: Upload validation AAB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: yhct-hiu-playstore-v4-validation-${{ github.sha }}
+          name: yhct-hiu-playstore-v5-validation-${{ github.sha }}
           path: |
             ${{ steps.aab.outputs.path }}
             android-release-evidence/
