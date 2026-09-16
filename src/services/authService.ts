@@ -13,6 +13,7 @@ const authKey=`sb-${ref}-auth-token`;
 const memberCacheKey='yhct-member-session-cache-v2';
 const timeout=<T>(p:PromiseLike<T>,ms:number)=>new Promise<T>((resolve,reject)=>{const t=setTimeout(()=>reject(new Error('timeout')),ms);Promise.resolve(p).then(v=>{clearTimeout(t);resolve(v)},e=>{clearTimeout(t);reject(e)})});
 const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
+const normalizeStudentCode=(value:unknown)=>String(value??'').trim().replace(/\s+/g,'').toUpperCase();
 
 export function mapMember(row:Record<string,unknown>):Member{
   const title=(String(row.position_title||row.title||'Hội viên')) as AppointmentTitle;
@@ -74,6 +75,15 @@ export function persistMemberSession(member:Member|null){
     if(member)localStorage.setItem(memberCacheKey,JSON.stringify(member));
     else localStorage.removeItem(memberCacheKey);
   }catch{}
+}
+
+function cachedMemberMatchesSession(member:Member|null,session:any){
+  if(!member||!session?.user)return false;
+  const memberId=String(session.user.app_metadata?.member_id||'').trim();
+  const studentCode=normalizeStudentCode(session.user.user_metadata?.student_code);
+  if(memberId&&member.id!==memberId)return false;
+  if(studentCode&&normalizeStudentCode(member.studentCode)!==studentCode)return false;
+  return Boolean(memberId||studentCode);
 }
 
 async function readSessionResilient(){
@@ -147,15 +157,17 @@ export async function restoreMember():Promise<Member|null>{
       persistMemberSession(null);
       return null;
     }catch(error){
-      if(cachedMember){console.warn('restoreMember using cached member while session refresh is transient',error);return cachedMember}
-      throw error;
+      if(cachedMember&&cachedMemberMatchesSession(cachedMember,session)){
+        console.warn('restoreMember using identity-matched cached member while session refresh is transient',error);
+        return cachedMember;
+      }
+      persistMemberSession(null);
+      console.warn('restoreMember rejected mismatched cached member',error);
+      return null;
     }
   }catch(error){
-    if(cachedMember){
-      console.warn('restoreMember preserved cached member after bounded retries',error);
-      return cachedMember;
-    }
-    console.warn('restoreMember failed after bounded retries',error);
+    persistMemberSession(null);
+    console.warn('restoreMember failed after bounded retries; cached identity not trusted without an active session',error);
     return null;
   }
 }
@@ -175,7 +187,11 @@ export function watchAuthSession(onMember:(member:Member|null,event:string)=>voi
         onMember(member,event);
       }).catch(error=>{
         const cached=readCachedMember();
-        if(cached)onMember(cached,`${event}_CACHE_FALLBACK`);
+        if(cachedMemberMatchesSession(cached,session))onMember(cached,`${event}_CACHE_FALLBACK`);
+        else{
+          persistMemberSession(null);
+          onMember(null,`${event}_CACHE_REJECTED`);
+        }
         console.warn('auth state member sync deferred after transient failure',error);
       });
     },0);
