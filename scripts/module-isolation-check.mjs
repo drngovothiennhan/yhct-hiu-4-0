@@ -18,8 +18,8 @@ need(researchEvidence,["/api/knowledge/resources?action=research",'requestDeadli
 forbid(research,['searchPubMed(query,12)','searchOpenAlex(query,12)','searchClinicalTrials(query,8)','ragInternalConsent','Research A.I tổng hợp nguồn vừa tìm','summarizeOpenAlex','askServerAi'],'research public surface must not own provider fan-out or AI orchestration');
 need(researchMini,['RESEARCH_ROLE=GEMINI_MEDICAL_RESEARCH_LEAD','searchResearchEvidence(text,14,controller.signal)','reusePublic','Dùng tài liệu nội bộ cho lượt này','translateAcademic','searchDriveRag',"searchKnowledge(text,'all',4)",'Bằng chứng','PICO','Khoảng trống','Phương pháp','Không tạo câu trả lời local thay thế','setUseInternal(false)'],'Research AI canonical orchestration');
 forbid(researchMini,['searchPubMed(text,8)','searchOpenAlex(text,8)','searchClinicalTrials(text,5)','buildAcademicFallback','Fallback học thuật cục bộ','A.I local 0đ'],'Research AI duplicate retrieval or local pseudo-answer path');
-need(mini,['researchIntent','VOICE_KEY','startListening','openResearch(text)','openStudyAi(text)','Trợ lý tác vụ'],'global task assistant routing');
-forbid(mini,['askXiaoZhiMini','searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge','centralKnowledgeService','askAcademicUnified','feedback_submit_v1'],'global task assistant academic separation');
+need(mini,['researchIntent','VOICE_KEY','startListening','openResearch(text)','askXiaoZhiPublic',"mode:'xiaozhi-mini'",'Trợ lý XiaoZhi'],'global XiaoZhi task and public web routing');
+forbid(mini,['searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge','centralKnowledgeService','askAcademicUnified','feedback_submit_v1'],'global XiaoZhi direct academic retrieval separation');
 need(aiCenter,['askStudyGemini','AI STUDY OS · GEMINI','ai-center__conversation','ai-center__composer'],'dedicated Gemini Study workspace');
 need(studyService,["fetch('/api/ai/assistant'",'conversationContext','Authorization:`Bearer ${token}`'],'Gemini Study authenticated client');
 need(miniService,["fetch('/api/ai/assistant'","mode:'xiaozhi-mini'",'Authorization:`Bearer ${token}`','hiu.vn'],'legacy XiaoZhi gateway remains isolated');
@@ -30,4 +30,4 @@ need(pwa,['beforeinstallprompt','appinstalled','requestPwaInstall','display-mode
 need(settings,['Cài ứng dụng mạng xã hội','PWA độc lập của Chrome','requestPwaInstall'],'app settings');
 
 if(errors.length){console.error('MODULE ISOLATION CHECK FAILED');for(const error of errors)console.error(`- ${error}`);process.exit(1)}
-console.log('module-isolation-ok: 11 final areas including dedicated Gemini Study AI Center, task-only floating assistant, native lazy route boundaries, vendor-only manual chunks, inbox embedded in profile, admin/ACC separation, root PWA install, and single server-bounded Gemini medical Research orchestration with request-scoped internal consent present');
+console.log('module-isolation-ok: 11 final areas including dedicated Gemini Study AI Center, XiaoZhi task plus public-web assistant, native lazy route boundaries, vendor-only manual chunks, inbox embedded in profile, admin/ACC separation, root PWA install, and single server-bounded Gemini medical Research orchestration with request-scoped internal consent present');

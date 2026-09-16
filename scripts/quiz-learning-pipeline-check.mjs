@@ -59,10 +59,10 @@ forbid(legacyExam,['DailyDrivePractice','PracticeBankQuiz','AdaptiveReview'],'St
 
 need(adaptive,['Ôn tập ngắt quãng','subject','count','REVIEW_COUNTS=[5,10,20,0]','getPracticeQuizConfig','const subjects=bankSubjects','validCards','<small>{card.subject}</small>','QuestionReasoningGuide'],'adaptive review uses current folder registry only, supports count selection and contextual reasoning');
 need(reasoning,['A.I hướng dẫn suy luận','askServerAi','stem','options','subject','topic','selectedIndex',"askServerAi(prompt,'exam'",'KHÔNG tiết lộ đáp án đúng','Dữ kiện quyết định','Loại trừ','Điểm cần nhớ'],'reasoning tutor receives current question context and stays non-answer-leaking before selection');
-need(mini,['AssistantMascot','guideOpen','avatarStyle','Trợ lý tác vụ','Câu hỏi học tập sẽ tự chuyển sang Gemini Study.','app-assistant-guide-toggle'],'task-only A.I Mini compact guide');
+need(mini,['AssistantMascot','guideOpen','avatarStyle','Trợ lý XiaoZhi','Ngoài các tác vụ cài sẵn, tôi có thể tìm nguồn Internet công khai để trả lời.','app-assistant-guide-toggle','askXiaoZhiPublic',"mode:'xiaozhi-mini'"],'XiaoZhi compact guide keeps tasks plus public web answers');
 need(mascot,["'default'|'eagle'|'viet'|'minimal'",'assistant-mascot__beak'],'selectable assistant presentation layer');
 forbid(mascot,['fetch(','askServerAi','askXiaoZhiMini'],'mascot remains presentation-only');
 
 if(fs.existsSync('api/ai/study-quiz.js'))fail.push('duplicate api/ai/study-quiz.js must remain removed');
 if(fail.length){console.error('QUIZ LEARNING PIPELINE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
-console.log('Quiz learning pipeline contract PASS: one-step bank + source-folder-count learning hierarchy + repeatable Quick Review + grounded Gemini generation + folder-only adaptive review.');
+console.log('Quiz learning pipeline contract PASS: one-step bank + source-folder-count learning hierarchy + repeatable Quick Review + grounded Gemini generation + XiaoZhi public web + folder-only adaptive review.');

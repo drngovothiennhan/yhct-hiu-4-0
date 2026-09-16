@@ -38,8 +38,8 @@ need(contract,["ModuleId='feed'|'research'|'profile'|'garden'|'notifications'|'s
 need(main,['requestAnimationFrame(()=>requestAnimationFrame(revealStableApp))','delete root.dataset.appBooting','yhct-prepaint'],'stable first paint');
 
 const mini=read('src/components/ai/UnifiedAiMini.tsx'),assistant=read('api/ai/assistant.js'),studyClient=read('src/services/studyAiService.ts'),study=read('api/_lib/study-assistant-handler.js'),publicEvidence=read('api/_lib/public-medical-evidence.js'),aiCenter=read('src/components/ai/AiCenter.tsx');
-need(mini,['researchIntent','openResearch(text)','openStudyAi(text)','Trợ lý tác vụ'],'task-only assistant routing');
-forbid(mini,['askXiaoZhiMini','searchOpenAlex','searchDriveRag','searchKnowledge'],'task assistant academic retrieval');
+need(mini,['researchIntent','openResearch(text)',"mode:'xiaozhi-mini'",'askXiaoZhiPublic','Trợ lý XiaoZhi','tìm nguồn Internet công khai'],'XiaoZhi task plus public web routing');
+forbid(mini,['searchOpenAlex','searchDriveRag','searchKnowledge'],'XiaoZhi direct academic retrieval');
 need(assistant,["req.body?.mode==='study'",'handleStudyAssistant',"req.body?.mode==='xiaozhi-mini'"],'shared assistant routing');
 need(studyClient,["fetch('/api/ai/assistant'","mode:'study'","task:'quiz'",'A.I chưa tạo đủ số câu hợp lệ','Đề A.I chưa có nguồn web xác minh'],'shared Study client');
 forbid(studyClient,['/api/ai/study-quiz'],'duplicate Study client endpoint');

@@ -34,7 +34,7 @@ const checks=[
   ['composer allows non-clinical post types',has(files.composer,"['news','Tin tức']","['reference','Bài tham khảo']",'Nội dung YHCT chuyên sâu — tùy chọn')],
   ['work blocks max-five contract surfaced',has(files.moderation,'Tối đa 5 nội dung','moderation_workbench_v2','p_on_date')],
   ['Word summary import preserved',has(files.feed,'DocxImportPanel')&&has(files.docx,'docx')],
-  ['Task assistant and Gemini Study are both available',has(files.app,'UnifiedAiMini member={member}')&&has(files.mini,'openStudyAi(text)','VOICE_KEY','startListening')&&not(files.mini,'askXiaoZhiMini')&&has(files.aiCenter,'askStudyGemini')&&has(files.studyService,"fetch('/api/ai/assistant'")]
+  ['XiaoZhi public web and Gemini Study are both available',has(files.app,'UnifiedAiMini member={member}')&&has(files.mini,'askXiaoZhiPublic',"mode:'xiaozhi-mini'",'VOICE_KEY','startListening')&&has(files.aiCenter,'askStudyGemini')&&has(files.studyService,"fetch('/api/ai/assistant'")]
  ]],
  ['USER',[
   ['frozen module contract',has(files.contract,"ModuleId='feed'|'research'|'profile'|'garden'|'notifications'|'schedule'|'drl'|'exam'|'admin'|'acc'","if(path==='/messages')return'profile'")&&not(files.app,"tab==='messages'","go('messages')")],
@@ -45,9 +45,9 @@ const checks=[
   ['private inbox embedded in profile',has(files.profileInbox,'messages_inbox_v1','MessagesCenter','member_messages','role="dialog"')&&has(files.messages,'messages_send_v1','message_recipients_v1')],
   ['herbal alias restored into session',has(files.auth,'herbal_alias','herbalAlias','wall_theme','wall_motto')],
   ['social garden visit/help/market/decor',has(files.gardenSocial,'herb_garden_directory_v2','herb_garden_visit_v2','herb_garden_help_v2','herb_garden_market_buy_v1','herb_garden_profile_update_v1','visited-grid-v3')&&has(files.garden,'herb_garden_state_v3','garden-nine-grid')],
-  ['Task assistant voice defaults on and mobile remains fixed',has(files.mini,'VOICE_KEY','speechSynthesis','startListening','openStudyAi(text)')&&not(files.mini,'askXiaoZhiMini')&&has(files.css,'@media(max-width:760px)','.xz-mini','position:fixed')],
+  ['XiaoZhi voice defaults on, public web is wired and mobile remains fixed',has(files.mini,'VOICE_KEY','speechSynthesis','startListening','askXiaoZhiPublic',"mode:'xiaozhi-mini'")&&has(files.css,'@media(max-width:760px)','.xz-mini','position:fixed')],
   ['Research retrieval remains research-only',has(files.research,'searchResearchEvidence(query,18)','<ResearchAiMini')&&has(files.researchMini,'RESEARCH_ROLE=GEMINI_MEDICAL_RESEARCH_LEAD','searchResearchEvidence(text,14,controller.signal)','Dùng tài liệu nội bộ cho lượt này')&&has(files.researchEvidence,"/api/knowledge/resources?action=research")&&has(files.mini,'researchIntent')&&not(files.mini,'searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge')],
-  ['Task assistant has no learning-answer or feedback overlap',has(files.mini,'Trợ lý tác vụ','researchIntent','openResearch(text)','openStudyAi(text)','VOICE_KEY','startListening')&&has(files.aiCenter,'AI STUDY OS · GEMINI','askStudyGemini')&&has(files.studyService,"fetch('/api/ai/assistant'")&&not(files.mini,'askXiaoZhiMini','askAcademicUnified','feedback_submit_v1','searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge')&&not(files.app,'AiMiniFeedbackDock','PersonalCopilotWidget')],
+  ['XiaoZhi public web stays separate from Gemini Study and Research',has(files.mini,'Trợ lý XiaoZhi','researchIntent','openResearch(text)','askXiaoZhiPublic',"mode:'xiaozhi-mini'",'VOICE_KEY','startListening')&&has(files.aiCenter,'AI STUDY OS · GEMINI','askStudyGemini')&&has(files.studyService,"fetch('/api/ai/assistant'")&&not(files.mini,'askAcademicUnified','feedback_submit_v1','searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge')&&not(files.app,'AiMiniFeedbackDock','PersonalCopilotWidget')],
   ['installable PWA settings',has(files.settings,'Cài ứng dụng mạng xã hội','requestPwaInstall')&&has(files.pwa,'beforeinstallprompt','appinstalled','display-mode: standalone')],
   ['profile/password preserved',has(files.profile,'Đổi mật khẩu','Mật khẩu hiện tại','Xác nhận mật khẩu mới')&&has(files.authRuntime,'member-change-password','AbortController')],
   ['portable static hosting',has(files.vite,'GITHUB_PAGES',"'/yhct-hiu-4-0/'")&&has(files.main,'import.meta.env.BASE_URL')],
@@ -58,4 +58,4 @@ const checks=[
 let failed=0;
 for(const [role,items] of checks){const bad=items.filter(([,ok])=>!ok);if(bad.length){failed++;console.error(`role-audit ${role} FAIL: ${bad.map(([name])=>name).join('; ')}`)}else console.log(`role-audit ${role} PASS: ${items.map(([name])=>name).join('; ')}`)}
 if(failed)process.exit(1);
-console.log('role-audit-ok: modular roles, scoped one-step learning management, atomic theme, rolling TCM news carousel, latest-three AI academic posts, private inbox, Gemini Study + task assistant split, PWA, wall identity, moderation, garden, DRL and RBAC contracts passed');
+console.log('role-audit-ok: modular roles, scoped one-step learning management, atomic theme, rolling TCM news carousel, latest-three AI academic posts, private inbox, XiaoZhi public web + Gemini Study split, PWA, wall identity, moderation, garden, DRL and RBAC contracts passed');

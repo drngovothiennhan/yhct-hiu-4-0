@@ -83,9 +83,10 @@ requireText(geminiProvider,'geminiPrivateContextAllowed=()=>false','Gemini has n
 requireText(xiaozhiHandler,'store:false','XiaoZhi disables provider response storage');
 requireText(xiaozhiHandler,"provider:'local',degraded:true",'XiaoZhi retains bounded degraded fallback');
 requireText(miniService,"fetch('/api/ai/assistant'",'XiaoZhi client reuses shared AI endpoint');
-forbidText(mini,'askXiaoZhiMini','global task assistant no longer answers learning questions through XiaoZhi');
-requireText(mini,'openStudyAi(text)','global task assistant hands study questions to Gemini Study');
-requireText(mini,'openResearch(text)','global task assistant hands research questions to Research A.I');
+requireText(mini,'askXiaoZhiPublic','global XiaoZhi answers ordinary public questions through shared web gateway');
+requireText(mini,"mode:'xiaozhi-mini'",'global XiaoZhi invokes the shared XiaoZhi gateway');
+requireText(mini,'openResearch(text)','global XiaoZhi hands deep research questions to Research A.I');
+for(const direct of ['searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge'])forbidText(mini,direct,`global XiaoZhi excludes direct academic retrieval ${direct}`);
 
 requireText(runtime,"fetch('/api/ai/assistant'",'academic client routes cloud AI through shared gateway');
 requireText(runtime,'internalContextConsent:options.useInternal===true','internal context requires request-scoped opt-in');
@@ -131,4 +132,4 @@ const srcFiles=[];
 function walk(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const full=path.join(dir,entry.name);if(entry.isDirectory())walk(full);else if(/\.(ts|tsx|js|jsx)$/.test(entry.name))srcFiles.push(full)}}
 walk(path.join(root,'src'));
 for(const file of srcFiles){const text=fs.readFileSync(file,'utf8');if(text.includes('OPENAI_API_KEY'))fail(`server secret name leaked into browser source: ${path.relative(root,file)}`)}
-if(!process.exitCode)ok(`AI runtime acceptance passed across ${srcFiles.length} browser source files with quota-independent public evidence, shared Gemini-first Study quiz, task-only assistant, Gemini Research and opt-in internal RAG`);
+if(!process.exitCode)ok(`AI runtime acceptance passed across ${srcFiles.length} browser source files with quota-independent public evidence, shared Gemini-first Study quiz, XiaoZhi public-web assistant, Gemini Research and opt-in internal RAG`);

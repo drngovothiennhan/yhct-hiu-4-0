@@ -19,12 +19,14 @@ const publicEvidence=read('api/_lib/public-medical-evidence.js');
 const researchCenter=read('src/components/research/ResearchCenter.tsx');
 const researchMini=read('src/components/research/ResearchAiMini.tsx');
 const aiCenter=read('src/components/ai/AiCenter.tsx');
+const mini=read('src/components/ai/UnifiedAiMini.tsx');
 
 assert.match(client,/fetch\('\/api\/ai\/assistant'/);
 assert.match(client,/JSON\.stringify\(\{mode:'study',query,conversationContext,pageContext,variationMode\}\)/);
 assert.match(client,/JSON\.stringify\(\{mode:'study',task:'quiz',query:cleanTopic,count:requested,variationMode\}\)/,'generated quiz must reuse the shared Study gateway with response variation');
 assert.doesNotMatch(client,/\/api\/ai\/study-quiz/,'no duplicate Study quiz endpoint may remain');
 assert.match(gateway,/if\(req.body\?\.mode==='study'\)return handleStudyAssistant\(req,res\)/);
+assert.match(gateway,/if\(req.body\?\.mode==='xiaozhi-mini'\)return handleXiaoZhiMini\(req,res\)/,'shared assistant must retain XiaoZhi public web routing');
 assert.ok(!fs.existsSync(new URL('../api/ai/study-assistant.js',import.meta.url)));
 assert.ok(!fs.existsSync(new URL('../api/ai/study-quiz.js',import.meta.url)));
 assert.match(studyHandler,/task==='quiz'/);
@@ -77,8 +79,10 @@ assert.doesNotMatch(researchCenter,/ragInternalConsent|setRagInternalConsent/);
 assert.match(researchMini,/Dùng tài liệu nội bộ cho lượt này/);
 assert.match(researchMini,/setUseInternal\(false\)/);
 assert.match(researchMini,/\{useInternal:internalEnabled\}/);
-assert.doesNotMatch(read('src/components/ai/UnifiedAiMini.tsx'),/askXiaoZhiMini/);
-assert.match(read('src/components/ai/UnifiedAiMini.tsx'),/openStudyAi\(text\)/);
+assert.doesNotMatch(mini,/askXiaoZhiMini/,'global UI should not depend on the legacy XiaoZhi client helper');
+assert.match(mini,/askXiaoZhiPublic/,'ordinary non-preset questions must remain inside XiaoZhi public-web assistant');
+assert.match(mini,/mode:'xiaozhi-mini'/,'global XiaoZhi must call the shared xiaozhi-mini gateway');
+assert.match(mini,/openResearch\(text\)/,'deep research questions must still hand off to Research A.I');
 
 const entries=[];
 function walk(dir,relative=''){
@@ -126,7 +130,7 @@ try{
   assert.equal(web.code,200);assert.equal(web.body.provider,'gemini-web');assert.equal(web.headers['X-AI-Web-Search'],'1');assert.ok(Array.isArray(web.body.sources));assert.ok(web.body.sources.some(source=>String(source?.url||'').startsWith('https://')));
   searchFails=true;const fallback=await invoke({mode:'study',query:'Thông tin WHO mới nhất hôm nay về YHCT',variationMode:3});
   assert.equal(fallback.code,200);assert.equal(fallback.body.provider,'gemini-web');assert.equal(fallback.body.degraded,false);assert.ok(Array.isArray(fallback.body.sources));assert.ok(fallback.body.sources.some(source=>String(source?.url||'').startsWith('https://')));assert.ok(Array.isArray(fallback.body.suggestions));
-  console.log(`Phase 19.3 AI performance + reasoning audit PASS · contextual Study routing · ranked evidence · system-tool grounding · Gemini fallback · ${entries.length}/12 serverless functions`);
+  console.log(`Phase 19.3 AI performance + reasoning audit PASS · contextual Study routing · ranked evidence · system-tool grounding · XiaoZhi public web · Gemini fallback · ${entries.length}/12 serverless functions`);
 }finally{
   globalThis.fetch=originalFetch;
   if(originalKey===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=originalKey;
