@@ -29,7 +29,7 @@ need(sw,/clients\.claim\(\)/,'new service worker must take control of existing c
 need(sw,/service-worker\.js/,'service worker script must be treated as freshness-sensitive');
 need(sw,/cache:'no-store'/,'freshness-sensitive requests must bypass HTTP cache');
 
-need(panel,/>Cập nhật<|:'Cập nhật'/,'new quiz-bank update button missing from source');
+need(panel,/Cập nhật lại/,'new quiz-bank update button missing from source');
 need(panel,/AnswerReviewQueue/,'learning manager must mount the wrong-answer inbox');
 need(answerQueue,/Báo đáp án sai/,'wrong-answer inbox missing from its component');
 need(answerQueue,/chờ xử lý/,'wrong-answer inbox pending count missing');
