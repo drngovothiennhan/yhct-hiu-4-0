@@ -47,14 +47,15 @@
     "audit:v20:acting": "node scripts/v20-1-yquan-character-acting-check.mjs",
     "audit:v20:runtime": "node scripts/v20-yquan-runtime-playthrough.mjs",
     "audit:yquan": "node scripts/v20-yquan-unified-contract-check.mjs && node scripts/v20-1-yquan-character-acting-check.mjs && node scripts/v20-yquan-runtime-playthrough.mjs",
-    "prebuild": "npm run audit:source && npm run audit:roles && npm run audit:modules && npm run audit:sim6h && npm run audit:account && npm run audit:ai && npm run audit:ai-roles && npm run audit:ai-health && npm run audit:ai-quality && npm run audit:golden-medical && npm run audit:assistant-safe-zone && npm run audit:study-os-v2 && npm run audit:uiux-v2 && npm run audit:desktop-viewport && npm run audit:knowledge-gateway && npm run audit:publish-center && npm run audit:pdf-serverless && npm run audit:rag && npm run audit:quiz-pipeline && npm run audit:quiz-integrity && npm run audit:phase16 && npm run audit:phase17 && npm run audit:phase17-convergence && npm run audit:phase17f && npm run audit:phase18a && npm run audit:pwa-release && npm run audit:theme && npm run audit:feed && npm run audit:performance && npm run audit:yquan",
+    "prebuild": "npm run audit:source && npm run audit:health-version && npm run audit:roles && npm run audit:modules && npm run audit:sim6h && npm run audit:account && npm run audit:ai && npm run audit:ai-roles && npm run audit:ai-health && npm run audit:ai-quality && npm run audit:golden-medical && npm run audit:assistant-safe-zone && npm run audit:study-os-v2 && npm run audit:uiux-v2 && npm run audit:desktop-viewport && npm run audit:knowledge-gateway && npm run audit:publish-center && npm run audit:pdf-serverless && npm run audit:rag && npm run audit:quiz-pipeline && npm run audit:quiz-integrity && npm run audit:phase16 && npm run audit:phase17 && npm run audit:phase17-convergence && npm run audit:phase17f && npm run audit:phase18a && npm run audit:pwa-release && npm run audit:theme && npm run audit:feed && npm run audit:performance && npm run audit:yquan",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "android:sync": "npm run build && npx cap sync android",
     "android:open": "npx cap open android",
     "android:assets": "npx capacitor-assets generate --android",
     "audit:quiz-pipeline": "node scripts/quiz-learning-pipeline-check.mjs",
-    "audit:quiz-integrity": "node scripts/quiz-approval-integrity-check.mjs"
+    "audit:quiz-integrity": "node scripts/quiz-approval-integrity-check.mjs",
+    "audit:health-version": "node scripts/health-version-integrity-check.mjs"
   },
   "dependencies": {
     "@capacitor/android": "7.4.3",
@@ -78,4 +79,4 @@
     "typescript": "5.7.2",
     "vite": "6.0.5"
   }
-}
+}\n
