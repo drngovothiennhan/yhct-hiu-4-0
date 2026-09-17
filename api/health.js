@@ -23,5 +23,5 @@ export default async function handler(req,res){
     }
   }
 
-  return res.status(200).json({ok:true,app:'YHCT HIU 4.0',version:'4.0.0-final.6-modular',apiVersion:'v1',webFirst:true,moduleIsolation:'final4-modular-v1',installablePwa:true,zeroMandatoryPaidDependency:true,serverTime:new Date().toISOString()});
+  return res.status(200).json({ok:true,app:'YHCT HIU 4.0',version:'4.0.0-final.7-yquan-v20',apiVersion:'v1',webFirst:true,moduleIsolation:'final4-modular-v1',installablePwa:true,zeroMandatoryPaidDependency:true,serverTime:new Date().toISOString()});
 }
