@@ -19,8 +19,8 @@ assert.match(ingest,/rows\.filter\(isConvertibleDocument\)/,'DOCX and Google Doc
 assert.match(ingest,/\/export/,'native Google Docs must be exported before deterministic parsing');
 assert.match(ingest,/sourceSubject/,'top-level folder-derived subject must be preserved as taxonomy');
 assert.match(ingest,/practice_subject_folders_sync_admin_v1/,'Drive subjects must be synchronized to the member-facing registry');
-assert.match(ingest,/needsProcessing\(file,state\)/,'parser revision/mtime/subject changes must be reprocessed');
-assert.match(ingest,/!String\(state\.syncMessage\|\|'\'\)\.includes\(PARSER_REVISION\)/,'old ready files must be retried after parser revision upgrades');
+assert.match(ingest,/needsProcessing\(file,state\)/,'mtime/subject/unresolved parser changes must be reconsidered');
+assert.match(ingest,/String\(state\.syncStatus\|\|'\'\)!=='ready'&&!String\(state\.syncMessage\|\|'\'\)\.includes\(PARSER_REVISION\)/,'only unresolved old-revision sources should retry; stable ready sources stay idempotent');
 assert.doesNotMatch(ingest,/files\.slice\(0,1000\)/,'canonical scan must not truncate the discovered file list');
 assert.doesNotMatch(ingest,/root\.filter\(isDocx\)|parseMcqDocument|explicit-answer-key-v1|subjectFromName/,'root intake, alternate answer parser and filename taxonomy must stay removed');
 assert.match(ingest,/parseTrustedMarkedDocx/,'red Word marker parser is mandatory');
@@ -31,6 +31,10 @@ assert.match(markedParser,/sourceFormatNormalized:'common-red-v2'/,'accepted red
 assert.match(markedParser,/isRedColor/);
 assert.match(markedParser,/isRedHighlight/);
 assert.match(markedParser,/redChars\/totalChars>=0\.45/,'mixed black label + red option text must still be detectable');
+assert.match(markedParser,/parsePrefixedFourOptionQuestions/,'Câu n plus four following option paragraphs must be supported');
+assert.match(markedParser,/stripOptionLabel/,'optional A-D prefixes must normalize without changing option content');
+assert.match(markedParser,/structuralScore/,'parser layouts must be selected by deterministic structural fit');
+assert.match(markedParser,/layout:'prefixed-four-options-v2'/);
 assert.match(markedParser,/sourceMark:'word-font-color-red-v1'/,'database trusted provenance contract must remain compatible');
 assert.match(markedParser,/sourceMarkColor:'FF0000'/,'normalized provenance must keep canonical FF0000');
 
@@ -53,4 +57,4 @@ assert.match(memberBank,/where active is true/,'folder registry sync must satisf
 assert.match(syncRevision,/'syncMessage'/,'production sync-state RPC must expose parser revision message');
 assert.match(legacyRegistry,/practice_subject_folders_v1/,'legacy registry remains migration-compatible but non-canonical');
 
-console.log('Phase 19.2 quiz bank contract PASS: recursive manual intake, Google Docs export, normalized red answers, parser-revision retry, registry sync, immediate member availability.');
+console.log('Phase 19.2 quiz bank contract PASS: recursive manual intake, Google Docs export, common-red normalization, four-option Google Docs layout, registry sync, immediate member availability.');
