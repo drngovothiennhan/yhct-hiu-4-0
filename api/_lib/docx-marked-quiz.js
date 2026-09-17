@@ -71,6 +71,22 @@ function normalizeTrustedQuestion(q,file,sourceHash,layout='labeled-abcd-v1'){
   return{question:normalized,invalid:null};
 }
 
+const stripOptionLabel=value=>clean(String(value||'').replace(/^\s*[A-D]\s*[.)：:]\s*/i,''),1500);
+function parsePrefixedFourOptionQuestions(paragraphs){
+  const starts=[];
+  for(let index=0;index<paragraphs.length;index++){
+    const match=paragraphs[index].text.match(/^(?:Câu|Cau)\s+(\d{1,4})\s*[.)：:\-]?\s*(.*)$/i);
+    if(match)starts.push({index,number:match[1],stem:clean(match[2],4000)});
+  }
+  const questions=[];
+  for(let at=0;at<starts.length;at++){
+    const start=starts[at],end=at+1<starts.length?starts[at+1].index:paragraphs.length,segment=paragraphs.slice(start.index+1,end),marked=[];
+    segment.forEach((x,index)=>{if(x.red)marked.push(index)});
+    questions.push({number:start.number,stem:start.stem,options:segment.map(x=>stripOptionLabel(x.text)),marked,raw:[paragraphs[start.index].text,...segment.map(x=>x.text)],layout:'prefixed-four-options-v2'});
+  }
+  return questions;
+}
+
 function parseLabeledQuestions(paragraphs){
   const questions=[];let current=null,lastOption=-1;
   const flush=()=>{if(!current)return;questions.push(current);current=null;lastOption=-1};
@@ -137,10 +153,11 @@ function parseFiveParagraphBlocks(paragraphs){
   return questions;
 }
 
+const structuralScore=questions=>questions.reduce((score,q)=>score+(q.stem.length>=4&&q.options.length===4&&q.options.every(Boolean)&&new Set(q.options.map(x=>x.toLowerCase())).size===4?1:0),0);
 export function parseTrustedMarkedDocx(buffer,file,sourceHash=''){
-  const paragraphs=inspectMarkedDocx(buffer);
-  const labeled=parseLabeledQuestions(paragraphs),split=labeled.length?[]:parseSplitLabelQuestions(paragraphs),numbered=labeled.length||split.length?[]:parseNumberedUnlabeledQuestions(paragraphs),blocks=labeled.length||split.length||numbered.length?[]:parseFiveParagraphBlocks(paragraphs);
-  const sourceQuestions=labeled.length?labeled:split.length?split:numbered.length?numbered:blocks;
+  const paragraphs=inspectMarkedDocx(buffer),variants=[parsePrefixedFourOptionQuestions(paragraphs),parseLabeledQuestions(paragraphs),parseSplitLabelQuestions(paragraphs),parseNumberedUnlabeledQuestions(paragraphs),parseFiveParagraphBlocks(paragraphs)];
+  let sourceQuestions=[],bestScore=-1;
+  for(const questions of variants){if(!questions.length)continue;const score=structuralScore(questions);if(score>bestScore){sourceQuestions=questions;bestScore=score}}
   const valid=[],invalid=[];
   for(const q of sourceQuestions){
     if(q.options.length!==4){invalid.push({number:q.number,reason:'invalid_option_count',optionCount:q.options.length,marked:q.marked.map(i=>letters[i]||String(i+1))});continue}
