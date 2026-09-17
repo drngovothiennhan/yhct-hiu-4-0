@@ -153,11 +153,13 @@ function parseFiveParagraphBlocks(paragraphs){
   return questions;
 }
 
-const structuralScore=questions=>questions.reduce((score,q)=>score+(q.stem.length>=4&&q.options.length===4&&q.options.every(Boolean)&&new Set(q.options.map(x=>x.toLowerCase())).size===4?1:0),0);
+const isStructural=q=>q.stem.length>=4&&q.options.length===4&&q.options.every(Boolean)&&new Set(q.options.map(x=>x.toLowerCase())).size===4;
+const structuralScore=questions=>questions.reduce((score,q)=>score+(isStructural(q)?1:0),0);
+const trustedScore=questions=>questions.reduce((score,q)=>score+(isStructural(q)&&new Set(q.marked).size===1?1:0),0);
 export function parseTrustedMarkedDocx(buffer,file,sourceHash=''){
   const paragraphs=inspectMarkedDocx(buffer),variants=[parsePrefixedFourOptionQuestions(paragraphs),parseLabeledQuestions(paragraphs),parseSplitLabelQuestions(paragraphs),parseNumberedUnlabeledQuestions(paragraphs),parseFiveParagraphBlocks(paragraphs)];
-  let sourceQuestions=[],bestScore=-1;
-  for(const questions of variants){if(!questions.length)continue;const score=structuralScore(questions);if(score>bestScore){sourceQuestions=questions;bestScore=score}}
+  let sourceQuestions=[],bestTrusted=-1,bestStructural=-1;
+  for(const questions of variants){if(!questions.length)continue;const trusted=trustedScore(questions),structural=structuralScore(questions);if(trusted>bestTrusted||trusted===bestTrusted&&structural>bestStructural){sourceQuestions=questions;bestTrusted=trusted;bestStructural=structural}}
   const valid=[],invalid=[];
   for(const q of sourceQuestions){
     if(q.options.length!==4){invalid.push({number:q.number,reason:'invalid_option_count',optionCount:q.options.length,marked:q.marked.map(i=>letters[i]||String(i+1))});continue}
