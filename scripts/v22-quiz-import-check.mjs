@@ -35,7 +35,7 @@ test('Phase 19 ACC exposes only Drive Thêm thủ công Update as canonical inge
  assert.ok(learning.includes('syncQuizBank')&&learning.includes('Thêm thủ công → Cập nhật → dùng ngay')&&learning.includes('đáp án tô đỏ'));
  for(const retired of ['sourceFileBase64','startQuizPipeline','retryQuizPipeline','publishQuizDraft','tryTrustedQuizUpload','accept=".docx,.txt,.pdf'])assert.ok(!learning.includes(retired),`canonical UI must not contain ${retired}`);
  assert.ok(acc.includes('LearningContentManagerPanel')&&!acc.includes('sourceFileBase64'));
- assert.ok(ingest.includes("MANUAL_INTAKE_FOLDER='Thêm thủ công'")&&ingest.includes('rows.filter(isDocx)')&&ingest.includes('parseTrustedMarkedDocx'));
+ assert.ok(ingest.includes("MANUAL_INTAKE_FOLDER='Thêm thủ công'")&&ingest.includes('rows.filter(isConvertibleDocument)')&&ingest.includes('parseTrustedMarkedDocx'));
  assert.ok(!ingest.includes('parseMcqDocument')&&!ingest.includes('trusted-quiz-upload'));
 });
 
