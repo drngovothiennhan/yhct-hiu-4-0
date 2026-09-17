@@ -5,6 +5,7 @@ import {SUPABASE_PUBLISHABLE_KEY,SUPABASE_URL,supabase} from '../../services/aut
 import {formatLunar} from '../../utils/lunar';
 import {TaijiIcon} from '../icons/YhctIcons';
 import AiOperationsPanel from './AiOperationsPanel';
+import MemberSelfRegistrationMonitor from './MemberSelfRegistrationMonitor';
 import './acc-system-center.css';
 
 type Snapshot={id:string;scope:string;checksum_sha256:string;row_counts:Record<string,number>;created_at:string};
@@ -13,7 +14,7 @@ type Health={ok:boolean;serverTime:string;postgres:string;counts:Record<string,n
 type Weather={available:boolean;temperature?:number;apparentTemperature?:number;humidity?:number;windSpeed?:number;condition?:string;locationMode?:string};
 type Semester={id:string;code:string;title:string;lock_at?:string|null;locked_at?:string|null;is_locked:boolean};
 type AdminNews={id:string;title:string;summary:string;publisher?:string|null;published_at?:string|null;status:'pending'|'published'|'rejected';trust_score:number;is_pinned:boolean;canonical_url:string};
-type AccSection='overview'|'learning'|'ai'|'content'|'operations';
+type AccSection='overview'|'learning'|'ai'|'content'|'member-registration'|'operations';
 
 const MAX_BLOCK_ITEMS=5;
 const ACC_SECTIONS:{id:AccSection;label:string;hint:string}[]=[
@@ -21,6 +22,7 @@ const ACC_SECTIONS:{id:AccSection;label:string;hint:string}[]=[
   {id:'learning',label:'Học tập',hint:'Tài liệu → quiz và ngân hàng ôn tập'},
   {id:'ai',label:'A.I Center',hint:'Provider, gateway, lỗi và trạng thái A.I'},
   {id:'content',label:'Nội dung',hint:'Duyệt nội dung cần thao tác'},
+  {id:'member-registration',label:'Đăng ký thành viên',hint:'Danh sách đăng ký trực tuyến'},
   {id:'operations',label:'Vận hành',hint:'Snapshot, khóa điểm và audit log'}
 ];
 const downloadJson=(name:string,data:unknown)=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.rel='noopener';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
@@ -57,6 +59,8 @@ export default function SystemAdminCenter(){
     {section==='ai'&&<AiOperationsPanel/>}
 
     {section==='content'&&<section className="panel admin-v6-block acc-single-block"><BlockTitle title="Nội dung cần duyệt"/><p className="muted">Chỉ hiển thị tối đa 5 nội dung gần nhất cần thao tác.</p><div className="news-admin-list compact">{adminNews.map(n=><article key={n.id} className={n.is_pinned?'is-pinned':''}><div className="news-admin-copy"><b>{n.is_pinned?'📌 ':''}{n.title}</b><small>{n.publisher||'Nguồn tổng hợp'} · {n.status}{n.published_at?` · ${new Date(n.published_at).toLocaleString('vi-VN')}`:''}</small></div><div className="schedule-actions">{n.status==='pending'&&<><button disabled={busy} onClick={()=>void review(n,'published')}><CheckCircle2/>Duyệt</button><button className="danger-btn" disabled={busy} onClick={()=>void review(n,'rejected')}><XCircle/>Từ chối</button></>}<button className="secondary" disabled={busy} onClick={()=>void editNews(n)}><Pencil/>Sửa</button><button className="secondary" disabled={busy} onClick={()=>void togglePin(n)}><Pin/>{n.is_pinned?'Bỏ ghim':'Ghim'}</button><button className="danger-btn" disabled={busy} onClick={()=>void deleteNews(n)}><Trash2/>Xóa</button></div></article>)}{!adminNews.length&&<p className="muted">Không có nội dung cần xử lý trong danh sách gần nhất.</p>}</div></section>}
+
+    {section==='member-registration'&&<div className="acc-single-block"><MemberSelfRegistrationMonitor/></div>}
 
     {section==='operations'&&<div className="admin-v6-grid">
       <section className="panel admin-v6-block"><BlockTitle title="Hạn chót khóa điểm"/><div className="semester-grid compact">{semesters.map(s=><article key={s.id}><b>{s.title}</b><small>{s.code} · {s.is_locked?'Đã khóa':'Đang mở'}</small><label>Khóa lúc<input type="datetime-local" defaultValue={localDateTime(s.lock_at)} disabled={busy} onBlur={e=>{if(e.currentTarget.value!==localDateTime(s.lock_at))void setDeadline(s,e.currentTarget.value)}}/></label></article>)}</div></section>
