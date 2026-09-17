@@ -4,7 +4,7 @@ import {normalizeImportQuestion} from './mcq-parser.js';
 
 const MAX_DOCX_BYTES=5_000_000;
 const MAX_XML_BYTES=12_000_000;
-const RED_MARKERS=new Set(['FF0000','RED']);
+const RED_NAMES=new Set(['RED','DARKRED']);
 const letters=['A','B','C','D'];
 const clean=(value,max=4000)=>String(value??'').replace(/[\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 const hash=value=>createHash('sha256').update(value).digest('hex');
@@ -41,17 +41,22 @@ export function extractDocxEntry(buffer,name='word/document.xml'){
 }
 
 const runText=run=>[...run.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g)].map(m=>xmlDecode(m[1])).join('');
-const runColor=run=>{const m=run.match(/<w:color\b[^>]*\bw:val=(?:"([^"]+)"|'([^']+)')[^>]*\/?\s*>/i);return String(m?.[1]||m?.[2]||'').trim().toUpperCase()};
-const isRed=color=>RED_MARKERS.has(String(color||'').toUpperCase());
+const attrValue=(xml,tag,attr='w:val')=>{const re=new RegExp(`<${tag}\\b[^>]*\\b${attr.replace(':','\\:')}=(?:"([^"]+)"|'([^']+)')[^>]*\\/?\\s*>`,'i'),m=xml.match(re);return String(m?.[1]||m?.[2]||'').trim()};
+const runColor=run=>attrValue(run,'w:color').toUpperCase();
+const runHighlight=run=>attrValue(run,'w:highlight').toUpperCase();
+const normalizeHex=value=>{let x=String(value||'').trim().replace(/^#/,'').toUpperCase();if(x.length===3&&/^[0-9A-F]{3}$/.test(x))x=x.split('').map(c=>c+c).join('');if(x.length===8&&/^[0-9A-F]{8}$/.test(x))x=x.slice(-6);return x};
+const isRedColor=value=>{const raw=String(value||'').trim().toUpperCase();if(RED_NAMES.has(raw))return true;const hex=normalizeHex(raw);if(!/^[0-9A-F]{6}$/.test(hex))return false;const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);return r>=160&&g<=115&&b<=115&&r-g>=55&&r-b>=55};
+const isRedHighlight=value=>RED_NAMES.has(String(value||'').trim().toUpperCase());
+const compactLength=value=>String(value||'').replace(/\s+/g,'').length;
 
 export function inspectMarkedDocx(buffer){
   const xml=extractDocxEntry(buffer).toString('utf8');
   const paragraphs=[];
   for(const match of xml.matchAll(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g)){
-    const fragment=match[0],runs=[...fragment.matchAll(/<w:r\b[^>]*>[\s\S]*?<\/w:r>/g)].map(m=>({text:runText(m[0]),color:runColor(m[0])})).filter(x=>x.text.length);
+    const fragment=match[0],runs=[...fragment.matchAll(/<w:r\b[^>]*>[\s\S]*?<\/w:r>/g)].map(m=>{const text=runText(m[0]),color=runColor(m[0]),highlight=runHighlight(m[0]);return{text,color,highlight,red:isRedColor(color)||isRedHighlight(highlight)}}).filter(x=>x.text.length);
     const text=clean(runs.map(x=>x.text).join(''),5000);if(!text)continue;
-    const meaningful=runs.filter(x=>x.text.trim().length>0),red=meaningful.length>0&&meaningful.every(x=>isRed(x.color));
-    paragraphs.push({text,red,colors:[...new Set(meaningful.map(x=>x.color).filter(Boolean))]});
+    const meaningful=runs.filter(x=>x.text.trim().length>0),totalChars=meaningful.reduce((sum,x)=>sum+compactLength(x.text),0),redChars=meaningful.filter(x=>x.red).reduce((sum,x)=>sum+compactLength(x.text),0),red=redChars>0&&totalChars>0&&(redChars/totalChars>=0.45||totalChars-redChars<=2);
+    paragraphs.push({text,red,colors:[...new Set(meaningful.flatMap(x=>[x.color,x.highlight?`HIGHLIGHT:${x.highlight}`:'']).filter(Boolean))],redChars,totalChars});
   }
   return paragraphs;
 }
@@ -59,10 +64,10 @@ export function inspectMarkedDocx(buffer){
 function normalizeTrustedQuestion(q,file,sourceHash,layout='labeled-abcd-v1'){
   const uniqueMarked=[...new Set(q.marked)],structural=q.stem.length>=4&&q.options.length===4&&q.options.every(Boolean)&&new Set(q.options.map(x=>x.toLowerCase())).size===4;
   if(!structural||uniqueMarked.length!==1)return{question:null,invalid:{number:q.number,reason:!structural?'invalid_question_structure':uniqueMarked.length===0?'missing_red_answer':'multiple_red_answers',marked:uniqueMarked.map(i=>letters[i]).filter(Boolean)}};
-  const correctIndex=uniqueMarked[0],normalized=normalizeImportQuestion({number:q.number,stem:q.stem,options:q.options,correctIndex,explanation:`Đáp án ${letters[correctIndex]} được đánh dấu đỏ trong tài liệu nguồn đã duyệt.`,answerEvidence:`Word font color FF0000: ${letters[correctIndex]}`,raw:q.raw.join('\n')},file,true);
+  const correctIndex=uniqueMarked[0],normalized=normalizeImportQuestion({number:q.number,stem:q.stem,options:q.options,correctIndex,explanation:`Đáp án ${letters[correctIndex]} được đánh dấu đỏ trong tài liệu nguồn đã duyệt.`,answerEvidence:`Định dạng đỏ đã chuẩn hóa: ${letters[correctIndex]}`,raw:q.raw.join('\n')},file,true);
   normalized.externalKey=`trusted:${file.id}:${hash(`${q.stem}|${q.options.join('|')}|${correctIndex}`).slice(0,24)}`;
   normalized.reviewStatus='source_verified';
-  normalized.provenance={...normalized.provenance,sourceHash,sourceMark:'word-font-color-red-v1',sourceMarkColor:'FF0000',sourceLayout:layout,trustedApprovedSource:true,adminConfirmed:true,questionNumber:q.number,markedAnswer:letters[correctIndex]};
+  normalized.provenance={...normalized.provenance,sourceHash,sourceMark:'word-font-color-red-v1',sourceMarkColor:'FF0000',sourceLayout:layout,sourceFormatNormalized:'common-red-v2',trustedApprovedSource:true,adminConfirmed:true,questionNumber:q.number,markedAnswer:letters[correctIndex]};
   return{question:normalized,invalid:null};
 }
 
