@@ -1,0 +1,84 @@
+name: One-shot Promote DRL 517373e
+
+on:
+  push:
+    branches:
+      - ops/promote-drl-hotfix-517373e
+    paths:
+      - .github/workflows/one-shot-promote-drl-517373e.yml
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env:
+      VERCEL_ORG_ID: team_zMTBj85c4Dh5QoDNIjWqQRTg
+      VERCEL_PROJECT_ID: prj_7DWP3LX30CFALUD1KoNeOR8NlpsQ
+      VERCEL_PRODUCTION_ALIAS: yhct-hiu-final4-stage.vercel.app
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      DEPLOYMENT_ID: dpl_27KYGpWdKKLNW1fsNed6tKSdSsbR
+      EXPECTED_SHA: 517373efc30223620b469164d954fb32fb34085c
+    steps:
+      - name: Verify exact staged deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(mktemp)"
+          code="$(curl --silent --show-error --output "$response" --write-out '%{http_code}' \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v13/deployments/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}")"
+          [ "$code" = "200" ] || { cat "$response"; exit 1; }
+          node - "$response" <<'NODE'
+          const fs=require('node:fs');
+          const b=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if((b.readyState||b.status)!=='READY') throw new Error(`deployment not READY: ${b.readyState||b.status}`);
+          if(b?.meta?.githubCommitSha!==process.env.EXPECTED_SHA) throw new Error(`commit mismatch: ${b?.meta?.githubCommitSha}`);
+          console.log(`Verified READY deployment ${b.id} at ${process.env.EXPECTED_SHA}`);
+          NODE
+
+      - name: Promote approved DRL deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(mktemp)"
+          code="$(curl --silent --show-error --output "$response" --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/promote/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}")"
+          if [[ "$code" != "200" && "$code" != "201" && "$code" != "202" ]]; then
+            cat "$response"
+            exit 1
+          fi
+          cat "$response"
+
+      - name: Verify production alias and health
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(mktemp)"
+          for attempt in $(seq 1 30); do
+            code="$(curl --silent --show-error --output "$response" --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v13/deployments/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}")"
+            if [ "$code" = "200" ]; then
+              ok="$(node - "$response" <<'NODE'
+          const fs=require('node:fs');
+          const b=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          const aliases=Array.isArray(b.alias)?b.alias:[];
+          process.stdout.write(aliases.includes(process.env.VERCEL_PRODUCTION_ALIAS)?'1':'0');
+          NODE
+              )"
+              [ "$ok" = "1" ] && break
+            fi
+            sleep 2
+          done
+          [ "${ok:-0}" = "1" ] || { echo 'Production alias was not bound to approved deployment'; exit 1; }
+          health="$(curl --silent --show-error --output /tmp/drl-health.json --write-out '%{http_code}' "https://${VERCEL_PRODUCTION_ALIAS}/api/health")"
+          [ "$health" = "200" ] || { cat /tmp/drl-health.json; exit 1; }
+          node -e "const fs=require('node:fs');const b=JSON.parse(fs.readFileSync('/tmp/drl-health.json','utf8'));if(b?.ok!==true)process.exit(1);console.log('Production health OK')"
+          echo "Promoted ${DEPLOYMENT_ID} (${EXPECTED_SHA}) to https://${VERCEL_PRODUCTION_ALIAS}"
