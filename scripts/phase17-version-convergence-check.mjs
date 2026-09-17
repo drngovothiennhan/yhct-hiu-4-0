@@ -54,7 +54,7 @@ need(quizBankManager,/Thêm thủ công → Cập nhật → dùng ngay/,'canoni
 need(quizBankManager,/Tên thư mục môn là nội dung người học nhìn thấy/,'subject folder taxonomy rule missing');
 forbid(quizBankManager,/File từ ACC|Duyệt Drive thủ công|Xử lý nâng cao|startQuizPipeline|publishQuizDraft|sourceFileBase64/,'alternate user-addressable bank workflows must stay removed');
 need(trustedQuizIngest,/MANUAL_INTAKE_FOLDER='Thêm thủ công'/,'canonical intake folder missing');
-need(trustedQuizIngest,/rows\.filter\(isDocx\)/,'direct DOCX intake must remain supported');
+need(trustedQuizIngest,/rows\.filter\(isConvertibleDocument\)/,'DOCX and Google Docs canonical intake must remain supported');
 need(trustedQuizIngest,/subjectFolders/,'one-level subject folders must be supported');
 need(trustedQuizIngest,/nestedGroups/,'one-level nested DOCX scanning missing');
 need(trustedQuizIngest,/parseTrustedMarkedDocx/,'red-answer parser missing');
