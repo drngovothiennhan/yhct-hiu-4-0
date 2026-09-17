@@ -13,11 +13,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  protection:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    outputs:
+      locked: ${{ steps.guard.outputs.locked }}
+    steps:
+      - name: Checkout exact CI commit for production lock
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
+      - name: Enforce production protection mode
+        id: guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f .github/PRODUCTION_PROTECTED ]; then
+            echo "locked=true" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Production protected::Release promotion is locked. The current production deployment remains unchanged."
+            cat .github/PRODUCTION_PROTECTED
+          else
+            echo "locked=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    needs: protection
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      needs.protection.result == 'success' &&
+      needs.protection.outputs.locked != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     environment: production
