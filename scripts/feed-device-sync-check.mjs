@@ -75,8 +75,14 @@ async function runDeviceOnce(name,width,height,port,expected,attempt){
     }
     if(!ready)throw new Error(`${name}: page did not finish loading.`);
 
-    const community=await send('Runtime.evaluate',{expression:`(()=>{const details=document.querySelector('.home-community-secondary');const summary=details?.querySelector('summary');if(!details||!summary)return false;if(!details.open)summary.click();return true})()`,returnByValue:true});
-    if(!community?.result?.value)throw new Error(`${name}: community feed surface was not available.`);
+    let communityReady=false,communityState=null;
+    for(let i=0;i<80;i++){
+      const community=await send('Runtime.evaluate',{expression:`(()=>{const root=document.documentElement;const details=document.querySelector('.home-community-secondary');const summary=details?.querySelector('summary');const state={appReady:root.dataset.appReady||'',hasDetails:!!details,hasSummary:!!summary,opened:!!details?.open};if(state.appReady!=='1'||!details||!summary)return state;if(!details.open)summary.click();state.opened=!!details.open;return state})()`,returnByValue:true});
+      communityState=community?.result?.value||null;
+      if(communityState?.appReady==='1'&&communityState?.hasDetails&&communityState?.hasSummary&&communityState?.opened){communityReady=true;break}
+      await sleep(150);
+    }
+    if(!communityReady)throw new Error(`${name}: community feed surface was not ready: ${JSON.stringify(communityState)}`);
     await sleep(250);
 
     let state=null;
