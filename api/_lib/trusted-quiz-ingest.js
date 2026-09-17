@@ -90,7 +90,7 @@ function needsProcessing(file,state){
   if(!state)return true;
   if(!sameTime(state.modifiedTime,file.modifiedTime))return true;
   if(clean(state.subjectHint,160)!==sourceSubject(file))return true;
-  if(!String(state.syncMessage||'').includes(PARSER_REVISION))return true;
+  if(String(state.syncStatus||'')!=='ready'&&!String(state.syncMessage||'').includes(PARSER_REVISION))return true;
   return false;
 }
 
