@@ -29,7 +29,7 @@ begin
       into own_code
       from public.club_members m
      where m.id=mid;
-    own_lookup:=coalesce(own_code='','')=false and own_code=q;
+    own_lookup:=nullif(own_code,'') is not null and own_code=q;
   end if;
 
   return query
