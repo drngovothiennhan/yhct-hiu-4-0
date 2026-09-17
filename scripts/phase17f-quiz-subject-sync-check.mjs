@@ -33,7 +33,8 @@ assert.match(markedParser,/isRedHighlight/);
 assert.match(markedParser,/redChars\/totalChars>=0\.45/,'mixed black label + red option text must still be detectable');
 assert.match(markedParser,/parsePrefixedFourOptionQuestions/,'Câu n plus four following option paragraphs must be supported');
 assert.match(markedParser,/stripOptionLabel/,'optional A-D prefixes must normalize without changing option content');
-assert.match(markedParser,/structuralScore/,'parser layouts must be selected by deterministic structural fit');
+assert.match(markedParser,/trustedScore/,'parser layouts must prioritize structurally valid questions with exactly one red answer');
+assert.match(markedParser,/bestTrusted/);
 assert.match(markedParser,/layout:'prefixed-four-options-v2'/);
 assert.match(markedParser,/sourceMark:'word-font-color-red-v1'/,'database trusted provenance contract must remain compatible');
 assert.match(markedParser,/sourceMarkColor:'FF0000'/,'normalized provenance must keep canonical FF0000');
@@ -57,4 +58,4 @@ assert.match(memberBank,/where active is true/,'folder registry sync must satisf
 assert.match(syncRevision,/'syncMessage'/,'production sync-state RPC must expose parser revision message');
 assert.match(legacyRegistry,/practice_subject_folders_v1/,'legacy registry remains migration-compatible but non-canonical');
 
-console.log('Phase 19.2 quiz bank contract PASS: recursive manual intake, Google Docs export, common-red normalization, four-option Google Docs layout, registry sync, immediate member availability.');
+console.log('Phase 19.2 quiz bank contract PASS: recursive manual intake, Google Docs export, common-red normalization, verified-layout selection, registry sync, immediate member availability.');
