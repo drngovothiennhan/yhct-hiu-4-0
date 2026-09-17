@@ -25,7 +25,7 @@ const mini=read('src/components/ai/UnifiedAiMini.tsx');
 const mascot=read('src/components/ai/AssistantMascot.tsx');
 const bankSql=read('supabase/migrations/202609132120_phase19_quiz_bank_data_first.sql');
 
-need(manager,['syncQuizBank','Thêm thủ công → Cập nhật → dùng ngay','thư mục môn','đáp án tô đỏ','tên tệp DOCX chỉ là dấu vết quản trị'],'canonical one-step trusted quiz bank manager');
+need(manager,['syncQuizBank','Thêm thủ công → Cập nhật → dùng ngay','thư mục môn','đáp án tô đỏ','DOCX và Google Docs được chuẩn hóa về DOCX nội bộ'],'canonical one-step trusted quiz bank manager');
 forbid(manager,['processUpload','publishAll','publishQuizDraft','startQuizPipeline','sourceFileBase64','tryTrustedQuizUpload','Duyệt Drive thủ công','File từ ACC'],'canonical manager must not expose legacy conversion workflow');
 need(acc,['LearningContentManagerPanel'],'ACC learning compatibility entry');
 forbid(acc,['Tự chuyển đổi','Cập nhật vào ngân hàng','pendingUpload','quizWorkspace(','startQuizPipeline'],'ACC wrapper must not own a second quiz pipeline');
