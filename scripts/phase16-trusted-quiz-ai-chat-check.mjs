@@ -37,7 +37,7 @@ need(migration,/sourceMarkColor/,'trusted RPC must validate marker color');
 need(migration,/trustedApprovedSource/,'trusted RPC must require approved-source provenance');
 need(panel,/syncQuizBank/,'ACC canonical bank update missing');
 need(panel,/Thêm thủ công/,'ACC must identify the single intake');
-need(panel,/>Cập nhật<|:'Cập nhật'/,'ACC update button missing');
+need(panel,/>Cập nhật(?: lại)?</,'ACC update button missing');
 forbid(panel,/tryTrustedQuizUpload|sourceFileBase64|startQuizPipeline|publishQuizDraft/,'alternate import workflows must not be user-addressable');
 need(bank,/Yêu cầu kiểm tra đáp án/,'student answer verification action missing');
 need(service,/practice_answer_review_request_v1/,'student answer-check service missing');
