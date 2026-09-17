@@ -34,7 +34,8 @@ assert.match(markedParser,/redChars\/totalChars>=0\.45/,'mixed black label + red
 assert.match(markedParser,/sourceMark:'word-font-color-red-v1'/,'database trusted provenance contract must remain compatible');
 assert.match(markedParser,/sourceMarkColor:'FF0000'/,'normalized provenance must keep canonical FF0000');
 
-assert.match(manager,/Thêm thủ công → tự chuyển đổi → dùng ngay/);
+assert.match(manager,/Thêm thủ công → Cập nhật → dùng ngay/);
+assert.match(manager,/Tên thư mục môn là nội dung người học nhìn thấy/);
 assert.match(manager,/quét toàn bộ cây thư mục/);
 assert.match(manager,/DOCX và Google Docs/);
 assert.match(manager,/Chủ đề đã đồng bộ cho Learning Hub/);
