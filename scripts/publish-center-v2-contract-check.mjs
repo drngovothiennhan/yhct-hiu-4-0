@@ -29,7 +29,7 @@ requireText(manager,/Thêm thủ công → Cập nhật → dùng ngay/,'ACC exp
 requireText(manager,/syncQuizBank/,'ACC primary action scans canonical intake');
 requireText(manager,/thư mục môn/,'ACC explains one-level subject folders');
 requireText(manager,/Tên thư mục môn là nội dung người học nhìn thấy/,'subject folder is member-facing taxonomy');
-requireText(manager,/tên tệp DOCX chỉ là dấu vết quản trị/,'DOCX filename remains provenance only');
+requireText(manager,/DOCX và Google Docs được chuẩn hóa về DOCX nội bộ/,'document provenance stays behind the member-facing folder taxonomy');
 requireText(manager,/đúng một phương án được tô đỏ/,'trusted DOCX requires one red answer');
 forbidText(manager,/sourceFileBase64|tryTrustedQuizUpload|startQuizPipeline|publishQuizDraft|Duyệt Drive thủ công|DOCX, TXT hoặc PDF|File từ ACC|Duyệt & phát hành/,'ACC must not expose retired workflows');
 
