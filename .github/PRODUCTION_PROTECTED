@@ -1,8 +1,0 @@
-PRODUCTION_PROTECTED=1
-APP=HIU YHCT 4.0
-BASELINE_SHA=8ef36a81ac8f4aaec6bdd464b3993098269b97e4
-BASELINE_DEPLOYMENT=dpl_8SjBXNc2UTDkH4uanzXVaZQEpBpH
-BASELINE_ALIAS=https://yhct-hiu-final4-stage.vercel.app
-PROTECTED_AT=2026-09-19T00:07:00+07:00
-MODE=production-promotion-lock
-POLICY=Keep the currently verified production serving normally; block automatic promotion until a new candidate passes the full reviewed release gate.
