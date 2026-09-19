@@ -142,11 +142,19 @@ async function requestWithVercelCli(baseUrl,memberToken,gateKey,vercelToken,item
 async function requestWithCookieJar(baseUrl,cookieJar,memberToken,gateKey,item,index){
   const args=['--silent','--show-error','--fail-with-body','--cookie',cookieJar,'--cookie-jar',cookieJar,'-X','POST','-H','Content-Type: application/json'];if(memberToken)args.push('-H',`Authorization: Bearer ${memberToken}`);if(gateKey)args.push('-H',`x-yhct-golden-eval: ${gateKey}`);args.push('-d',requestBody(item,index),`${baseUrl.replace(/\/$/,'')}/api/ai/assistant`);const {stdout}=await execFileAsync('curl',args,{encoding:'utf8',maxBuffer:2*1024*1024,timeout:65000});return JSON.parse(String(stdout||'').trim());
 }
-async function requestCase(baseUrl,memberToken,gateKey,vercelToken,item,index){
-  if(vercelToken)return requestWithVercelCli(baseUrl,memberToken,gateKey,vercelToken,item,index);const cookieJar=String(process.env.AI_GOLDEN_COOKIE_JAR||'').trim();if(cookieJar)return requestWithCookieJar(baseUrl,cookieJar,memberToken,gateKey,item,index);
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);try{const headers={'Content-Type':'application/json'};const bypass=String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET||'').trim();if(bypass){headers['x-vercel-protection-bypass']=bypass;headers['x-vercel-set-bypass-cookie']='true'}if(memberToken)headers.Authorization=`Bearer ${memberToken}`;if(gateKey)headers['x-yhct-golden-eval']=gateKey;const response=await fetch(`${baseUrl.replace(/\/$/,'')}/api/ai/assistant`,{method:'POST',signal:controller.signal,redirect:'manual',headers,body:requestBody(item,index)});if(response.status>=300&&response.status<400)throw new Error(`${response.status} deployment protection redirect`);const payload=await response.json().catch(()=>null);if(!response.ok)throw new Error(`${response.status} ${String(payload?.error||'request failed').slice(0,180)}`);return payload}finally{clearTimeout(timer)}
+async function requestWithAutomationBypass(baseUrl,bypass,memberToken,gateKey,item,index){
+  const cookieJar=String(process.env.AI_GOLDEN_AUTOMATION_COOKIE_JAR||'/tmp/yhct-vercel-automation.cookies').trim();
+  const args=['--location','--max-redirs','8','--silent','--show-error','--fail-with-body','--cookie',cookieJar,'--cookie-jar',cookieJar,'-X','POST','-H','Content-Type: application/json','-H',`x-vercel-protection-bypass: ${bypass}`,'-H','x-vercel-set-bypass-cookie: true'];
+  if(memberToken)args.push('-H',`Authorization: Bearer ${memberToken}`);if(gateKey)args.push('-H',`x-yhct-golden-eval: ${gateKey}`);args.push('-d',requestBody(item,index),`${baseUrl.replace(/\/$/,'')}/api/ai/assistant`);
+  const {stdout}=await execFileAsync('curl',args,{encoding:'utf8',maxBuffer:2*1024*1024,timeout:65000});return JSON.parse(String(stdout||'').trim());
 }
-const transientRuntimeError=error=>/\b302\b|deployment protection redirect|\b429\b|quota|rate.?limit|temporar|tam thoi|\b502\b|\b503\b|\b504\b|timeout/i.test(normalize(error?.message||error||''));
+async function requestCase(baseUrl,memberToken,gateKey,vercelToken,item,index){
+  if(vercelToken)return requestWithVercelCli(baseUrl,memberToken,gateKey,vercelToken,item,index);
+  const bypass=String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET||'').trim();if(bypass)return requestWithAutomationBypass(baseUrl,bypass,memberToken,gateKey,item,index);
+  const cookieJar=String(process.env.AI_GOLDEN_COOKIE_JAR||'').trim();if(cookieJar)return requestWithCookieJar(baseUrl,cookieJar,memberToken,gateKey,item,index);
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);try{const headers={'Content-Type':'application/json'};if(memberToken)headers.Authorization=`Bearer ${memberToken}`;if(gateKey)headers['x-yhct-golden-eval']=gateKey;const response=await fetch(`${baseUrl.replace(/\/$/,'')}/api/ai/assistant`,{method:'POST',signal:controller.signal,headers,body:requestBody(item,index)});const payload=await response.json().catch(()=>null);if(!response.ok)throw new Error(`${response.status} ${String(payload?.error||'request failed').slice(0,180)}`);return payload}finally{clearTimeout(timer)}
+}
+const transientRuntimeError=error=>/\b429\b|quota|rate.?limit|temporar|tam thoi|\b502\b|\b503\b|\b504\b|timeout/i.test(normalize(error?.message||error||''));
 
 async function runRuntime(data){
   const baseUrl=String(process.env.AI_GOLDEN_TARGET||'').trim(),memberToken=String(process.env.AI_GOLDEN_MEMBER_TOKEN||'').trim(),gateKey=String(process.env.AI_GOLDEN_EPHEMERAL_KEY||'').trim(),vercelToken=String(process.env.AI_GOLDEN_VERCEL_TOKEN||'').trim();
