@@ -308,9 +308,13 @@ jobs:
             exit 87
           fi
           echo "VERCEL_AUTOMATION_BYPASS_SECRET=${secret}" >> "$GITHUB_ENV"
+          automation_cookie_jar="/tmp/yhct-vercel-automation.cookies"
+          rm -f "$automation_cookie_jar"
+          echo "AI_GOLDEN_AUTOMATION_COOKIE_JAR=${automation_cookie_jar}" >> "$GITHUB_ENV"
           health_status="000"
-          for attempt in $(seq 1 45); do
-            health_status="$(curl --silent --show-error --output /tmp/yhct-automation-health.json --write-out '%{http_code}' \
+          for attempt in $(seq 1 20); do
+            health_status="$(curl --location --max-redirs 8 --silent --show-error --output /tmp/yhct-automation-health.json --write-out '%{http_code}' \
+              --cookie "$automation_cookie_jar" --cookie-jar "$automation_cookie_jar" \
               --header "x-vercel-protection-bypass: ${secret}" \
               --header 'x-vercel-set-bypass-cookie: true' \
               "${CANDIDATE_URL}/api/health" || true)"
@@ -318,10 +322,10 @@ jobs:
               echo "Temporary automation bypass created and verified against the exact staged candidate."
               exit 0
             fi
-            echo "Automation bypass not propagated yet (attempt ${attempt}, HTTP ${health_status})."
+            echo "Automation bypass redirect/bootstrap not ready (attempt ${attempt}, final HTTP ${health_status})."
             sleep 2
           done
-          echo "::error title=Golden automation bypass verification failed::Candidate health did not become available through the temporary bypass; last HTTP ${health_status}."
+          echo "::error title=Golden automation bypass verification failed::Candidate health did not become available through redirect-aware bypass; last HTTP ${health_status}."
           exit 87
 
       - name: Live Golden Medical Eval release gate
@@ -372,7 +376,8 @@ jobs:
             echo "::error title=Golden automation bypass cleanup failed::HTTP ${status}: ${detail}"
             exit 90
           fi
-          echo "Temporary automation bypass revoked."
+          rm -f "${AI_GOLDEN_AUTOMATION_COOKIE_JAR:-/tmp/yhct-vercel-automation.cookies}"
+          echo "Temporary automation bypass revoked and automation cookie removed."
 
       - name: Promote only the Golden-passed staged deployment
         id: promote
