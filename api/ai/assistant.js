@@ -3,6 +3,7 @@ export const maxDuration=60;
 import {aiToolsForRole,executeAiTool} from '../_lib/ai-tools.js';
 import {createGeminiJson,geminiAiConfigured,geminiAiModel} from '../_lib/gemini-provider.js';
 import {handleStudyAssistant} from '../_lib/study-assistant-handler.js';
+import {handleAcademicDailyPost} from '../_lib/academic-daily-post-handler.js';
 import {handleXiaoZhiMini} from '../_lib/xiaozhi-mini-handler.js';
 import {normalizeAiVariation,responseDiversityInstruction} from '../_lib/ai-response-diversity.js';
 
@@ -156,6 +157,7 @@ async function runGemini({developer,user,sources,started,res,mode}){
 }
 
 export default async function handler(req,res){
+  if(req.body?.mode==='academic-daily-post')return handleAcademicDailyPost(req,res);
   if(req.body?.mode==='study')return handleStudyAssistant(req,res);
   if(req.body?.mode==='xiaozhi-mini')return handleXiaoZhiMini(req,res);
   const started=Date.now();
