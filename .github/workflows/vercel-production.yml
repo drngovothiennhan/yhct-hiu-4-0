@@ -307,6 +307,7 @@ jobs:
             echo "::error title=Golden automation bypass creation failed::HTTP ${status}: ${detail}"
             exit 87
           fi
+          echo "VERCEL_AUTOMATION_BYPASS_SECRET=${secret}" >> "$GITHUB_ENV"
           health_status="$(curl --silent --show-error --output /tmp/yhct-automation-health.json --write-out '%{http_code}' \
             --header "x-vercel-protection-bypass: ${secret}" \
             "${CANDIDATE_URL}/api/health" || true)"
@@ -314,7 +315,6 @@ jobs:
             echo "::error title=Golden automation bypass verification failed::Candidate health returned HTTP ${health_status}."
             exit 87
           fi
-          echo "VERCEL_AUTOMATION_BYPASS_SECRET=${secret}" >> "$GITHUB_ENV"
           echo "Temporary automation bypass created and verified against the exact staged candidate."
 
       - name: Live Golden Medical Eval release gate
