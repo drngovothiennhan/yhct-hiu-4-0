@@ -1,7 +1,7 @@
 import type { AppointmentTitle,Member,MemberStatus,SystemRole } from '../types';
 import { SUPABASE_PUBLISHABLE_KEY,SUPABASE_URL,mapMember,supabase } from './authService';
 
-export type AdminPasswordResetResult={temporaryPassword:string;username:string;memberId:string;provisioned:boolean};
+export type AdminPasswordResetResult={recoveryUrl:string;username:string;memberId:string;provisioned:boolean};
 
 export async function appointMember(id:string,title:AppointmentTitle,role:SystemRole,status:MemberStatus,loginEnabled:boolean):Promise<Member>{const {data,error}=await supabase.rpc('admin_appoint_member_v1',{p_id:id,p_position_title:title,p_role:role,p_status:status,p_login_enabled:loginEnabled});if(error)throw error;return mapMember(data as Record<string,unknown>)}
 
@@ -16,9 +16,9 @@ export async function resetMemberPasswordByAdmin(memberId:string):Promise<AdminP
     cache:'no-store'
   });
   const body=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(String(body.error||'Không thể reset mật khẩu lúc này.'));
-  const temporaryPassword=String(body.temporaryPassword||'');
+  if(!response.ok)throw new Error(String(body.error||'Không thể tạo liên kết reset mật khẩu lúc này.'));
+  const recoveryUrl=String(body.recoveryUrl||'');
   const username=String(body.username||'');
-  if(!body.ok||!temporaryPassword||!username)throw new Error('Máy chủ trả về kết quả reset mật khẩu không hợp lệ.');
-  return{temporaryPassword,username,memberId:String(body.memberId||memberId),provisioned:Boolean(body.provisioned)};
+  if(!body.ok||!recoveryUrl||!username)throw new Error('Máy chủ trả về liên kết reset mật khẩu không hợp lệ.');
+  return{recoveryUrl,username,memberId:String(body.memberId||memberId),provisioned:Boolean(body.provisioned)};
 }

@@ -6,7 +6,7 @@ const url=(env.VITE_SUPABASE_URL||'https://gzmpnsrwqjpsbklyflqr.supabase.co').tr
 const anon=(env.VITE_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_Y4hMhXROZ-aVgWoaQ5fFKQ_ZAcXuIzG').trim();
 export const SUPABASE_URL=url;
 export const SUPABASE_PUBLISHABLE_KEY=anon;
-export const supabase=createClient(url,anon,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+export const supabase=createClient(url,anon,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 
 const ref=(()=>{try{return new URL(url).hostname.split('.')[0]}catch{return ''}})();
 const authKey=`sb-${ref}-auth-token`;
