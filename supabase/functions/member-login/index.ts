@@ -44,16 +44,18 @@ Deno.serve(async(req:Request)=>{
     const email=selfRegistered&&member.email?String(member.email).trim().toLowerCase():`${studentCode}@members.yhct-hiu.app`
     let authResult=await client.auth.signInWithPassword({email,password})
     const mayBootstrap=!member.auth_user_id&&!selfRegistered&&password===studentCode
-    if(authResult.error&&mayBootstrap){const created=await admin.auth.admin.createUser({email,password,email_confirm:true,user_metadata:{full_name:member.full_name,student_code:studentCode},app_metadata:{member_id:member.id}});if(created.error&&!String(created.error.message||'').toLowerCase().includes('already'))throw created.error;authResult=await client.auth.signInWithPassword({email,password})}
+    if(authResult.error&&mayBootstrap){const created=await admin.auth.admin.createUser({email,password,email_confirm:true,user_metadata:{full_name:member.full_name,student_code:studentCode},app_metadata:{member_id:member.id,must_change_password:true,provisioned_by:'member-login-bootstrap'}});if(created.error&&!String(created.error.message||'').toLowerCase().includes('already'))throw created.error;authResult=await client.auth.signInWithPassword({email,password})}
     if(authResult.error||!authResult.data.session||!authResult.data.user){await recordFailure();return json(req,{error:'Tên đăng nhập hoặc mật khẩu không đúng'},401)}
     const authUserId=authResult.data.user.id
     if(member.auth_user_id&&member.auth_user_id!==authUserId){await client.auth.signOut();await recordFailure();return json(req,{error:'Tài khoản không khớp hồ sơ thành viên'},403)}
     if(!member.auth_user_id){const {error:linkError}=await admin.from('club_members').update({auth_user_id:authUserId,updated_at:new Date().toISOString()}).eq('id',member.id).is('auth_user_id',null);if(linkError)throw linkError}
     if(!authResult.data.user.app_metadata?.member_id){const {error:metaError}=await admin.auth.admin.updateUserById(authUserId,{app_metadata:{...authResult.data.user.app_metadata,member_id:member.id,provisioned_by:selfRegistered?'self-registration':authResult.data.user.app_metadata?.provisioned_by}});if(metaError)console.error('member-login app metadata',metaError)}
+    const {error:queueError}=await admin.from('member_auth_provision_queue').update({status:'provisioned',last_error:null}).eq('member_id',member.id).eq('status','pending')
+    if(queueError)console.error('member-login provision queue',queueError)
     await clearFailure()
     const session=authResult.data.session
     const total=Math.round(performance.now()-started)
     const authMs=Math.round(performance.now()-authStarted)
-    return json(req,{access_token:session.access_token,refresh_token:session.refresh_token,expires_in:session.expires_in,expires_at:session.expires_at,token_type:session.token_type,member:{id:member.id,full_name:member.full_name,email:member.email,student_code:member.student_code,role:member.role,status:member.status,element_rank:member.element_rank,position_title:member.position_title,avatar_url:member.avatar_url}},200,`auth;dur=${authMs},total;dur=${total}`)
+    return json(req,{access_token:session.access_token,refresh_token:session.refresh_token,expires_in:session.expires_in,expires_at:session.expires_at,token_type:session.token_type,must_change_password:Boolean(authResult.data.user.app_metadata?.must_change_password),member:{id:member.id,full_name:member.full_name,email:member.email,student_code:member.student_code,role:member.role,status:member.status,element_rank:member.element_rank,position_title:member.position_title,avatar_url:member.avatar_url}},200,`auth;dur=${authMs},total;dur=${total}`)
   }catch(error){console.error('member-login',error);return json(req,{error:'Không thể đăng nhập lúc này'},500)}
 })
