@@ -71,6 +71,52 @@ function extractOpenAiText(payload){
   return parts.join('').trim();
 }
 
+function extractOpenAiUrlCitations(payload){
+  const seen=new Set(),sources=[];
+  for(const item of Array.isArray(payload?.output)?payload.output:[]){
+    for(const block of Array.isArray(item?.content)?item.content:[]){
+      for(const annotation of Array.isArray(block?.annotations)?block.annotations:[]){
+        const citation=annotation?.type==='url_citation'?annotation:annotation?.url_citation;
+        const rawUrl=clean(citation?.url,1200),title=clean(citation?.title,260);
+        let url='';
+        try{const parsed=new URL(rawUrl);if(parsed.protocol==='https:')url=parsed.toString()}catch{}
+        if(!url||seen.has(url))continue;
+        seen.add(url);sources.push({id:`openai-web:${sources.length+1}`,label:title||url,url});
+        if(sources.length>=6)return sources;
+      }
+    }
+  }
+  return sources;
+}
+
+async function runOpenAiStudyFallback({instructions,prompt,useWeb,started,res,variationMode}){
+  const key=process.env.OPENAI_API_KEY,model=cloudAiModel();
+  if(!cloudAiEnabled()||!key||!model)throw new Error('OpenAI fallback configuration missing');
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),TIMEOUT_MS);
+  try{
+    const body={model,store:false,max_output_tokens:1800,instructions,input:prompt};
+    if(useWeb)body.tools=[{type:'web_search'}];
+    const response=await fetch('https://api.openai.com/v1/responses',{
+      method:'POST',signal:controller.signal,
+      headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    if(!response.ok){const detail=await response.json().catch(()=>null);throw new Error(`OpenAI ${response.status}: ${clean(detail?.error?.message||'provider error',180)}`)}
+    const payload=await response.json(),raw=extractOpenAiText(payload);
+    if(!raw)throw new Error('OpenAI fallback empty response');
+    const parsed=parseStudyResponse(raw,variationMode),sources=useWeb?extractOpenAiUrlCitations(payload):[];
+    if(useWeb&&!sources.length)throw new Error('OpenAI web fallback missing citations');
+    const latencyMs=Date.now()-started,provider=useWeb?'openai-web':'openai';
+    res.setHeader('Server-Timing',`study-ai;dur=${latencyMs}`);
+    res.setHeader('X-AI-Provider',provider);
+    res.setHeader('X-AI-Model',model);
+    res.setHeader('X-AI-Variation',String(variationMode));
+    res.setHeader('X-AI-Failover','gemini-to-openai');
+    console.info(JSON.stringify({event:'study_ai_failover',ok:true,provider,model,useWeb,sourceCount:sources.length,latencyMs}));
+    return res.status(200).json({answer:answerText(parsed.answer),sources,suggestions:parsed.suggestions,provider,degraded:false,route:null,latencyMs,failoverFrom:'gemini'});
+  }finally{clearTimeout(timer)}
+}
+
 const QUIZ_SYSTEM=[
   'Bạn là bộ tạo câu hỏi ôn tập y khoa cho sinh viên Y học cổ truyền HIU.',
   'Mỗi câu phải có đúng 4 lựa chọn, chỉ một đáp án đúng, giải thích ngắn gọn và không dùng dữ kiện bịa.',
@@ -181,7 +227,8 @@ export async function handleStudyAssistant(req,res){
   if(query.length<2)return res.status(400).json({error:'Query is required'});
   if(task==='quiz')return createGroundedQuiz({query,count:req.body?.count,started,res,variationMode});
   if(researchIntent(query))return res.status(200).json({answer:'Câu hỏi này cần chế độ Research A.I để kiểm chứng nguồn học thuật sâu hơn.',sources:[],suggestions:[],provider:'router',degraded:false,route:'research',latencyMs:Date.now()-started});
-  if(!geminiAiConfigured('default'))return res.status(503).json({error:'Gemini Study chưa được cấu hình trên máy chủ.'});
+  const geminiReady=geminiAiConfigured('default'),openAiReady=Boolean(cloudAiEnabled()&&process.env.OPENAI_API_KEY&&cloudAiModel());
+  if(!geminiReady&&!openAiReady)return res.status(503).json({error:'Study A.I chưa được cấu hình trên máy chủ.'});
 
   const instructions=[
     'Bạn là Gemini Study — giảng viên kiêm cố vấn học tập Y học cổ truyền bậc đại học của HIU YHCT 4.0.',
@@ -220,15 +267,28 @@ export async function handleStudyAssistant(req,res){
     res.setHeader('Server-Timing',`study-ai;dur=${latencyMs}`);res.setHeader('X-AI-Provider','gemini-web');res.setHeader('X-AI-Model',output.model||geminiAiModel());res.setHeader('X-AI-Variation',String(variationMode));
     return res.status(200).json({answer:answerText(parsed.answer),sources:Array.isArray(output.citations)?output.citations.slice(0,6):[],suggestions:parsed.suggestions,provider:'gemini-web',degraded,route:null,latencyMs});
   };
+  let geminiFailure='';
   try{
-    try{return useWeb?await replyWeb(false):await replyText(false)}
-    catch(primaryError){
-      if(controller.signal.aborted)throw primaryError;
-      return useWeb?await replyText(true):await replyWeb(true);
+    if(geminiReady){
+      try{return useWeb?await replyWeb(false):await replyText(false)}
+      catch(primaryError){
+        geminiFailure=failureClass(primaryError);
+        if(!controller.signal.aborted){
+          try{return useWeb?await replyText(true):await replyWeb(true)}
+          catch(secondaryError){geminiFailure=`${geminiFailure}+${failureClass(secondaryError)}`}
+        }
+      }
+      console.warn(JSON.stringify({event:'gemini_study',ok:false,latencyMs:Date.now()-started,webSearch:useWeb,contextChars:conversationContext.length,failureClass:geminiFailure,failover:openAiReady?'openai':'none'}));
+    }else geminiFailure='configuration';
+    if(openAiReady){
+      try{return await runOpenAiStudyFallback({instructions,prompt,useWeb,started,res,variationMode})}
+      catch(openAiError){
+        const latencyMs=Date.now()-started,openAiFailure=failureClass(openAiError);
+        console.warn(JSON.stringify({event:'study_ai_failover',ok:false,provider:'openai',latencyMs,useWeb,failureClass:openAiFailure,geminiFailure}));
+        return res.status(openAiError?.name==='AbortError'?504:502).json({error:openAiError?.name==='AbortError'?'Study A.I quá thời gian phản hồi.':'Study A.I tạm thời chưa phản hồi. Vui lòng thử lại.'});
+      }
     }
-  }catch(error){
     const latencyMs=Date.now()-started;
-    console.warn(JSON.stringify({event:'gemini_study',ok:false,latencyMs,webSearch:useWeb,contextChars:conversationContext.length,error:clean(error?.message||'provider error',180)}));
-    return res.status(error?.name==='AbortError'?504:502).json({error:error?.name==='AbortError'?'Gemini Study quá thời gian phản hồi.':'Gemini Study tạm thời chưa phản hồi. Vui lòng thử lại.'});
+    return res.status(502).json({error:'Study A.I tạm thời chưa phản hồi. Vui lòng thử lại.',latencyMs});
   }finally{clearTimeout(timer)}
 }
