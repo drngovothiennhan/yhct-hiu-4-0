@@ -279,11 +279,20 @@ jobs:
           echo "::error title=Candidate health failed::Isolated Golden gate alias did not become healthy; last HTTP ${last_status}."
           exit 87
 
+      - name: Install pinned Vercel CLI for authenticated Golden requests
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global vercel@59.19.1
+          vercel --version
+
       - name: Live Golden Medical Eval release gate
         shell: bash
         env:
-          AI_GOLDEN_TARGET: ${{ steps.gate_alias.outputs.gate_url }}
+          AI_GOLDEN_TARGET: ${{ steps.stage.outputs.candidate_url }}
           AI_GOLDEN_REPORT: ai-golden-medical-report.json
+          AI_GOLDEN_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          AI_GOLDEN_VERCEL_SCOPE: hiu-yhct
         run: |
           set -euo pipefail
           node scripts/ai-golden-medical-eval.mjs --runtime
