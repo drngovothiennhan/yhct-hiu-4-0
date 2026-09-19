@@ -45,6 +45,18 @@ Deno.serve(async(req:Request)=>{
     let authResult=await client.auth.signInWithPassword({email,password})
     const mayBootstrap=!member.auth_user_id&&!selfRegistered&&password===studentCode
     if(authResult.error&&mayBootstrap){const created=await admin.auth.admin.createUser({email,password,email_confirm:true,user_metadata:{full_name:member.full_name,student_code:studentCode},app_metadata:{member_id:member.id,must_change_password:true,provisioned_by:'member-login-bootstrap'}});if(created.error&&!String(created.error.message||'').toLowerCase().includes('already'))throw created.error;authResult=await client.auth.signInWithPassword({email,password})}
+    const mayRepairImported=Boolean(authResult.error&&member.auth_user_id&&!selfRegistered&&password===studentCode)
+    if(mayRepairImported){
+      const existing=await admin.auth.admin.getUserById(member.auth_user_id)
+      const legacy=existing.data.user
+      const legacyEmail=String(legacy?.email||'').trim().toLowerCase()
+      const importedBy=String(legacy?.app_metadata?.provisioned_by||'')
+      if(!existing.error&&legacy&&legacyEmail===email&&!legacy.last_sign_in_at&&importedBy==='member-bulk-import'){
+        const repaired=await admin.auth.admin.updateUserById(legacy.id,{password:studentCode,app_metadata:{...legacy.app_metadata,member_id:member.id,must_change_password:true,login_username:studentCode,provisioned_by:'member-bulk-import-mssv-repair'}})
+        if(repaired.error)throw repaired.error
+        authResult=await client.auth.signInWithPassword({email,password})
+      }
+    }
     if(authResult.error||!authResult.data.session||!authResult.data.user){await recordFailure();return json(req,{error:'Tên đăng nhập hoặc mật khẩu không đúng'},401)}
     const authUserId=authResult.data.user.id
     if(member.auth_user_id&&member.auth_user_id!==authUserId){await client.auth.signOut();await recordFailure();return json(req,{error:'Tài khoản không khớp hồ sơ thành viên'},403)}
