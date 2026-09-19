@@ -41,7 +41,9 @@ async function setSessionResilient(accessToken:string,refreshToken:string){
   throw lastError instanceof Error?lastError:new Error('Không thể thiết lập phiên đăng nhập');
 }
 
-export async function loginOptimized(studentCode:string,password:string):Promise<Member>{
+export type OptimizedLoginResult={member:Member;mustChangePassword:boolean};
+
+export async function loginOptimized(studentCode:string,password:string):Promise<OptimizedLoginResult>{
   try{
     const response=await fetchMemberLogin(studentCode,password);
     const body=await response.json().catch(()=>({})) as Record<string,unknown>;
@@ -49,7 +51,7 @@ export async function loginOptimized(studentCode:string,password:string):Promise
     await setSessionResilient(String(body.access_token||''),String(body.refresh_token||''));
     const member=mapMember((body.member||{}) as Record<string,unknown>);
     persistMemberSession(member);
-    return member;
+    return{member,mustChangePassword:Boolean(body.must_change_password)};
   }catch(error){
     const message=String((error as Error)?.message||error||'');
     if((error as Error)?.name==='AbortError'||message==='timeout')throw new Error('Máy chủ xác thực chưa phản hồi. Vui lòng thử lại.');
