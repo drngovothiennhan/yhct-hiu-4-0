@@ -279,20 +279,50 @@ jobs:
           echo "::error title=Candidate health failed::Isolated Golden gate alias did not become healthy; last HTTP ${last_status}."
           exit 87
 
-      - name: Install pinned Vercel CLI for authenticated Golden requests
+      - name: Create temporary Vercel automation bypass for Golden requests
         shell: bash
+        env:
+          CANDIDATE_URL: ${{ steps.stage.outputs.candidate_url }}
         run: |
           set -euo pipefail
-          npm install --global vercel@59.19.1
-          vercel --version
+          secret="$(node -e "process.stdout.write(require('node:crypto').randomBytes(16).toString('hex'))")"
+          echo "::add-mask::${secret}"
+          request_file="$(mktemp)"
+          response_file="$(mktemp)"
+          cleanup(){ rm -f "$request_file" "$response_file" /tmp/yhct-automation-health.json; }
+          trap cleanup EXIT
+          node - "$request_file" "$secret" <<'NODE'
+          const fs=require('node:fs');
+          const [output,secret]=process.argv.slice(2);
+          fs.writeFileSync(output,JSON.stringify({generate:{secret,note:'HIU Golden Medical CI'}}));
+          NODE
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+            --request PATCH \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data-binary "@${request_file}" \
+            "https://api.vercel.com/v1/projects/${VERCEL_PROJECT_ID}/protection-bypass?teamId=${VERCEL_ORG_ID}")"
+          if [ "$status" != "200" ]; then
+            detail="$(cat "$response_file" | head -c 600)"
+            echo "::error title=Golden automation bypass creation failed::HTTP ${status}: ${detail}"
+            exit 87
+          fi
+          health_status="$(curl --silent --show-error --output /tmp/yhct-automation-health.json --write-out '%{http_code}' \
+            --header "x-vercel-protection-bypass: ${secret}" \
+            "${CANDIDATE_URL}/api/health" || true)"
+          if [ "$health_status" != "200" ] || ! node -e "const fs=require('node:fs');const body=JSON.parse(fs.readFileSync('/tmp/yhct-automation-health.json','utf8'));if(body?.ok!==true)process.exit(1)"; then
+            echo "::error title=Golden automation bypass verification failed::Candidate health returned HTTP ${health_status}."
+            exit 87
+          fi
+          echo "VERCEL_AUTOMATION_BYPASS_SECRET=${secret}" >> "$GITHUB_ENV"
+          echo "Temporary automation bypass created and verified against the exact staged candidate."
 
       - name: Live Golden Medical Eval release gate
         shell: bash
         env:
           AI_GOLDEN_TARGET: ${{ steps.stage.outputs.candidate_url }}
           AI_GOLDEN_REPORT: ai-golden-medical-report.json
-          AI_GOLDEN_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          AI_GOLDEN_VERCEL_SCOPE: hiu-yhct
+          AI_GOLDEN_COOKIE_JAR: ""
         run: |
           set -euo pipefail
           node scripts/ai-golden-medical-eval.mjs --runtime
@@ -305,6 +335,37 @@ jobs:
           path: ai-golden-medical-report.json
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Revoke temporary Vercel automation bypass
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          secret="${VERCEL_AUTOMATION_BYPASS_SECRET:-}"
+          if [ -z "$secret" ]; then
+            echo "No temporary automation bypass was created; nothing to revoke."
+            exit 0
+          fi
+          request_file="$(mktemp)"
+          response_file="$(mktemp)"
+          trap 'rm -f "$request_file" "$response_file"' EXIT
+          node - "$request_file" "$secret" <<'NODE'
+          const fs=require('node:fs');
+          const [output,secret]=process.argv.slice(2);
+          fs.writeFileSync(output,JSON.stringify({revoke:{secret,regenerate:false}}));
+          NODE
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+            --request PATCH \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data-binary "@${request_file}" \
+            "https://api.vercel.com/v1/projects/${VERCEL_PROJECT_ID}/protection-bypass?teamId=${VERCEL_ORG_ID}")"
+          if [ "$status" != "200" ]; then
+            detail="$(cat "$response_file" | head -c 600)"
+            echo "::error title=Golden automation bypass cleanup failed::HTTP ${status}: ${detail}"
+            exit 90
+          fi
+          echo "Temporary automation bypass revoked."
 
       - name: Promote only the Golden-passed staged deployment
         id: promote
