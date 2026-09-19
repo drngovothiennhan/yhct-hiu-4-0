@@ -308,14 +308,21 @@ jobs:
             exit 87
           fi
           echo "VERCEL_AUTOMATION_BYPASS_SECRET=${secret}" >> "$GITHUB_ENV"
-          health_status="$(curl --silent --show-error --output /tmp/yhct-automation-health.json --write-out '%{http_code}' \
-            --header "x-vercel-protection-bypass: ${secret}" \
-            "${CANDIDATE_URL}/api/health" || true)"
-          if [ "$health_status" != "200" ] || ! node -e "const fs=require('node:fs');const body=JSON.parse(fs.readFileSync('/tmp/yhct-automation-health.json','utf8'));if(body?.ok!==true)process.exit(1)"; then
-            echo "::error title=Golden automation bypass verification failed::Candidate health returned HTTP ${health_status}."
-            exit 87
-          fi
-          echo "Temporary automation bypass created and verified against the exact staged candidate."
+          health_status="000"
+          for attempt in $(seq 1 45); do
+            health_status="$(curl --silent --show-error --output /tmp/yhct-automation-health.json --write-out '%{http_code}' \
+              --header "x-vercel-protection-bypass: ${secret}" \
+              --header 'x-vercel-set-bypass-cookie: true' \
+              "${CANDIDATE_URL}/api/health" || true)"
+            if [ "$health_status" = "200" ] && node -e "const fs=require('node:fs');const body=JSON.parse(fs.readFileSync('/tmp/yhct-automation-health.json','utf8'));if(body?.ok!==true)process.exit(1)"; then
+              echo "Temporary automation bypass created and verified against the exact staged candidate."
+              exit 0
+            fi
+            echo "Automation bypass not propagated yet (attempt ${attempt}, HTTP ${health_status})."
+            sleep 2
+          done
+          echo "::error title=Golden automation bypass verification failed::Candidate health did not become available through the temporary bypass; last HTTP ${health_status}."
+          exit 87
 
       - name: Live Golden Medical Eval release gate
         shell: bash
