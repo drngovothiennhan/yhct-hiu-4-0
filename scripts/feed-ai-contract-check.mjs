@@ -16,6 +16,9 @@ const aiOps=read('src/components/admin/AiOperationsPanel.tsx');
 const garden=read('src/components/game/HerbGardenGame.tsx');
 const gardenMigration=read('supabase/migrations/202609090940_fix_herb_garden_water_v4_transaction.sql');
 const retention=read('supabase/migrations/202609090135_academic_feed_ai_top3_and_news_rotator_restore_v1.sql');
+const dailyPipeline=read('supabase/migrations/20260919145830_academic_daily_ai_pipeline_v2.sql');
+const dailyHandler=read('api/_lib/academic-daily-post-handler.js');
+const assistant=read('api/ai/assistant.js');
 const news=read('src/components/news/TcmNewsRotator.tsx');
 const checks=[
   ['TCM news backend remains rollback-safe',news.includes("tcm_news_feed_v1")&&news.includes("p_limit:20")&&retention.includes('private.tcm_news_retention_v2()')],
@@ -33,7 +36,11 @@ const checks=[
   ['image posts receive bounded recency preference',feed.includes('MEDIA_PRIORITY_WINDOW_MS')&&feed.includes('hasMedia(a)!==hasMedia(b)')],
   ['system AI preface is separated from main content',post.includes('system-ai-preface')&&post.includes('SYSTEM_PREFACE')],
   ['system AI main content is clamped to five lines',post.includes('system-ai-main')&&css.includes('-webkit-line-clamp:5')],
-  ['system AI warning is compact',css.includes('.system-ai-note')&&css.includes('font-size:.7rem')],
+  ['system AI warning is compact and typographically even',css.includes('.system-ai-note')&&css.includes('font-size:.68rem!important')&&css.includes('.system-ai-note>b{font-size:inherit;line-height:inherit')],
+  ['daily academic pipeline discovers and verifies fresh PubMed sources before Gemini',dailyHandler.includes('europepmc')&&dailyHandler.includes('eutils.ncbi.nlm.nih.gov')&&dailyHandler.includes('createGeminiJson')&&dailyHandler.includes('academic_ai_seen_sources_v2')],
+  ['daily academic pipeline is isolated inside the existing assistant function',assistant.includes("mode==='academic-daily-post'")&&assistant.includes('handleAcademicDailyPost')],
+  ['daily academic publishing is max one HCM-day with retries and old 180m cron removed',dailyPipeline.includes('one_post_per_day_uidx')&&dailyPipeline.includes("yhct-academic-auto-post-180m")&&dailyPipeline.includes("yhct-academic-daily-ai-v2")&&dailyPipeline.includes("17 0,6,12 * * *")],
+  ['daily academic post persists verified citation and Gemini provenance',dailyPipeline.includes("'gemini_generated'")&&dailyPipeline.includes("'verified_by','NCBI ESummary'")&&dailyPipeline.includes('academic_ai_publish_daily_v2')],
   ['system AI references are compact and expose direct source links',post.includes('system-ai-citation-block')&&post.includes('Truy cập nguồn')&&post.includes('target="_blank"')&&css.includes('.system-ai-citation-block')],
   ['system AI illustration is positioned before body when present',post.indexOf('{systemAi&&mediaBlock}')<post.indexOf('system-ai-content')],
   ['database archives superseded AI academic posts before deleting',retention.includes('private.ai_academic_post_archive')&&retention.includes('academic_ai_post_retention_v1')],
