@@ -65,7 +65,9 @@ const CONCEPT_ALIASES=new Map(Object.entries({
   'y hoc chung cu':['tieu chuan y hoc hien dai','kiem chung khach quan'],
   'dong huyet tuong than':['luu luong huyet tuong than','huyet tuong qua than','renal plasma flow','effective renal plasma flow','erpf'],
   'renal plasma flow':['luu luong huyet tuong than','huyet tuong qua than','effective renal plasma flow','erpf'],
-  'erpf':['effective renal plasma flow','renal plasma flow','luu luong huyet tuong than','huyet tuong qua than']
+  'erpf':['effective renal plasma flow','renal plasma flow','luu luong huyet tuong than','huyet tuong qua than'],
+  'he than kinh ngoai bien':['he than kinh ngoai vi','pns'],
+  'rung trung':['phong noan','ovulation']
 }));
 
 const RUNTIME_GUIDANCE={
@@ -127,7 +129,9 @@ function validateScoringContract(){
   const gi=scoreCase({expectedRoute:'study',mustIncludeAny:[['xuất huyết tiêu hóa','tổn thương thận']],mustNotIncludeAny:[],citationRequired:false},{answer:'Không nên phối hợp vì tăng nguy cơ loét dạ dày và độc thận.'});
   const diagnosis=scoreCase({expectedRoute:'study',mustIncludeAny:[['không thể khẳng định'],['yhct']],mustNotIncludeAny:[['chắc chắn là thận dương hư']],citationRequired:false},{answer:'Không thể kết luận chắc chắn là Thận dương hư chỉ từ hai triệu chứng; đây là một thể bệnh Y học cổ truyền và cần khám đầy đủ.'});
   const yhctBoundary=scoreCase({expectedRoute:'study',mustIncludeAny:[['lý luận yhct','khái niệm yhct'],['không đồng nhất','không tương đương','khác với y học hiện đại']],mustNotIncludeAny:[],citationRequired:false},{answer:'Theo lý luận Y học cổ truyền, Thận khai khiếu ra tai là một khái niệm YHCT và không đồng nhất với cơ chế bệnh thận theo y học hiện đại.'});
-  if(!safe.conceptPass||unsafe.conceptPass||!gi.conceptPass||!diagnosis.conceptPass||!yhctBoundary.conceptPass){fail('semantic scorer regression');return false}ok('semantic scorer contract passed');return true;
+  const neuroSynonym=scoreCase({expectedRoute:'study',mustIncludeAny:[['hệ thần kinh ngoại biên','pns']],mustNotIncludeAny:[],citationRequired:false},{answer:'Schwann cell tạo myelin trong hệ thần kinh ngoại vi.'});
+  const ovulationSynonym=scoreCase({expectedRoute:'study',mustIncludeAny:[['rụng trứng','ovulation']],mustNotIncludeAny:[],citationRequired:false},{answer:'Đỉnh LH kích hoạt quá trình phóng noãn.'});
+  if(!safe.conceptPass||unsafe.conceptPass||!gi.conceptPass||!diagnosis.conceptPass||!yhctBoundary.conceptPass||!neuroSynonym.conceptPass||!ovulationSynonym.conceptPass){fail('semantic scorer regression');return false}ok('semantic scorer contract passed');return true;
 }
 
 const requestBody=(item,index)=>{const guidance=RUNTIME_GUIDANCE[item.id];return JSON.stringify({mode:'study',query:`${String(item.runtimePrompt||item.prompt)}${guidance?`\n\nYêu cầu độ chính xác cho kiểm định: ${guidance}`:''}`,conversationContext:'',pageContext:'AI Golden Medical Eval',variationMode:index%6})};
