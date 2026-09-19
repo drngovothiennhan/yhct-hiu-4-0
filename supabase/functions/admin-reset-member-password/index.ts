@@ -5,7 +5,7 @@ const secretKeys=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}')
 const SERVICE_KEY=secretKeys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const admin=createClient(SUPABASE_URL,SERVICE_KEY,{auth:{persistSession:false,autoRefreshToken:false}})
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const UPPER='ABCDEFGHJKLMNPQRSTUVWXYZ',LOWER='abcdefghijkmnopqrstuvwxyz',DIGITS='23456789',SPECIAL='!@#$%',ALL=UPPER+LOWER+DIGITS+SPECIAL
+const APP_RECOVERY_URL='https://yhct-hiu-final4-stage.vercel.app/?password_recovery=1'
 const allowedOrigins=new Set([
   'https://yhct-hiu-4-0.vercel.app',
   'https://yhct-hiu-4-0-hiu-yhct.vercel.app',
@@ -17,10 +17,6 @@ const allowedOrigins=new Set([
 function originAllowed(origin:string){if(allowedOrigins.has(origin))return true;try{const u=new URL(origin);return u.protocol==='https:'&&u.hostname.endsWith('.vercel.app')&&(u.hostname.startsWith('yhct-hiu-4-0-')||u.hostname.startsWith('yhct-hiu-final4-stage-'))}catch{return false}}
 function cors(req:Request){const origin=req.headers.get('origin')||'';return{'Access-Control-Allow-Origin':originAllowed(origin)?origin:'https://yhct-hiu-final4-stage.vercel.app','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Max-Age':'86400','Vary':'Origin'}}
 function json(req:Request,body:unknown,status=200){return new Response(JSON.stringify(body),{status,headers:{...cors(req),'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
-function randomIndex(limit:number){if(!Number.isInteger(limit)||limit<1||limit>256)throw new Error('Invalid random range');const ceiling=256-(256%limit),buf=new Uint8Array(1);let value=256;while(value>=ceiling){crypto.getRandomValues(buf);value=buf[0]}return value%limit}
-function pick(pool:string){return pool[randomIndex(pool.length)]}
-function shuffle(chars:string[]){for(let i=chars.length-1;i>0;i--){const j=randomIndex(i+1);[chars[i],chars[j]]=[chars[j],chars[i]]}return chars}
-function tempPassword(){const chars=[pick(UPPER),pick(LOWER),pick(DIGITS),pick(SPECIAL),...Array.from({length:14},()=>pick(ALL))];return shuffle(chars).join('')}
 
 Deno.serve(async(req:Request)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:cors(req)})
@@ -39,7 +35,7 @@ Deno.serve(async(req:Request)=>{
     if(!UUID.test(memberId))return json(req,{error:'Mã thành viên không hợp lệ'},400)
     if(memberId===actor.id)return json(req,{error:'Không reset mật khẩu Admin đang đăng nhập. Hãy dùng chức năng đổi mật khẩu cá nhân.'},400)
 
-    const {data:target,error:targetError}=await admin.from('club_members').select('id,student_code,full_name,email,role,status,login_enabled,data_conflict,auth_user_id,source_file').eq('id',memberId).maybeSingle()
+    const {data:target,error:targetError}=await admin.from('club_members').select('id,student_code,full_name,role,status,data_conflict,auth_user_id,source_file').eq('id',memberId).maybeSingle()
     if(targetError)throw targetError
     if(!target)return json(req,{error:'Không tìm thấy thành viên'},404)
     if(target.role==='admin')return json(req,{error:'Không reset tài khoản Admin bằng công cụ quản trị thành viên.'},403)
@@ -48,46 +44,52 @@ Deno.serve(async(req:Request)=>{
     const studentCode=String(target.student_code||'').trim().toUpperCase()
     if(!studentCode)return json(req,{error:'Hồ sơ chưa có MSSV/tên đăng nhập hợp lệ.'},409)
 
-    const password=tempPassword()
     const resetAt=new Date().toISOString()
     let authUserId=target.auth_user_id?String(target.auth_user_id):''
+    let authEmail=''
     let provisioned=false
 
     if(authUserId){
       const {data:authUser,error:authReadError}=await admin.auth.admin.getUserById(authUserId)
-      if(authReadError||!authUser.user)return json(req,{error:'Tài khoản xác thực liên kết không tồn tại. Chưa thay đổi mật khẩu.'},409)
-      const appMetadata={...(authUser.user.app_metadata||{}),member_id:target.id,must_change_password:true,password_reset_by_admin_at:resetAt}
-      const {error:updateError}=await admin.auth.admin.updateUserById(authUserId,{password,app_metadata:appMetadata})
-      if(updateError)throw updateError
+      if(authReadError||!authUser.user)return json(req,{error:'Tài khoản xác thực liên kết không tồn tại.'},409)
+      authEmail=String(authUser.user.email||'').trim().toLowerCase()
+      if(!authEmail)return json(req,{error:'Tài khoản xác thực chưa có email đăng nhập hợp lệ.'},409)
     }else{
-      if(String(target.source_file||'')==='self-registration')return json(req,{error:'Tài khoản đăng ký trực tuyến chưa liên kết Auth. Không tự tạo tài khoản trùng; cần kiểm tra liên kết trước.'},409)
-      const loginEmail=studentCode+'@members.yhct-hiu.app'
+      if(String(target.source_file||'')==='self-registration')return json(req,{error:'Tài khoản đăng ký trực tuyến chưa liên kết Auth. Cần kiểm tra liên kết danh tính trước.'},409)
+      authEmail=(studentCode+'@members.yhct-hiu.app').toLowerCase()
       const {data:created,error:createError}=await admin.auth.admin.createUser({
-        email:loginEmail,
-        password,
+        email:authEmail,
         email_confirm:true,
         user_metadata:{full_name:String(target.full_name||''),student_code:studentCode},
-        app_metadata:{member_id:target.id,provisioned_by:'admin-password-reset',must_change_password:true,password_reset_by_admin_at:resetAt}
+        app_metadata:{member_id:target.id,provisioned_by:'admin-password-recovery'}
       })
-      if(createError||!created.user)return json(req,{error:createError?.message||'Không thể tạo tài khoản xác thực cho thành viên.'},409)
+      if(createError||!created.user)return json(req,{error:createError?.message||'Không thể khởi tạo tài khoản xác thực cho thành viên.'},409)
       authUserId=created.user.id
       const {data:linked,error:linkError}=await admin.from('club_members').update({auth_user_id:authUserId,updated_at:resetAt}).eq('id',target.id).is('auth_user_id',null).select('id').maybeSingle()
       if(linkError||!linked){await admin.auth.admin.deleteUser(authUserId).catch(()=>{});return json(req,{error:'Không thể liên kết tài khoản xác thực. Chưa thay đổi hồ sơ thành viên.'},409)}
       provisioned=true
     }
 
+    const {data:linkData,error:linkError}=await admin.auth.admin.generateLink({type:'recovery',email:authEmail})
+    if(linkError)throw linkError
+    const rawLink=String(linkData?.properties?.action_link||'').trim()
+    if(!rawLink)return json(req,{error:'Không thể tạo liên kết khôi phục mật khẩu.'},500)
+    const recovery=new URL(rawLink)
+    recovery.searchParams.set('redirect_to',APP_RECOVERY_URL)
+    const recoveryUrl=recovery.toString()
+
     const {error:auditError}=await admin.from('system_audit_logs').insert({
       actor_member_id:actor.id,
-      action:'member.password_reset',
+      action:'member.password_recovery_link',
       entity_type:'club_members',
       entity_id:target.id,
       severity:'warning',
-      metadata:{target_member_id:target.id,student_code:studentCode,auth_user_id:authUserId,provisioned,reset_at:resetAt}
+      metadata:{target_member_id:target.id,student_code:studentCode,auth_user_id:authUserId,provisioned,generated_at:resetAt}
     })
     if(auditError)console.error('admin-reset-member-password audit',auditError)
-    return json(req,{ok:true,memberId:target.id,username:studentCode,temporaryPassword:password,provisioned})
+    return json(req,{ok:true,memberId:target.id,username:studentCode,recoveryUrl,provisioned})
   }catch(error){
     console.error('admin-reset-member-password',error)
-    return json(req,{error:'Không thể reset mật khẩu lúc này.'},500)
+    return json(req,{error:'Không thể tạo liên kết reset mật khẩu lúc này.'},500)
   }
 })
