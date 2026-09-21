@@ -11,8 +11,7 @@ const allowedOrigins=new Set([
   'https://yhct-hiu-final4-stage.vercel.app',
   'https://yhct-hiu-final4-stage-hiu-yhct.vercel.app',
   'https://yhct-hiu-final4-stage-git-main-hiu-yhct.vercel.app',
-  'http://localhost:5173','http://localhost:4173',
-  'http://localhost','https://localhost','capacitor://localhost'
+  'https://localhost','http://localhost','capacitor://localhost','http://localhost:5173','http://localhost:4173'
 ])
 function originAllowed(origin:string){if(allowedOrigins.has(origin))return true;try{const u=new URL(origin);return u.protocol==='https:'&&u.hostname.endsWith('.vercel.app')&&(u.hostname.startsWith('yhct-hiu-4-0-')||u.hostname.startsWith('yhct-hiu-final4-stage-'))}catch{return false}}
 function cors(req:Request){const origin=req.headers.get('origin')||'';return{'Access-Control-Allow-Origin':originAllowed(origin)?origin:'https://yhct-hiu-4-0.vercel.app','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Max-Age':'86400','Vary':'Origin'}}
