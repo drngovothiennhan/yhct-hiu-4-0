@@ -2,25 +2,117 @@ name: Android AAB
 on:
   workflow_dispatch:
   push:
-    tags: ['v*']
+    branches:
+      - 'release/android-play-*'
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-play-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PWA_PRODUCTION_SHA: 7c10118eda7331d94b2e064a7cf30b29ca51f308
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify native release changes do not alter PWA application source
+        shell: bash
+        run: |
+          set -euo pipefail
+          ALLOWED='^(\.github/workflows/android-aab\.yml|scripts/prepare-android-play-release\.mjs|scripts/android-play-release-check\.mjs)$'
+          UNEXPECTED="$(git diff --name-only "$PWA_PRODUCTION_SHA"...HEAD | grep -Ev "$ALLOWED" || true)"
+          if [ -n "$UNEXPECTED" ]; then
+            echo "Unexpected app-source changes relative to production PWA:"
+            echo "$UNEXPECTED"
+            exit 1
+          fi
+          echo "Native release branch is application-source equivalent to production PWA $PWA_PRODUCTION_SHA"
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
+
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
-      - run: npm install --ignore-scripts --no-audit --no-fund
-      - run: npm run build
-      - run: npx cap add android || true
-      - run: npx cap sync android
-      - run: cd android && ./gradlew bundleRelease
-      - uses: actions/upload-artifact@v4
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android API 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Build exact production-PWA application bundle
+        env:
+          VERCEL_GIT_COMMIT_SHA: ${{ env.PWA_PRODUCTION_SHA }}
+        run: npm run build
+
+      - name: Security dependency gate
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Mobile keyboard/layout/browser regression
+        run: |
+          node scripts/mobile-shell-responsive-check.mjs
+          node scripts/chrome-real-smoke.mjs
+          node scripts/adaptive-viewport-check-v2.mjs
+
+      - name: Create and sync Capacitor Android
+        run: |
+          npx cap add android
+          npx cap sync android
+
+      - name: Prepare Play 1.0.4 versionCode 6
+        run: node scripts/prepare-android-play-release.mjs
+
+      - name: Verify Android release contract
+        run: node scripts/android-play-release-check.mjs
+
+      - name: Verify native-origin login and registration CORS
+        shell: bash
+        run: |
+          set -euo pipefail
+          for FN in member-login member-register; do
+            HEADERS="$(curl -sS -D - -o /dev/null -X OPTIONS -H 'Origin: https://localhost' "https://gzmpnsrwqjpsbklyflqr.supabase.co/functions/v1/$FN")"
+            echo "$HEADERS"
+            echo "$HEADERS" | grep -qi '^access-control-allow-origin: https://localhost'
+          done
+
+      - name: Build release AAB
+        run: cd android && ./gradlew bundleRelease --stacktrace
+
+      - name: Validate generated bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          AAB="$(find android/app/build/outputs/bundle/release -name '*.aab' -type f | head -1)"
+          test -n "$AAB"
+          unzip -t "$AAB"
+          cp "$AAB" release-assets/HIU_YHCT_1.0.4_v6_UNSIGNED.aab
+          printf '%s\n' "$PWA_PRODUCTION_SHA" > release-assets/pwa-production-sha.txt
+          sha256sum release-assets/HIU_YHCT_1.0.4_v6_UNSIGNED.aab release-assets/play-icon-512.png > release-assets/SHA256SUMS-unsigned.txt
+
+      - name: Upload Play release artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: yhct-hiu-aab
-          path: android/app/build/outputs/bundle/release/*.aab
+          name: yhct-hiu-play-1.0.4-v6-unsigned
+          path: |
+            release-assets/
+            browser-artifacts/
+            adaptive-viewport-artifacts/
+          if-no-files-found: error
+          retention-days: 7
