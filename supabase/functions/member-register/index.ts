@@ -13,7 +13,7 @@ const MAX_ATTEMPTS=12;
 const WINDOW_MS=30*60*1000;
 const BLOCK_MS=30*60*1000;
 const DRIVE_FILE_NAME='HIU YHCT 4.0 - Dang ky thanh vien.xlsx';
-const explicitOrigins=new Set(['https://yhct-hiu-4-0.vercel.app','https://yhct-hiu-4-0-hiu-yhct.vercel.app','https://yhct-hiu-final4-stage.vercel.app','https://yhct-hiu-final4-stage-hiu-yhct.vercel.app','https://yhct-hiu-final4-stage-git-main-hiu-yhct.vercel.app','http://localhost:5173','http://localhost:4173']);
+const explicitOrigins=new Set(['https://yhct-hiu-4-0.vercel.app','https://yhct-hiu-4-0-hiu-yhct.vercel.app','https://yhct-hiu-final4-stage.vercel.app','https://yhct-hiu-final4-stage-hiu-yhct.vercel.app','https://yhct-hiu-final4-stage-git-main-hiu-yhct.vercel.app','http://localhost:5173','http://localhost:4173','http://localhost','https://localhost','capacitor://localhost']);
 
 function isAllowedOrigin(origin:string){if(explicitOrigins.has(origin))return true;try{const u=new URL(origin);if(u.protocol!=='https:'||!u.hostname.endsWith('.vercel.app'))return false;return u.hostname.startsWith('yhct-hiu-4-0-')||u.hostname.startsWith('yhct-hiu-final4-stage-')}catch{return false}}
 function cors(req:Request){const origin=req.headers.get('origin')||'';const allow=isAllowedOrigin(origin)?origin:'https://yhct-hiu-final4-stage.vercel.app';return{'Access-Control-Allow-Origin':allow,'Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Max-Age':'86400','Vary':'Origin'}}
