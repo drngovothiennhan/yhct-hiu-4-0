@@ -13,7 +13,7 @@ const MAX_ATTEMPTS=12;
 const WINDOW_MS=30*60*1000;
 const BLOCK_MS=30*60*1000;
 const DRIVE_FILE_NAME='HIU YHCT 4.0 - Dang ky thanh vien.xlsx';
-const explicitOrigins=new Set(['https://yhct-hiu-4-0.vercel.app','https://yhct-hiu-4-0-hiu-yhct.vercel.app','https://yhct-hiu-final4-stage.vercel.app','https://yhct-hiu-final4-stage-hiu-yhct.vercel.app','https://yhct-hiu-final4-stage-git-main-hiu-yhct.vercel.app','http://localhost:5173','http://localhost:4173','http://localhost','https://localhost','capacitor://localhost']);
+const explicitOrigins=new Set(['https://yhct-hiu-4-0.vercel.app','https://yhct-hiu-4-0-hiu-yhct.vercel.app','https://yhct-hiu-final4-stage.vercel.app','https://yhct-hiu-final4-stage-hiu-yhct.vercel.app','https://yhct-hiu-final4-stage-git-main-hiu-yhct.vercel.app','https://localhost','http://localhost','capacitor://localhost','http://localhost:5173','http://localhost:4173']);
 
 function isAllowedOrigin(origin:string){if(explicitOrigins.has(origin))return true;try{const u=new URL(origin);if(u.protocol!=='https:'||!u.hostname.endsWith('.vercel.app'))return false;return u.hostname.startsWith('yhct-hiu-4-0-')||u.hostname.startsWith('yhct-hiu-final4-stage-')}catch{return false}}
 function cors(req:Request){const origin=req.headers.get('origin')||'';const allow=isAllowedOrigin(origin)?origin:'https://yhct-hiu-final4-stage.vercel.app';return{'Access-Control-Allow-Origin':allow,'Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Max-Age':'86400','Vary':'Origin'}}
@@ -74,7 +74,8 @@ Deno.serve(async(req:Request)=>{
 
     const publicClient=createClient(SUPABASE_URL,PUBLIC_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
     const origin=req.headers.get('origin')||'';
-    const redirectTo=isAllowedOrigin(origin)?`${origin}/?member_activation=done`:'https://yhct-hiu-final4-stage.vercel.app/?member_activation=done';
+    const nativeOrigin=origin==='https://localhost'||origin==='http://localhost';
+    const redirectTo=!nativeOrigin&&isAllowedOrigin(origin)?`${origin}/?member_activation=done`:'https://yhct-hiu-final4-stage.vercel.app/?member_activation=done';
     const signup=await publicClient.auth.signUp({email,password,options:{emailRedirectTo:redirectTo,data:{registration_source:'self',student_code:studentCode,full_name:fullName,class_name:className,faculty}}});
     if(signup.error||!signup.data.user){const message=String(signup.error?.message||'Không thể tạo đăng ký.');if(/already|registered|exists/i.test(message))return json(req,{error:'Email này đã gắn với một tài khoản. Hãy dùng email khác hoặc liên hệ admin.'},409);return json(req,{error:'Không thể gửi email kích hoạt lúc này.'},502)}
     const authUser=signup.data.user;
