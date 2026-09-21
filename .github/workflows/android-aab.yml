@@ -1,26 +1,201 @@
-name: Android AAB
+name: Android AAB API 36 v6
+
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/android-aab.yml'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'public/club-yhct-logo.svg'
+      - 'scripts/generate-brand-icons.mjs'
+      - 'src/App.tsx'
+      - 'src/services/authRuntimeService.ts'
+      - 'supabase/functions/member-login/**'
+      - 'supabase/functions/member-register/**'
+      - 'supabase/functions/member-change-password/**'
   push:
-    tags: ['v*']
+    branches:
+      - release/playstore-v6-20260921
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-aab-v6-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EXPECTED_APPLICATION_ID: edu.hiu.yhct40
+  RELEASE_VERSION_CODE: '6'
+  RELEASE_VERSION_NAME: '1.0.3'
+  SUPABASE_FUNCTIONS_ORIGIN: https://gzmpnsrwqjpsbklyflqr.supabase.co
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
-      - run: npm install --ignore-scripts --no-audit --no-fund
-      - run: npm run build
-      - run: npx cap add android || true
-      - run: npx cap sync android
-      - run: cd android && ./gradlew bundleRelease
-      - uses: actions/upload-artifact@v4
+
+      - name: Set up Android SDK 36
+        uses: android-actions/setup-android@v4
         with:
-          name: yhct-hiu-aab
-          path: android/app/build/outputs/bundle/release/*.aab
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Generate launcher source icons
+        run: node scripts/generate-brand-icons.mjs
+
+      - name: Verify launcher icon has no forced white tile
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import {createCanvas,loadImage} from '@napi-rs/canvas';
+          import {readFile} from 'node:fs/promises';
+          const bytes=await readFile('public/pwa-icon-512.png');
+          const img=await loadImage(bytes);
+          const canvas=createCanvas(512,512);
+          const ctx=canvas.getContext('2d');
+          ctx.drawImage(img,0,0,512,512);
+          const corner=ctx.getImageData(0,0,1,1).data;
+          if(corner[3]!==0) throw new Error(`launcher icon corner must remain transparent; alpha=${corner[3]}`);
+          console.log('Launcher icon transparency PASS');
+          NODE
+          if grep -Fq '<rect width="512" height="512" rx="52" fill="#fff"/>' public/club-yhct-logo.svg; then
+            echo "::error::White logo tile returned to source SVG"
+            exit 1
+          fi
+
+      - name: Typecheck and build native web bundle
+        run: npx tsc -b && npx vite build
+
+      - name: Generate and sync Capacitor Android project
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -d android ]]; then
+            npx cap sync android
+          else
+            npx cap add android
+            npx cap sync android
+          fi
+          test -f android/variables.gradle
+          test -f android/app/build.gradle
+
+      - name: Pin Android 16 target and release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          perl -0pi -e 's/(compileSdkVersion\s*=\s*)\d+/${1}36/g; s/(targetSdkVersion\s*=\s*)\d+/${1}36/g' android/variables.gradle
+          VERSION_CODE="$RELEASE_VERSION_CODE" VERSION_NAME="$RELEASE_VERSION_NAME" perl -0pi -e 's/versionCode\s+\d+/versionCode $ENV{VERSION_CODE}/; s/versionName\s+"[^"]+"/versionName "$ENV{VERSION_NAME}"/' android/app/build.gradle
+
+      - name: Install approved HIU YHCT launcher icon
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v convert >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y imagemagick
+          fi
+          for spec in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            density="${spec%%:*}"
+            size="${spec##*:}"
+            dir="android/app/src/main/res/mipmap-${density}"
+            mkdir -p "$dir"
+            convert public/pwa-icon-512.png -resize "${size}x${size}" "$dir/ic_launcher.png"
+            cp "$dir/ic_launcher.png" "$dir/ic_launcher_round.png"
+          done
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+          test -s android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          identify android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+
+      - name: Verify Android release contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Eq 'compileSdkVersion\s*=\s*36' android/variables.gradle
+          grep -Eq 'targetSdkVersion\s*=\s*36' android/variables.gradle
+          grep -Fq "applicationId \"$EXPECTED_APPLICATION_ID\"" android/app/build.gradle
+          grep -Eq "versionCode[[:space:]]+$RELEASE_VERSION_CODE([[:space:]]|$)" android/app/build.gradle
+          grep -Fq "versionName \"$RELEASE_VERSION_NAME\"" android/app/build.gradle
+          grep -Fq '"captureInput": true' capacitor.config.json
+          for file in supabase/functions/member-login/index.ts supabase/functions/member-register/index.ts supabase/functions/member-change-password/index.ts; do
+            grep -Fq "'https://localhost'" "$file"
+            grep -Fq "'http://localhost'" "$file"
+            grep -Fq "'capacitor://localhost'" "$file"
+          done
+          echo "Android contract PASS: package=$EXPECTED_APPLICATION_ID targetSdk=36 versionCode=$RELEASE_VERSION_CODE versionName=$RELEASE_VERSION_NAME"
+
+      - name: Verify live Capacitor CORS preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          for origin in https://localhost capacitor://localhost; do
+            headers="$(mktemp)"
+            curl --fail-with-body --silent --show-error --output /dev/null --dump-header "$headers" \
+              -X OPTIONS "${SUPABASE_FUNCTIONS_ORIGIN}/functions/v1/member-login" \
+              -H "Origin: $origin" \
+              -H 'Access-Control-Request-Method: POST' \
+              -H 'Access-Control-Request-Headers: apikey,content-type'
+            tr -d '\r' < "$headers" | grep -iF "access-control-allow-origin: $origin"
+            rm -f "$headers"
+          done
+          echo "Capacitor member-login CORS preflight PASS"
+
+      - name: Build release AAB validation artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd android
+          ./gradlew --no-daemon bundleRelease
+
+      - name: Locate AAB and generate evidence
+        id: aab
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find android/app/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | sort)
+          if [[ ${#files[@]} -ne 1 ]]; then
+            echo "::error::Expected exactly one release AAB, found ${#files[@]}"
+            exit 1
+          fi
+          AAB_PATH="${files[0]}"
+          echo "path=$AAB_PATH" >> "$GITHUB_OUTPUT"
+          mkdir -p android-release-evidence
+          sha256sum "$AAB_PATH" | tee android-release-evidence/SHA256SUMS.txt
+          cat > android-release-evidence/release.txt <<EOF
+          commit=$GITHUB_SHA
+          package=$EXPECTED_APPLICATION_ID
+          versionCode=$RELEASE_VERSION_CODE
+          versionName=$RELEASE_VERSION_NAME
+          targetSdk=36
+          signed=false
+          purpose=validation-before-existing-upload-key-signing
+          generatedAt=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          EOF
+          cat android-release-evidence/release.txt
+
+      - name: Upload validation AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HIU_YHCT_1.0.3_v6_API36_VALIDATION
+          path: |
+            ${{ steps.aab.outputs.path }}
+            android-release-evidence/
+          if-no-files-found: error
+          retention-days: 7
