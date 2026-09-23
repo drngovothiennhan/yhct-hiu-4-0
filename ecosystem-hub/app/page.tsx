@@ -5,14 +5,24 @@ import { ecosystemPrinciples, learningPaths } from "@/data/community";
 export default function Home() {
   return (
     <main>
+      <a className="skipLink" href="#ecosystem">Bỏ qua đến nội dung chính</a>
       <header className="topbar">
         <a className="brand" href="#top"><span className="brandMark">HIU</span><span>TMC ECOSYSTEM</span></a>
-        <nav>
+        <nav className="desktopNav">
           <a href="#ecosystem">Hệ sinh thái</a>
           <a href="#journey">Hành trình học</a>
           <a href="#about">Giới thiệu</a>
           <a href="#community">Cộng đồng</a>
         </nav>
+        <details className="mobileMenu">
+          <summary aria-label="Mở điều hướng">☰</summary>
+          <div className="mobileMenuPanel">
+            <a href="#ecosystem">Hệ sinh thái</a>
+            <a href="#journey">Hành trình học</a>
+            <a href="#about">Giới thiệu</a>
+            <a href="#community">Cộng đồng</a>
+          </div>
+        </details>
       </header>
 
       <div id="top"><EcosystemMap /></div>
