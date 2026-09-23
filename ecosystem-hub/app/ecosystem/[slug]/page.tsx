@@ -19,6 +19,11 @@ export default async function AppDetail({ params }: { params: Promise<{ slug: st
         <h1>{app.name}</h1>
         <h2>{app.tagline}</h2>
         <p>{app.description}</p>
+        <div className="routeMeta">
+          <span><strong>Trạng thái:</strong> {app.status}</span>
+          <span><strong>Hạ tầng hiện tại:</strong> {app.hosting}</span>
+          <span><strong>Tên miền HIU TMC:</strong> {app.plannedCanonicalDomain.replace("https://", "").replace("/", "")}</span>
+        </div>
         <div className="detailActions">
           <a className="primaryBtn" href={app.currentUpstreamUrl}>Mở ứng dụng ↗</a>
           <a className="secondaryBtn" href="/">Khám phá ứng dụng khác</a>
