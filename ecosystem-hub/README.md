@@ -14,3 +14,13 @@ Bản triển khai đầu tiên của cổng hệ sinh thái dạng bản đồ 
 - URL ứng dụng chỉ được quản lý trong data/apps.ts.
 - Không phụ thuộc SSO ở Stage A.
 - Các liên kết chưa có production domain được ghi rõ trạng thái Preview/Development.
+
+
+## Tên miền chính thức dự kiến
+- Hub: `https://hiutmc.com`
+- Study OS: `https://study.hiutmc.com`
+- A.I Thiệt Chẩn: `https://thietchan.hiutmc.com`
+- Trung Y Văn HIU: `https://trungyvan.hiutmc.com`
+- 3D Huyệt vị – Kinh lạc: `https://atlas.hiutmc.com`
+
+Tên miền gốc `hiutmc.com` là nguồn chuẩn cho kiến trúc điều hướng của Ecosystem Hub. Việc trỏ DNS/subdomain chỉ thực hiện sau khi tên miền được đăng ký và xác nhận quyền sở hữu.
