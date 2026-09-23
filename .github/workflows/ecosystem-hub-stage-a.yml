@@ -32,6 +32,8 @@ jobs:
           cache-dependency-path: ecosystem-hub/package.json
       - name: Install
         run: npm install --no-audit --no-fund
+      - name: Validate app registry
+        run: npm run validate:registry
       - name: Build static export
         run: npm run build
       - name: Verify export
