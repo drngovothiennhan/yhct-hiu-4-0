@@ -1,0 +1,19 @@
+{
+  "name": "HIU TMC Ecosystem",
+  "short_name": "HIU TMC",
+  "description": "Cổng khám phá hệ sinh thái số Y học cổ truyền HIU.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f3eddf",
+  "theme_color": "#1f5d49",
+  "lang": "vi",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
