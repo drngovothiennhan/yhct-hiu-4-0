@@ -1,0 +1,232 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+<title id="title">Bản đồ hệ sinh thái HIU TMC</title>
+<desc id="desc">Bản đồ minh họa 2D phong cách hoạt hình Á Đông với bốn khu học tập Y học cổ truyền bao quanh quảng trường âm dương trung tâm.</desc>
+<defs>
+  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#dff3f1"/>
+    <stop offset=".48" stop-color="#e9f2df"/>
+    <stop offset="1" stop-color="#f5e7c9"/>
+  </linearGradient>
+  <linearGradient id="mountain" x1="0" y1="0" x2="1" y2="1">
+    <stop stop-color="#688d7c"/><stop offset="1" stop-color="#355d50"/>
+  </linearGradient>
+  <linearGradient id="mountain2" x1="0" y1="0" x2="1" y2="1">
+    <stop stop-color="#8ea995"/><stop offset="1" stop-color="#5d7e6f"/>
+  </linearGradient>
+  <linearGradient id="water" x1="0" y1="0" x2="1" y2="1">
+    <stop stop-color="#9be4df"/><stop offset=".45" stop-color="#50b8bd"/><stop offset="1" stop-color="#2d7887"/>
+  </linearGradient>
+  <linearGradient id="stone" x1="0" y1="0" x2="0" y2="1">
+    <stop stop-color="#fff1cb"/><stop offset="1" stop-color="#d8b77f"/>
+  </linearGradient>
+  <linearGradient id="roof" x1="0" y1="0" x2="1" y2="1">
+    <stop stop-color="#214d49"/><stop offset=".7" stop-color="#173a39"/><stop offset="1" stop-color="#0e2c2d"/>
+  </linearGradient>
+  <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1">
+    <stop stop-color="#ae663f"/><stop offset="1" stop-color="#704028"/>
+  </linearGradient>
+  <radialGradient id="sunGlow">
+    <stop stop-color="#fff3bd" stop-opacity=".96"/><stop offset="1" stop-color="#fff3bd" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="cyanGlow">
+    <stop stop-color="#7cf6ee" stop-opacity=".72"/><stop offset="1" stop-color="#7cf6ee" stop-opacity="0"/>
+  </radialGradient>
+  <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+    <feGaussianBlur stdDeviation="12"/>
+  </filter>
+  <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+    <feDropShadow dx="0" dy="12" stdDeviation="11" flood-color="#173d34" flood-opacity=".22"/>
+  </filter>
+  <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="9" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <pattern id="tiles" width="18" height="10" patternUnits="userSpaceOnUse">
+    <path d="M0 9 Q9 2 18 9" fill="none" stroke="#2d5a55" stroke-width="2"/>
+  </pattern>
+</defs>
+
+<!-- sky and distant landscape -->
+<rect width="1600" height="900" fill="url(#sky)"/>
+<circle cx="1370" cy="100" r="170" fill="url(#sunGlow)"/>
+<path d="M0 282L92 178l52 62 110-160 92 142 104-103 98 124 128-187 104 177 105-119 117 140 111-161 95 142 92-109 120 156v220H0Z" fill="#c4d8ca"/>
+<path d="M0 325L112 214l64 72 108-149 81 128 110-90 89 124 128-176 97 165 102-106 93 120 116-147 92 130 93-88 135 128v210H0Z" fill="url(#mountain2)" opacity=".78"/>
+<path d="M0 390L106 278l78 83 128-137 89 131 126-115 97 144 147-167 105 158 120-104 92 129 119-130 87 122 125-101 131 137v180H0Z" fill="url(#mountain)" opacity=".9"/>
+
+<!-- waterfalls -->
+<g opacity=".84">
+  <path d="M260 266q28 32 5 92t7 96" fill="none" stroke="#dffbfa" stroke-width="18" stroke-linecap="round"/>
+  <path d="M1290 240q-20 42-4 83t-3 105" fill="none" stroke="#dffbfa" stroke-width="19" stroke-linecap="round"/>
+  <path d="M805 250q13 40-3 74t2 58" fill="none" stroke="#eaffff" stroke-width="12" stroke-linecap="round"/>
+</g>
+
+<!-- river -->
+<path d="M650 260C760 315 695 375 760 420c74 51 161 27 205 93 47 71-51 120-2 185 45 60 164 54 252 202H515c75-125 207-145 219-238 9-70-95-111-77-171 19-64 105-81 82-142-13-35-52-57-89-89Z" fill="url(#water)"/>
+<path d="M694 298c60 37 42 75 85 102m28 58c71 13 97 49 80 92m7 90c-12 51 29 94 82 124" fill="none" stroke="#cbffff" stroke-width="8" stroke-linecap="round" opacity=".75"/>
+
+<!-- cloud/mist layers -->
+<g fill="#fff" opacity=".73" filter="url(#soft)">
+  <ellipse cx="170" cy="430" rx="210" ry="82"/>
+  <ellipse cx="1425" cy="430" rx="225" ry="87"/>
+  <ellipse cx="415" cy="715" rx="260" ry="88"/>
+  <ellipse cx="1215" cy="730" rx="260" ry="82"/>
+</g>
+
+<!-- island bases -->
+<g filter="url(#shadow)">
+  <path d="M130 190c125-60 300-35 375 63 58 75 13 175-82 215-108 46-279 29-347-66-52-73-18-169 54-212Z" fill="#89a878"/>
+  <path d="M1095 175c119-56 291-34 376 60 69 77 26 184-80 229-111 47-277 27-344-64-57-77-22-174 48-225Z" fill="#86a575"/>
+  <path d="M115 515c117-54 295-29 376 62 65 73 20 171-73 213-106 48-273 38-349-52-65-77-28-180 46-223Z" fill="#7f9f70"/>
+  <path d="M1082 510c119-52 293-29 375 67 61 71 16 173-83 215-109 46-270 32-342-53-64-76-25-184 50-229Z" fill="#7e9e70"/>
+</g>
+
+<!-- island cliffs -->
+<g fill="#557466">
+  <path d="M120 386c81 83 308 93 374-22-6 89-61 132-152 153-112 25-206-1-253-69Z"/>
+  <path d="M1084 381c93 90 308 86 385-21-12 90-70 135-157 153-111 24-207-3-250-72Z"/>
+  <path d="M104 708c95 91 305 94 383-14-13 88-70 131-159 150-105 23-199-1-248-66Z"/>
+  <path d="M1070 709c95 92 307 91 386-18-16 93-78 135-164 151-104 20-197-7-243-70Z"/>
+</g>
+
+<!-- paths and bridges -->
+<g fill="none" stroke="url(#stone)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M512 351Q620 385 711 417"/>
+  <path d="M1082 348Q988 380 894 421"/>
+  <path d="M499 623Q620 560 711 505"/>
+  <path d="M1090 622Q990 558 895 505"/>
+</g>
+<g fill="none" stroke="#76523a" stroke-width="5" opacity=".72">
+  <path d="M580 378q42-38 84 0"/>
+  <path d="M935 375q43-38 84 0"/>
+  <path d="M578 578q42-37 84 0"/>
+  <path d="M934 578q43-37 84 0"/>
+</g>
+
+<!-- central yin-yang plaza -->
+<g transform="translate(800 455)" filter="url(#shadow)">
+  <circle r="112" fill="#d9b574"/>
+  <circle r="95" fill="#f8e8bd" stroke="#9c7445" stroke-width="4"/>
+  <circle r="67" fill="#f8f3df" stroke="#22453f" stroke-width="4"/>
+  <path d="M0-67A67 67 0 0 1 0 67A33.5 33.5 0 0 0 0 0A33.5 33.5 0 0 1 0-67Z" fill="#183b36"/>
+  <path d="M0 67A67 67 0 0 1 0-67A33.5 33.5 0 0 0 0 0A33.5 33.5 0 0 1 0 67Z" fill="#f8f3df"/>
+  <circle cy="-33.5" r="10" fill="#f8f3df"/><circle cy="33.5" r="10" fill="#183b36"/>
+  <circle r="128" fill="none" stroke="#efce8a" stroke-width="10" opacity=".7"/>
+</g>
+
+<!-- central gate and pine -->
+<g transform="translate(800 307)" filter="url(#shadow)">
+  <path d="M-88 0h176l-25-25H-63Z" fill="url(#roof)"/>
+  <rect x="-62" y="3" width="15" height="68" fill="url(#wood)"/>
+  <rect x="47" y="3" width="15" height="68" fill="url(#wood)"/>
+  <rect x="-82" y="14" width="164" height="13" rx="5" fill="#975333"/>
+</g>
+<g transform="translate(805 244)">
+  <path d="M0 80c-4-43-4-74 1-111" stroke="#6f4b31" stroke-width="14" fill="none" stroke-linecap="round"/>
+  <g fill="#2c6550">
+    <ellipse cx="-26" cy="-7" rx="56" ry="23"/><ellipse cx="27" cy="-31" rx="64" ry="25"/><ellipse cx="-8" cy="-55" rx="51" ry="21"/>
+  </g>
+</g>
+
+<!-- reusable traditional building group: study -->
+<g transform="translate(308 283)" filter="url(#shadow)">
+  <rect x="-154" y="-70" width="308" height="145" rx="10" fill="#eadbb5"/>
+  <rect x="-125" y="-45" width="250" height="120" fill="#f6e8c7"/>
+  <path d="M-188-72Q-92-128 0-92Q92-128 188-72l-30 26H-158Z" fill="url(#roof)"/>
+  <path d="M-153-57h306" stroke="url(#tiles)" stroke-width="17"/>
+  <g fill="#8d5031">
+    <rect x="-132" y="-42" width="14" height="117"/><rect x="118" y="-42" width="14" height="117"/>
+    <rect x="-50" y="-42" width="12" height="117"/><rect x="38" y="-42" width="12" height="117"/>
+  </g>
+  <g fill="#4d7769">
+    <rect x="-101" y="-18" width="42" height="55" rx="3"/><rect x="59" y="-18" width="42" height="55" rx="3"/>
+  </g>
+  <!-- book icon -->
+  <path d="M-44 8q44-20 88 0v45q-44-20-88 0Zm0 0q-44-20-88 0v45q44-20 88 0Z" transform="translate(44 -103)" fill="#fff3cf" stroke="#9a724b" stroke-width="4"/>
+  <path d="M44-95v45" stroke="#9a724b" stroke-width="4"/>
+  <circle cx="98" cy="-96" r="24" fill="url(#cyanGlow)" filter="url(#glow)"/>
+  <rect x="83" y="-111" width="30" height="30" rx="4" fill="#5edbd4" opacity=".8"/>
+</g>
+
+<!-- AI tongue clinic -->
+<g transform="translate(1280 283)" filter="url(#shadow)">
+  <rect x="-158" y="-70" width="316" height="148" rx="10" fill="#e6dab7"/>
+  <rect x="-129" y="-45" width="258" height="123" fill="#f4e9cb"/>
+  <path d="M-192-72Q-96-126 0-91Q96-126 192-72l-30 27H-162Z" fill="url(#roof)"/>
+  <g fill="#8e5032"><rect x="-135" y="-42" width="14" height="120"/><rect x="121" y="-42" width="14" height="120"/></g>
+  <circle r="82" fill="url(#cyanGlow)" opacity=".65"/>
+  <rect x="-76" y="-21" width="58" height="78" rx="9" fill="#184f55" stroke="#69f1eb" stroke-width="4" opacity=".86"/>
+  <rect x="18" y="-21" width="58" height="78" rx="9" fill="#184f55" stroke="#69f1eb" stroke-width="4" opacity=".86"/>
+  <path d="M42 1c-14 10-19 30-7 42 12 12 28 5 31-9 3-16-7-27-24-33Z" fill="#ef9f9b" stroke="#ffd1ce" stroke-width="3"/>
+  <circle cx="-47" cy="10" r="17" fill="none" stroke="#83fff6" stroke-width="3"/>
+  <path d="M-47-7v34M-64 10h34" stroke="#83fff6" stroke-width="3"/>
+  <g transform="translate(0 -108)">
+    <circle r="33" fill="#51d8d0" opacity=".22" filter="url(#glow)"/>
+    <rect x="-20" y="-17" width="40" height="30" rx="8" fill="#315c60"/>
+    <circle cx="-8" cy="-2" r="6" fill="#92fff6"/><circle cx="9" cy="-2" r="6" fill="#92fff6"/>
+    <rect x="-3" y="13" width="6" height="33" fill="#315c60"/>
+  </g>
+</g>
+
+<!-- classical archive -->
+<g transform="translate(306 622)" filter="url(#shadow)">
+  <rect x="-157" y="-69" width="314" height="146" rx="10" fill="#e5d4ac"/>
+  <rect x="-127" y="-44" width="254" height="121" fill="#f4e6c6"/>
+  <path d="M-191-71Q-97-124 0-90Q97-124 191-71l-31 26H-160Z" fill="url(#roof)"/>
+  <g fill="#8e5032"><rect x="-134" y="-41" width="14" height="118"/><rect x="120" y="-41" width="14" height="118"/></g>
+  <g fill="#75523c">
+    <rect x="-104" y="-16" width="58" height="65"/><rect x="46" y="-16" width="58" height="65"/>
+  </g>
+  <g stroke="#e7c58e" stroke-width="4"><path d="M-98-8h46M-98 6h46M-98 20h46M52-8h46M52 6h46M52 20h46"/></g>
+  <!-- scroll/book icon -->
+  <rect x="-70" y="-118" width="140" height="62" rx="7" fill="#fff1cb" stroke="#9c7048" stroke-width="4"/>
+  <path d="M-50-97h100M-50-82h70" stroke="#9c7048" stroke-width="4" stroke-linecap="round"/>
+  <!-- bamboo -->
+  <g stroke="#4b8152" stroke-width="11" stroke-linecap="round">
+    <path d="M-205 77l10-165M-181 77l-8-144M-158 77l14-132"/>
+  </g>
+  <g fill="#6ba563">
+    <ellipse cx="-205" cy="-43" rx="28" ry="8" transform="rotate(-28 -205 -43)"/>
+    <ellipse cx="-184" cy="-10" rx="27" ry="8" transform="rotate(25 -184 -10)"/>
+    <ellipse cx="-164" cy="-58" rx="25" ry="8" transform="rotate(-24 -164 -58)"/>
+  </g>
+</g>
+
+<!-- 3D atlas pavilion -->
+<g transform="translate(1282 622)" filter="url(#shadow)">
+  <rect x="-160" y="-70" width="320" height="148" rx="10" fill="#e8d8b4"/>
+  <rect x="-130" y="-45" width="260" height="123" fill="#f5e8ca"/>
+  <path d="M-194-72Q-96-126 0-91Q96-126 194-72l-31 27H-163Z" fill="url(#roof)"/>
+  <g fill="#8e5032"><rect x="-136" y="-42" width="14" height="120"/><rect x="122" y="-42" width="14" height="120"/></g>
+  <circle r="88" fill="url(#cyanGlow)" opacity=".58"/>
+  <ellipse cy="53" rx="62" ry="16" fill="#55d8d2" opacity=".3" stroke="#7ffff8" stroke-width="3"/>
+  <!-- body silhouette -->
+  <g fill="none" stroke="#8afff8" stroke-width="5" filter="url(#glow)">
+    <circle cy="-42" r="18"/>
+    <path d="M0-24v71M-35 5L0-12 35 5M-33 8l-8 54M33 8l8 54M0 47l-27 54M0 47l27 54"/>
+  </g>
+  <g fill="#ffd28d">
+    <circle cx="-19" cy="-1" r="4"/><circle cx="19" cy="-1" r="4"/><circle cx="-7" cy="24" r="4"/><circle cx="8" cy="35" r="4"/>
+    <circle cx="-21" cy="58" r="4"/><circle cx="21" cy="58" r="4"/>
+  </g>
+  <path d="M-17-12c9 16 18 25 15 49M18-12C7 5 2 18 5 48" fill="none" stroke="#ffcf7d" stroke-width="3" stroke-dasharray="6 7"/>
+</g>
+
+<!-- trees and blossoms -->
+<g>
+  <g transform="translate(535 222)"><rect x="-5" y="0" width="10" height="62" fill="#694b32"/><circle cy="-6" r="38" fill="#376c52"/><circle cx="-30" cy="12" r="24" fill="#4d805c"/><circle cx="28" cy="12" r="24" fill="#4d805c"/></g>
+  <g transform="translate(1045 231)"><rect x="-5" y="0" width="10" height="58" fill="#694b32"/><circle cy="-9" r="35" fill="#376c52"/><circle cx="-28" cy="10" r="23" fill="#4d805c"/><circle cx="27" cy="9" r="23" fill="#4d805c"/></g>
+  <g transform="translate(534 713)"><rect x="-5" y="-4" width="10" height="60" fill="#6b4b32"/><circle cy="-12" r="34" fill="#ef9da9"/><circle cx="-26" cy="4" r="22" fill="#f5adb7"/><circle cx="25" cy="3" r="22" fill="#f5adb7"/></g>
+  <g transform="translate(1044 714)"><rect x="-5" y="-4" width="10" height="60" fill="#6b4b32"/><circle cy="-12" r="34" fill="#ef9da9"/><circle cx="-26" cy="4" r="22" fill="#f5adb7"/><circle cx="25" cy="3" r="22" fill="#f5adb7"/></g>
+</g>
+
+<!-- decorative lanterns -->
+<g fill="#f4cf75" stroke="#825636" stroke-width="3">
+  <circle cx="680" cy="416" r="8"/><circle cx="920" cy="416" r="8"/><circle cx="678" cy="519" r="8"/><circle cx="922" cy="519" r="8"/>
+</g>
+
+<!-- foreground foliage -->
+<path d="M0 800c85-85 143-38 197 100H0Zm1600 0c-87-82-143-37-199 100h199Z" fill="#234e42"/>
+<g fill="#315f4b">
+  <circle cx="65" cy="815" r="54"/><circle cx="126" cy="830" r="48"/><circle cx="1532" cy="816" r="56"/><circle cx="1471" cy="831" r="46"/>
+</g>
+</svg>
