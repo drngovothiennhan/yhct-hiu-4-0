@@ -1,0 +1,46 @@
+name: Ecosystem Hub Stage A CI
+
+on:
+  push:
+    branches:
+      - ecosystem-hub-stage-a
+    paths:
+      - "ecosystem-hub/**"
+      - ".github/workflows/ecosystem-hub-stage-a.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ecosystem-hub
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ecosystem-hub/package.json
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Build static export
+        run: npm run build
+      - name: Verify export
+        run: |
+          test -f out/index.html
+          test -f out/ecosystem/study-os/index.html
+          test -f out/ecosystem/ai-thiet-chan/index.html
+          test -f out/ecosystem/trung-y-van/index.html
+          test -f out/ecosystem/atlas/index.html
+      - name: Upload static artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hiu-yhct-ecosystem-stage-a
+          path: ecosystem-hub/out
+          if-no-files-found: error
