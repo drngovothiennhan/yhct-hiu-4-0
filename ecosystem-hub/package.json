@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "validate:registry": "node --experimental-strip-types scripts/validate-registry.mjs",
+    "check": "npm run validate:registry && npm run build"
   },
   "dependencies": {
     "next": "16.3.4",
