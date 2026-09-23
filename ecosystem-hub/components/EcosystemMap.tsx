@@ -35,11 +35,6 @@ export default function EcosystemMap() {
             </div>
           </div>
         ))}
-        <div className="heroCopy">
-          <p className="eyebrow">CÂU LẠC BỘ Y HỌC CỔ TRUYỀN HIU</p>
-          <h1>Một bản đồ. Nhiều hành trình học tập.</h1>
-          <p>Khám phá các ứng dụng học tập, AI và mô hình tương tác trong cùng một hệ sinh thái.</p>
-        </div>
       </div>
 
       <nav className="quickDock" aria-label="Khám phá nhanh">
@@ -47,6 +42,14 @@ export default function EcosystemMap() {
           <Link href={`/ecosystem/${app.slug}/`} key={app.slug}>{app.shortName}</Link>
         ))}
       </nav>
+
+      <div className="mapIntro">
+        <div>
+          <p className="eyebrow">CÂU LẠC BỘ Y HỌC CỔ TRUYỀN HIU</p>
+          <h1>Một bản đồ. Nhiều hành trình học tập.</h1>
+        </div>
+        <p>Khám phá các ứng dụng học tập, AI và mô hình tương tác trong cùng một hệ sinh thái. Chọn một địa danh trên bản đồ hoặc dùng thanh khám phá nhanh.</p>
+      </div>
     </section>
   );
 }
