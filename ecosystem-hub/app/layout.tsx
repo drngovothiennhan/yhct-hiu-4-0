@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+export const viewport = {
+  themeColor: "#1f5d49",
+  colorScheme: "light",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://hiutmc.com"),
   title: {
@@ -9,6 +14,7 @@ export const metadata: Metadata = {
   },
   description: "Cổng khám phá hệ sinh thái số của Câu lạc bộ Y học cổ truyền HIU: Study OS, A.I Thiệt Chẩn, Trung Y Văn HIU và 3D Huyệt vị – Kinh lạc.",
   alternates: { canonical: "/" },
+  manifest: "/manifest.webmanifest",
   icons: { icon: "/favicon.svg" },
   openGraph: {
     type: "website",
