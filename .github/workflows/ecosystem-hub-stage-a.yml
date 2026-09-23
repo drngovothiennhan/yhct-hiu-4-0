@@ -4,6 +4,17 @@ on:
   push:
     branches:
       - ecosystem-hub-stage-a
+    paths:
+      - "ecosystem-hub/app/**"
+      - "ecosystem-hub/components/**"
+      - "ecosystem-hub/data/**"
+      - "ecosystem-hub/public/**"
+      - "ecosystem-hub/scripts/**"
+      - "ecosystem-hub/package.json"
+      - "ecosystem-hub/next.config.ts"
+      - "ecosystem-hub/tsconfig.json"
+      - "ecosystem-hub/wrangler.jsonc"
+      - ".github/workflows/ecosystem-hub-stage-a.yml"
   pull_request:
     branches:
       - main
@@ -58,3 +69,4 @@ jobs:
           name: hiu-tmc-ecosystem-static
           path: ecosystem-hub/out
           if-no-files-found: error
+          retention-days: 14
