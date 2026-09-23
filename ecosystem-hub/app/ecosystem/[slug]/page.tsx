@@ -20,7 +20,7 @@ export default async function AppDetail({ params }: { params: Promise<{ slug: st
         <h2>{app.tagline}</h2>
         <p>{app.description}</p>
         <div className="detailActions">
-          <a className="primaryBtn" href={app.href}>Mở ứng dụng ↗</a>
+          <a className="primaryBtn" href={app.currentUpstreamUrl}>Mở ứng dụng ↗</a>
           <a className="secondaryBtn" href="/">Khám phá ứng dụng khác</a>
         </div>
       </div>
