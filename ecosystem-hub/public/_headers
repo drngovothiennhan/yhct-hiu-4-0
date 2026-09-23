@@ -7,5 +7,5 @@
 /_next/static/*
   Cache-Control: public, max-age=31536000, immutable
 
-/ecosystem-map.svg
+/ecosystem-map-hiutmc.webp
   Cache-Control: public, max-age=604800
