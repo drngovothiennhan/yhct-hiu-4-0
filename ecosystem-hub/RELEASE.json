@@ -1,0 +1,8 @@
+{
+  "release": "HIU-TMC-ECOSYSTEM-RC-20260923",
+  "source_checkpoint": "b340a099849d474ec31c77a42eb76d3511108e20",
+  "domain": "https://hiutmc.com",
+  "hosting": "Cloudflare Workers Static Assets",
+  "stage": "production-candidate",
+  "note": "Deployment must pass build, registry, asset, Wrangler and live smoke gates."
+}
