@@ -41,6 +41,9 @@ jobs:
           test -f out/ecosystem/ai-thiet-chan/index.html
           test -f out/ecosystem/trung-y-van/index.html
           test -f out/ecosystem/atlas/index.html
+
+      - name: Validate Cloudflare bundle
+        run: npx wrangler deploy --dry-run
       - name: Upload static artifact
         uses: actions/upload-artifact@v4
         with:
