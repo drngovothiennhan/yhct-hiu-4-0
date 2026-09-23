@@ -20,7 +20,13 @@ export default function EcosystemMap() {
             onMouseEnter={() => setActive(app.slug)}
             onMouseLeave={() => setActive(null)}
           >
-            <button className="hotspotPulse" onClick={() => setActive(active === app.slug ? null : app.slug)} aria-label={`Xem ${app.name}`} />
+            <button
+              className="hotspotPulse"
+              onClick={() => setActive(active === app.slug ? null : app.slug)}
+              onFocus={() => setActive(app.slug)}
+              aria-expanded={active === app.slug}
+              aria-label={`Xem ${app.name}`}
+            />
             <div className="hotspotCard">
               <span className="status">{app.status}</span>
               <strong>{app.name}</strong>
