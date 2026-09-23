@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - ecosystem-hub-stage-a
+  pull_request:
+    branches:
+      - main
     paths:
       - "ecosystem-hub/**"
       - ".github/workflows/ecosystem-hub-stage-a.yml"
