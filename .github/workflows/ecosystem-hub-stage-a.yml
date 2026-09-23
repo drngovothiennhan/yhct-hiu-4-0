@@ -1,4 +1,4 @@
-name: Ecosystem Hub Stage A CI
+name: HIU TMC Ecosystem CI
 
 on:
   push:
@@ -51,6 +51,6 @@ jobs:
       - name: Upload static artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hiu-yhct-ecosystem-stage-a
+          name: hiu-tmc-ecosystem-static
           path: ecosystem-hub/out
           if-no-files-found: error
