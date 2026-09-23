@@ -36,6 +36,9 @@ jobs:
       - name: Install
         run: npm install --no-audit --no-fund
 
+      - name: Validate release contracts
+        run: npm run validate:registry && npm run validate:assets
+
       - name: Build static export
         run: npm run build
 
@@ -56,3 +59,8 @@ jobs:
           wranglerVersion: "4.136.2"
           workingDirectory: ecosystem-hub
           command: deploy
+
+      - name: Smoke production domain
+        env:
+          BASE_URL: https://hiutmc.com
+        run: npm run smoke:production
