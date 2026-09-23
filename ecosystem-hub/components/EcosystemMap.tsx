@@ -10,7 +10,7 @@ export default function EcosystemMap() {
   return (
     <section className="mapShell" aria-label="Bản đồ hệ sinh thái HIU YHCT">
       <div className="mapStage">
-        <img className="mapArtwork" src="/ecosystem-map.webp" alt="Bản đồ anime 2D hệ sinh thái HIU YHCT" />
+        <img className="mapArtwork" src="/ecosystem-map.svg" alt="Bản đồ anime 2D hệ sinh thái HIU YHCT" />
         <div className="mapShade" />
         {ecosystemApps.map((app) => (
           <div
