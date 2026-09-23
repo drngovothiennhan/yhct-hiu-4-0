@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="HIU YHCT Ecosystem map placeholder">
+<defs>
+  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#dceee9"/><stop offset="1" stop-color="#f4ead2"/></linearGradient>
+  <linearGradient id="water" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#90d9dc"/><stop offset="1" stop-color="#3d90a0"/></linearGradient>
+  <filter id="glow"><feGaussianBlur stdDeviation="10" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect width="1600" height="900" fill="url(#sky)"/>
+<path d="M0 310L160 150 290 270 430 100 580 275 730 145 850 290 1030 120 1170 275 1320 125 1600 310V570H0Z" fill="#7aa28b" opacity=".72"/>
+<path d="M0 410L190 275 330 390 510 225 670 390 820 250 980 410 1140 245 1290 400 1450 260 1600 390V660H0Z" fill="#5f816e" opacity=".8"/>
+<path d="M0 610C310 500 430 720 720 590S1150 480 1600 640V900H0Z" fill="url(#water)" opacity=".9"/>
+<circle cx="800" cy="445" r="92" fill="#efe5c8" stroke="#2c5d4b" stroke-width="8"/>
+<circle cx="800" cy="445" r="56" fill="#fff8df"/>
+<text x="800" y="432" text-anchor="middle" font-size="34" font-family="Georgia" fill="#183b30" font-weight="700">HIU</text>
+<text x="800" y="470" text-anchor="middle" font-size="20" font-family="sans-serif" fill="#355e50">YHCT HUB</text>
+<g font-family="sans-serif" font-weight="700" text-anchor="middle">
+  <g transform="translate(460 280)"><rect x="-150" y="-72" width="300" height="144" rx="36" fill="#f6e0a7" stroke="#8d672c" stroke-width="5"/><text y="-5" font-size="30" fill="#3b3424">STUDY OS</text><text y="28" font-size="16" fill="#5b5038">Học • Hiểu • Ứng dụng</text></g>
+  <g transform="translate(1140 280)" filter="url(#glow)"><rect x="-160" y="-72" width="320" height="144" rx="36" fill="#d9f2ff" stroke="#3479a6" stroke-width="5"/><text y="-5" font-size="30" fill="#173d58">A.I THIỆT CHẨN</text><text y="28" font-size="16" fill="#2f5872">AI hỗ trợ học thiệt chẩn</text></g>
+  <g transform="translate(450 610)"><rect x="-160" y="-72" width="320" height="144" rx="36" fill="#ead6b8" stroke="#875c34" stroke-width="5"/><text y="-5" font-size="30" fill="#4e3424">TRUNG Y VĂN</text><text y="28" font-size="16" fill="#675040">Kho tri thức YHCT</text></g>
+  <g transform="translate(1160 610)" filter="url(#glow)"><rect x="-175" y="-72" width="350" height="144" rx="36" fill="#d7efe8" stroke="#297b6a" stroke-width="5"/><text y="-5" font-size="29" fill="#184f45">3D HUYỆT VỊ – KINH LẠC</text><text y="28" font-size="16" fill="#3e675f">Khám phá cơ thể tương tác</text></g>
+</g>
+<path d="M605 330Q700 380 735 410M995 330Q900 380 865 410M600 565Q700 510 740 480M1000 565Q900 510 860 480" fill="none" stroke="#f7efd8" stroke-width="16" stroke-linecap="round" opacity=".85"/>
+<g fill="#f6efe0" opacity=".85"><circle cx="120" cy="110" r="50"/><circle cx="180" cy="100" r="65"/><circle cx="1420" cy="100" r="60"/><circle cx="1490" cy="120" r="45"/></g>
+</svg>
