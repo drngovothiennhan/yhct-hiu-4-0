@@ -1,0 +1,57 @@
+name: Deploy HIU TMC Ecosystem to Cloudflare
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ecosystem-hub-production
+    paths:
+      - "ecosystem-hub/**"
+      - ".github/workflows/ecosystem-hub-cloudflare.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hiutmc-production
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ecosystem-hub
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ecosystem-hub/package.json
+
+      - name: Install
+        run: npm install --no-audit --no-fund
+
+      - name: Build static export
+        run: npm run build
+
+      - name: Verify required routes
+        run: |
+          test -f out/index.html
+          test -f out/ecosystem/study-os/index.html
+          test -f out/ecosystem/ai-thiet-chan/index.html
+          test -f out/ecosystem/trung-y-van/index.html
+          test -f out/ecosystem/atlas/index.html
+          test -f out/_headers
+
+      - name: Deploy static assets
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ecosystem-hub
+          command: deploy
