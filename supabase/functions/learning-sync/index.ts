@@ -34,7 +34,7 @@ function cors(req:Request){
   return{
     'Access-Control-Allow-Origin':allow,
     'Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods':'POST, OPTIONS',
+    'Access-Control-Allow-Methods':'GET, POST, OPTIONS',
     'Access-Control-Max-Age':'86400',
     'Vary':'Origin'
   }
@@ -51,11 +51,9 @@ function toBase64(bytes:Uint8Array){
 }
 function toHex(bytes:Uint8Array){return [...bytes].map(x=>x.toString(16).padStart(2,'0')).join('')}
 async function gzip(bytes:Uint8Array){
-  const cs=new CompressionStream('gzip')
-  const writer=cs.writable.getWriter()
-  await writer.write(bytes)
-  await writer.close()
-  return new Uint8Array(await new Response(cs.readable).arrayBuffer())
+  const source=new Blob([bytes]).stream()
+  const compressed=source.pipeThrough(new CompressionStream('gzip'))
+  return new Uint8Array(await new Response(compressed).arrayBuffer())
 }
 async function encryptForMember(memberId:string,plain:Uint8Array){
   const material=new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(`${SECRET_KEY}:learning-sync:v1:${memberId}`)))
@@ -80,7 +78,7 @@ function hcmDay(){
 
 Deno.serve(async(req:Request)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:cors(req)})
-  if(req.method!=='POST')return json(req,{error:'Method not allowed'},405)
+  if(req.method!=='GET'&&req.method!=='POST')return json(req,{error:'Method not allowed'},405)
 
   try{
     const auth=req.headers.get('authorization')||''
@@ -104,6 +102,30 @@ Deno.serve(async(req:Request)=>{
     const {data:member,error:memberError}=await memberQuery.limit(1).maybeSingle()
     if(memberError)throw memberError
     if(!member)return json(req,{error:'Approved member required'},403)
+
+    if(req.method==='GET'){
+      const {data:stats,error:statsReadError}=await admin.from('learning_sync_stats')
+        .select('synced_at,client_active_date,client_streak,client_xp,client_today_questions,client_exam_attempts,client_last_exam_score,client_ai_uses,review_card_count,source_version')
+        .eq('member_id',member.id)
+        .maybeSingle()
+      if(statsReadError)throw statsReadError
+      return json(req,{
+        ok:true,
+        hasSync:Boolean(stats),
+        stats:stats?{
+          syncedAt:stats.synced_at,
+          activeDate:stats.client_active_date,
+          streak:stats.client_streak,
+          xp:stats.client_xp,
+          todayQuestions:stats.client_today_questions,
+          examAttempts:stats.client_exam_attempts,
+          lastExamScore:stats.client_last_exam_score,
+          aiUses:stats.client_ai_uses,
+          reviewCardCount:stats.review_card_count,
+          sourceVersion:stats.source_version
+        }:null
+      })
+    }
 
     const body=await req.json().catch(()=>({})) as Record<string,unknown>
     const snapshot=body.snapshot
