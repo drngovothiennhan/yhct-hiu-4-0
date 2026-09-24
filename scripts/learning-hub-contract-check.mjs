@@ -6,11 +6,11 @@ const legacy=fs.readFileSync('src/components/exam/NationalExamPrepLegacy.tsx','u
 const css=fs.readFileSync('src/learning-hub.css','utf8');
 const contract=fs.readFileSync('src/modules/moduleContract.ts','utf8');
 
-assert.ok(hub.includes("type HubTab='quick'|'bank'|'adaptive'|'exam'"));
+assert.ok(hub.includes("type HubTab='lesson'|'quick'|'bank'|'adaptive'|'exam'"));
 assert.ok(hub.includes("new Set<HubTab>(['quick'])"));
-assert.ok(hub.includes("visited.has('quick')")&&hub.includes("visited.has('bank')")&&hub.includes("visited.has('adaptive')")&&hub.includes("visited.has('exam')"));
+assert.ok(hub.includes("visited.has('lesson')")&&hub.includes("visited.has('quick')")&&hub.includes("visited.has('bank')")&&hub.includes("visited.has('adaptive')")&&hub.includes("visited.has('exam')"));
 assert.ok(hub.includes('role="tablist"')&&hub.includes('role="tabpanel"')&&hub.includes('aria-selected={tab===id}'));
-assert.ok(hub.includes("hidden={tab!=='quick'}")&&hub.includes("hidden={tab!=='bank'}")&&hub.includes("hidden={tab!=='adaptive'}")&&hub.includes("hidden={tab!=='exam'}"));
+assert.ok(hub.includes("hidden={tab!=='lesson'}")&&hub.includes("hidden={tab!=='quick'}")&&hub.includes("hidden={tab!=='bank'}")&&hub.includes("hidden={tab!=='adaptive'}")&&hub.includes("hidden={tab!=='exam'}"));
 assert.ok(hub.includes("import NationalExamPrepLegacy from './NationalExamPrepLegacy'"));
 assert.ok(hub.includes('yhct-learning-hub-pending-tab-v1'),'Home must be able to deep-link to a Learning Hub workflow');
 assert.ok(hub.includes('chọn nguồn → thư mục hoặc chủ đề → số câu → học'),'Learning Hub must state the canonical learning flow');
@@ -28,4 +28,4 @@ assert.ok(contract.includes("export type ModuleId='feed'|'ai'|'research'|'profil
 assert.ok(contract.includes("ai:{id:'ai',title:'Trợ lý A.I',path:'/ai'"));
 assert.ok(contract.includes("exam:{id:'exam',title:'Luyện thi ĐGNL',path:'/exam'"));
 assert.ok(!contract.includes("path:'/learning'"));
-console.log('Learning Hub structural contract passed: source-first hierarchy, deep-link handoff and single-mount workflows are preserved.');
+console.log('Learning Hub structural contract passed: curriculum lesson plus source-first quiz hierarchy, deep-link handoff and single-mount workflows are preserved.');
