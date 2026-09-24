@@ -48,9 +48,22 @@ export async function loginOptimized(studentCode:string,password:string):Promise
     const response=await fetchMemberLogin(studentCode,password);
     const body=await response.json().catch(()=>({})) as Record<string,unknown>;
     if(!response.ok)throw new Error(String(body.error||'Đăng nhập không thành công'));
-    await setSessionResilient(String(body.access_token||''),String(body.refresh_token||''));
+    const accessToken=String(body.access_token||'');
+    const refreshToken=String(body.refresh_token||'');
+    if(!accessToken||!refreshToken)throw new Error('Máy chủ xác thực chưa trả về phiên hợp lệ.');
     const member=mapMember((body.member||{}) as Record<string,unknown>);
+    if(!member.id)throw new Error('Không tìm thấy hồ sơ thành viên sau khi xác thực.');
     persistMemberSession(member);
+    // member-login đã xác thực thành công. Không để bước đồng bộ Supabase session phụ
+    // làm UI báo "đăng nhập thất bại" do timeout/race trên mobile.
+    void setSessionResilient(accessToken,refreshToken).catch(error=>{
+      console.warn('Supabase session synchronization deferred after successful member login',error);
+      window.setTimeout(()=>{
+        void supabase.auth.setSession({access_token:accessToken,refresh_token:refreshToken}).catch(retryError=>{
+          console.warn('Deferred Supabase session synchronization retry failed',retryError);
+        });
+      },700);
+    });
     return{member,mustChangePassword:Boolean(body.must_change_password)};
   }catch(error){
     const message=String((error as Error)?.message||error||'');
