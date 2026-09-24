@@ -70,6 +70,8 @@ export default function HerbGardenGame({member}:{member:Member}){
   const initialComplete=Boolean(plots[0]?.initial_selection_complete);
   const unlockedCount=plots.filter(x=>x.unlocked).length;
   const harvestedPlots=plots.filter(x=>x.unlocked&&x.harvest_count>0).length;
+  const pendingFirstHarvests=initialComplete?plots.filter(x=>x.unlocked&&x.harvest_count===0).length:3;
+  const nextLockedSlot=plots.find(x=>!x.unlocked)?.slot_no||null;
   const selected=plots.find(x=>x.slot_no===selectedSlot)||null;
   const activeCount=plots.filter(x=>x.id).length;
   const stockTotal=useMemo(()=>inventory.reduce((sum,x)=>sum+x.quantity,0),[inventory]);
@@ -100,8 +102,12 @@ export default function HerbGardenGame({member}:{member:Member}){
         setMsg(result.applied===false?(result.message||`Ngày sinh trưởng hiện tại của ô ${slot} đã được bón phân.`):`Đã bón phân ô ${slot}. Đây là lần bón chung của ngày sinh trưởng hiện tại.`);
       }
       if(kind==='harvest'){
-        const r=(data||{}) as {name?:string;unlocked_slot?:number|null;credits_reward?:number;seed_reward?:number};
-        setMsg(`Thu hoạch ô ${slot}${r.name?`: ${r.name}`:''}. +${r.credits_reward||3} tín dụng, +${r.seed_reward||1} hạt cùng loài.${r.unlocked_slot?` Đã mở khóa ô ${r.unlocked_slot}.`:''}`);
+        const r=(data||{}) as {name?:string;unlocked_slot?:number|null;credits_reward?:number;seed_reward?:number;seed_quantity?:number;wallet_balance?:number};
+        const credits=Number(r.credits_reward),seedReward=Number(r.seed_reward),seedQuantity=Number(r.seed_quantity);
+        if(!Number.isFinite(credits)||credits<0||!Number.isFinite(seedReward)||seedReward<0||!Number.isFinite(seedQuantity)||seedQuantity<0){
+          throw new Error('Thu hoạch chưa được máy chủ xác nhận đầy đủ. Trạng thái vườn đã được làm mới; hệ thống sẽ không báo thưởng khi chưa có biên nhận từ máy chủ.');
+        }
+        setMsg(`Thu hoạch ô ${slot}${r.name?`: ${r.name}`:''}. Máy chủ xác nhận +${credits} tín dụng, +${seedReward} hạt cùng loài; túi giống loài này hiện có ×${seedQuantity}.${r.unlocked_slot?` Đã mở khóa ô ${r.unlocked_slot}.`:''}`);
       }
     }catch(e){setMsg((e as Error).message)}finally{setBusy(false)}
   };
@@ -130,8 +136,8 @@ export default function HerbGardenGame({member}:{member:Member}){
     <div className="garden-v3-layout garden-pro-layout">
       <section className={`garden-board-v3 garden-pro-board garden-scene-theme-${profile.theme}`} aria-label="Gia Viên 9 ô">
         <div className="garden-board-decor-art" aria-label="Trang trí vườn">{profile.decor.map(x=><DecorArt key={x} name={x}/>)}</div>
-        <div className="garden-board-heading"><div><b>Khu vườn 3×3</b><small>{initialComplete?`${harvestedPlots} ô đã từng thu hoạch`:'Chọn 3 ô để bắt đầu'}</small></div><div className="garden-board-heading-actions"><span>72h</span><button type="button" className="garden-plot-toggle" aria-expanded={plotDeckOpen} aria-controls="garden-plot-deck" onClick={()=>setPlotDeckOpen(open=>!open)}>{plotDeckOpen?<ChevronUp/>:<ChevronDown/>}<b>{plotDeckOpen?'Thu gọn':'Mở 9 ô'}</b></button></div></div>
-        {!initialComplete&&<div className="garden-v3-initial-note"><b>Chọn 3 ô khởi đầu</b><p>Chạm đúng 3 ô bất kỳ. Sau khi thu hoạch toàn bộ các ô đang mở, hệ thống tự mở thêm ô mới.</p><div className="garden-v3-initial-actions"><span>{initialChoice.length}/3 ô đã chọn</span><button disabled={busy||initialChoice.length!==3} onClick={()=>void confirmInitial()}><CheckCircle2/>Xác nhận</button></div></div>}
+        <div className="garden-board-heading"><div><b>Khu vườn 3×3</b><small>{!initialComplete?'Chọn 3 ô để bắt đầu':unlockedCount>=9?'Đã mở đủ 9 ô':pendingFirstHarvests>0?`Còn ${pendingFirstHarvests} ô đang mở cần thu hoạch lần đầu để mở ô ${nextLockedSlot||''}`:`Đang xác nhận mở ô ${nextLockedSlot||''}`}</small></div><div className="garden-board-heading-actions"><span>72h</span><button type="button" className="garden-plot-toggle" aria-expanded={plotDeckOpen} aria-controls="garden-plot-deck" onClick={()=>setPlotDeckOpen(open=>!open)}>{plotDeckOpen?<ChevronUp/>:<ChevronDown/>}<b>{plotDeckOpen?'Thu gọn':'Mở 9 ô'}</b></button></div></div>
+        {!initialComplete&&<div className="garden-v3-initial-note"><b>Chọn 3 ô khởi đầu</b><p>Chạm đúng 3 ô bất kỳ. Ba ô đầu tiên phải được thu hoạch thành công ít nhất 1 lần/ô. Khi đủ 3 ô, hệ thống mở 1 ô kế tiếp; từ đó mỗi ô mới thu hoạch lần đầu sẽ mở tiếp 1 ô theo thứ tự cho đến đủ 9 ô.</p><div className="garden-v3-initial-actions"><span>{initialChoice.length}/3 ô đã chọn</span><button disabled={busy||initialChoice.length!==3} onClick={()=>void confirmInitial()}><CheckCircle2/>Xác nhận</button></div></div>}
         <div id="garden-plot-deck" className={`garden-plot-viewport ${plotDeckOpen?'is-open':'is-collapsed'}`} aria-hidden={!plotDeckOpen}>
           <div className="garden-plot-scroll-hint"><MoveHorizontal/>Vuốt/kéo riêng khối 9 ô</div>
           <div className="garden-nine-grid">{plots.map(plot=>{const progress=growth(plot,now),chosen=initialChoice.includes(plot.slot_no);return <button type="button" key={plot.slot_no} onClick={()=>choosePlot(plot)} disabled={busy||initialComplete&&!plot.unlocked} className={`garden-cell ${!plot.unlocked?'is-locked':''} ${selectedSlot===plot.slot_no&&initialComplete?'is-selected':''} ${chosen?'is-initial-choice':''} ${plot.status?`stage-${plot.status}`:''}`} aria-label={`Ô ${plot.slot_no}${plot.id?`, tiến độ ${progress}%`:plot.unlocked?', ô trống':', đang khóa'}`}><span className="garden-cell-top"><i className="garden-cell-index">{plot.slot_no}</i>{plot.id&&<i className="garden-cell-status">{plot.status==='mature'?'Thu hoạch':`${progress}%`}</i>}</span><span className="garden-cell-soil"/>{plot.id?<span className="garden-cell-plant"><i/><i/><i/></span>:plot.unlocked?<span className="garden-cell-empty"><Sprout/><small>Ô trống</small></span>:<span className="garden-lock"><LockKeyhole/><small>{!initialComplete?'Chọn ô':'Chưa mở'}</small></span>}{plot.harvest_count>0&&<span className="garden-harvest-badge">×{plot.harvest_count}</span>}</button>})}</div>
@@ -184,7 +190,7 @@ export default function HerbGardenGame({member}:{member:Member}){
       </aside>
     </div>
 
-    <section className="garden-pro-guide panel"><div><HeartHandshake/><span><b>Cách chơi đã đồng bộ</b><small>Tự chăm và “Giúp chăm” đều tiêu thụ cùng một lượt. Nếu bạn bè đã bón phân trong ngày sinh trưởng hiện tại, chủ vườn không cần và không thể bón lại.</small></span></div><div><Gift/><span><b>Thưởng không cộng trùng</b><small>Mỗi lượt chăm hợp lệ chỉ tăng tiến độ và chuỗi thưởng một lần trên máy chủ.</small></span></div></section>
+    <section className="garden-pro-guide panel"><div><HeartHandshake/><span><b>Cách chơi đã đồng bộ</b><small>Tự chăm và “Giúp chăm” đều tiêu thụ cùng một lượt. Nếu bạn bè đã bón phân trong ngày sinh trưởng hiện tại, chủ vườn không cần và không thể bón lại.</small></span></div><div><Grid3X3/><span><b>Mở ô theo tiến độ thật</b><small>Thu hoạch lần đầu đủ 3 ô khởi đầu để mở ô thứ 4. Sau đó, mỗi ô mới được thu hoạch lần đầu sẽ mở tiếp đúng 1 ô cho đến đủ 9 ô.</small></span></div><div><Gift/><span><b>Thưởng có biên nhận máy chủ</b><small>Game chỉ báo tín dụng và hạt giống sau khi máy chủ trả về số lượng xác nhận; không còn dùng số thưởng mặc định khi giao dịch lỗi.</small></span></div></section>
 
     <section className="panel garden-pro-storage"><div className="row"><Gift/><div><h3>Túi giống</h3><p className="muted">Mỗi lần gieo tiêu thụ 1 hạt.</p></div></div><div className="garden-seed-inventory">{seeds.map(x=><article key={x.seed_key}><span><b>{x.name}</b><small>{x.botanical_name}</small></span><strong>×{x.quantity}</strong></article>)}{!seeds.length&&<p className="muted">Túi giống đang trống. Tiếp tục chăm cây để nhận thưởng.</p>}</div></section>
     <section className="panel garden-pro-storage"><div className="row"><PackageOpen/><div><h3>Kho dược thảo</h3><p className="muted">Dược liệu đã thu hoạch; phục vụ học tập, không phải hướng dẫn tự điều trị.</p></div></div><div className="garden-v3-inventory">{inventory.map(x=><article key={x.seed_key}><span><b>{x.name}</b><small>{x.botanical_name}</small></span><strong>×{x.quantity}</strong></article>)}{!inventory.length&&<p className="muted">Kho đang trống.</p>}</div></section>

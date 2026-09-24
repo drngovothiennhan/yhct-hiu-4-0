@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const read=(path)=>fs.readFileSync(path,'utf8');
 const migrationPath='supabase/migrations/202609091930_garden_care_engine_v7_and_constraint_repair.sql';
 const migration=read(migrationPath);
+const harvestMigration=read('supabase/migrations/20260924051021_garden_harvest_grace_24h_and_receipt_guard_v1.sql');
 const facade=read('src/components/game/HerbGardenGame.tsx');
 const game=read('src/components/game/HerbGardenGameV7.tsx');
 
@@ -26,6 +27,9 @@ const checks=[
   ['UI uses structured fertilizer v4',game.includes("fertilize:'herb_garden_fertilize_v4'")],
   ['UI presents one 72-hour care timeline',game.includes('Lịch chăm 72 giờ')&&game.includes('Chăm chung cùng tiến độ')],
   ['UI shows twelve water and three fertilizer markers',game.includes('total={12}')&&game.includes('total={3}')],
+  ['harvest grace is 24 hours without changing the 72-hour care cycle',harvestMigration.includes("matures_at + interval '24 hours'")&&harvestMigration.includes("now()+interval '3 days',now()+interval '4 days'")],
+  ['harvest UI requires a server receipt',game.includes('Thu hoạch chưa được máy chủ xác nhận đầy đủ')&&!game.includes('r.credits_reward||3')&&!game.includes('r.seed_reward||1')],
+  ['plot unlock progress is explicit',game.includes('pendingFirstHarvests')&&game.includes('mỗi ô mới thu hoạch lần đầu sẽ mở tiếp 1 ô')],
   ['professional game stylesheet is loaded by lazy Garden facade',facade.includes("import '../../garden-professional-v7.css';")],
 ];
 
