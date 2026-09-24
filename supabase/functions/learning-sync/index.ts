@@ -159,6 +159,7 @@ Deno.serve(async(req:Request)=>{
       const snapshot=JSON.parse(new TextDecoder().decode(plain))
       return json(req,{
         ...base,
+        hasSync:true,
         snapshot,
         snapshotMeta:{
           clientUpdatedAt:stored.client_updated_at,
