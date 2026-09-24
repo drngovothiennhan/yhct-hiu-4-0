@@ -83,7 +83,7 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
   const [reviewCards,setReviewCards]=useState<ReviewCard[]>(()=>readReviewCards(memberId));
   const [activeSubjects,setActiveSubjects]=useState<string[]>([]);
   const [missionEditing,setMissionEditing]=useState(false);
-  const name=member?.herbalAlias||member?.fullName?.split(/\s+/).filter(Boolean).slice(-2).join(' ')||'bạn';
+  const name=member?.fullName?.trim()||member?.herbalAlias?.trim()||'bạn';
   const focus=journey.preferences?.focus||'kiến thức YHCT';
   const dailyMinutes=journey.preferences?.dailyMinutes||20;
   const dateKey=localDateKey();
