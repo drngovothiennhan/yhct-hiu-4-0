@@ -1,15 +1,17 @@
 # HIU YHCT 4.0 — Execution State
 
 Updated: 2026-09-12
-Active branch: `hiu-phase12-final-qa-20260912`
-Base production-verified runtime main: `cfebcb84b85db629660b482cf524896dbd7fbb9c`
+Execution baseline branch: `main`
+Production-verified runtime baseline: `81a44f27846bccaaa69e6bfe7924c349badc83d0`
 Production project: `yhct-hiu-final4-stage`
 Primary production alias: `yhct-hiu-final4-stage.vercel.app`
 Supabase production: `gzmpnsrwqjpsbklyflqr` — ACTIVE_HEALTHY
 
 ## Current phase
 
-PHASE 12 — final multi-viewport QA and production verification. Phase 11 performance work is closed after measured B1/B2/B3 releases; do not reopen it without a new measured bottleneck with clear ownership and a bounded safe batch.
+PHASE 12 — DONE / PRODUCTION VERIFIED.
+
+Phase 11 performance work is closed after measured B1/B2/B3 releases. Phase 12 final multi-viewport QA and exact-SHA production verification completed successfully. Do not reopen Phase 11 or introduce another optimization batch without a new measured bottleneck, clear ownership and a bounded safe change.
 
 ## DO_NOT_BREAK
 
@@ -80,7 +82,7 @@ Shipped behavior:
 - `manualChunks` now keeps only true vendor families: React, Supabase, icons and documents.
 - Application route boundaries are native `React.lazy()` chunks.
 - `scripts/performance-chunk-boundary-check.mjs` verifies source and built `dist/index.html`.
-- Initial HTML now preloads only React + Supabase + icons; `vendor-documents` remains lazy.
+- Initial HTML preloads only React + Supabase + icons; `vendor-documents` remains lazy.
 - Initial CSS baseline after B1: `271,767` raw / `46,951` gzip bytes.
 
 Release:
@@ -88,7 +90,6 @@ Release:
 - Production main `d0380e4e087d71db511940e9ecbe0da1bba35fd6`; main Web CI `#641`: FULL PASS.
 - Vercel Production `#526`: PASS.
 - Deployment `dpl_BR8Bhebd3RsyQ1svaksZoDpyCz1b`: READY, exact SHA, primary alias, `aliasError=null`, live Chrome/evidence PASS.
-- Direct production HTML check confirms exactly three initial modulepreloads: vendor React, Supabase and icons.
 
 ## PHASE 11 B2 — GARDEN / HIU Y QUÁN CSS CRITICAL PATH — DONE / PRODUCTION VERIFIED
 
@@ -96,7 +97,6 @@ Shipped behavior:
 - Removed eight Garden/HIU Y Quán module-specific stylesheets from `src/main.tsx` global entry.
 - Attached the same stylesheets, in preserved cascade order, to lazy `HerbGardenGame.tsx`.
 - No game logic, data, RPC, scoring, progression, RBAC or module contract change.
-- Performance regression requires Garden/Y Quán selectors to remain absent from initial CSS and present in non-initial lazy CSS assets.
 
 Measured production result:
 - Initial CSS: `202,932` raw / `34,292` gzip bytes.
@@ -113,7 +113,7 @@ Release:
 
 Evidence before change:
 - `src/research-ai-upgrade.css` carried ~17.2 kB of Research-only visual payload while being imported from the application entry.
-- `ResearchCenter` was already a `React.lazy()` route, so the CSS ownership boundary was measurable and isolated.
+- `ResearchCenter` was already a `React.lazy()` route, giving the CSS a measurable isolated ownership boundary.
 
 Shipped behavior:
 - Kept the legacy entry marker payload-free for compatibility.
@@ -124,8 +124,8 @@ Shipped behavior:
 Measured production result:
 - Initial CSS reduced from B2 `202.93 kB / 34.29 kB gzip` to `185.97 kB / 31.60 kB gzip`.
 - Research lazy CSS is `20.31 kB / 4.20 kB gzip`.
-- Initial JS remains stable: app entry `56.73 / 20.27 kB`, icons `52.45 / 10.87 kB`, Supabase `124.40 / 34.35 kB`, React `142.94 / 45.89 kB` raw/gzip.
-- Initial HTML remains `4.33 / 1.80 kB` raw/gzip and directly preloads only React + Supabase + icons.
+- Initial JS remained stable: app entry `56.73 / 20.27 kB`, icons `52.45 / 10.87 kB`, Supabase `124.40 / 34.35 kB`, React `142.94 / 45.89 kB` raw/gzip.
+- Initial HTML remained `4.33 / 1.80 kB` raw/gzip and directly preloads only React + Supabase + icons.
 - Approximate initial directly referenced payload after B3 is ~`144.78 kB gzip` including HTML, CSS and initial/preloaded JS.
 
 Release:
@@ -134,7 +134,6 @@ Release:
 - Vercel Production `#535`: PASS.
 - Deployment `dpl_DJqwnhuiihEcTGXkLLtSWQWa6hKT`: READY, exact SHA, primary alias, `aliasError=null`.
 - Live Google Chrome production smoke passed on `390x844` mobile and `1440x1000` desktop.
-- Direct primary-alias HTML verification confirms exactly three initial modulepreloads: React, Supabase and icons, with `index-JQfc_xaH.css` as the sole initial stylesheet.
 
 ## PHASE 11 CLOSURE — MEASURED AUDIT
 
@@ -143,26 +142,28 @@ Release:
 - B3 removed the next clear, safely owned Research-only visual payload from initial CSS.
 - Remaining entry CSS is predominantly default-feed, shell, theme, viewport and shared compatibility styling used on first render or across modules.
 - The default `/feed` route intentionally mounts both `StudentHome` and `AcademicFeed`, so feed/community CSS is not an off-route payload at boot.
-- Remaining clearly route-specific entry styles are either small (for example `exam-v2.css` is ~1.38 kB source) or mixed/shared; no further Phase 11 batch is justified without new measured evidence.
-- PHASE 11 is therefore CLOSED. Do not optimize further by filename or intuition alone.
+- Remaining clearly route-specific entry styles are small or mixed/shared; no further Phase 11 batch is justified without new measured evidence.
+- PHASE 11 is CLOSED. Do not optimize further by filename or intuition alone.
 
-## PHASE 12 — FINAL MULTI-VIEWPORT QA + PRODUCTION VERIFICATION — ACTIVE
+## PHASE 12 — FINAL MULTI-VIEWPORT QA + PRODUCTION VERIFICATION — DONE / PRODUCTION VERIFIED
 
-Release objective:
-- No feature/refactor scope. This phase verifies the production state and records the final checkpoint.
-- Existing Web CI remains authoritative for build, contracts, real Chrome regression and viewport matrix.
-- Existing Vercel Production workflow remains authoritative for exact-CI-SHA deployment, READY state, primary alias binding and live Chrome production smoke.
+Scope:
+- Verification/checkpoint only. No feature refactor, business logic, RBAC, data, quiz approval, AI contract or game progression change.
+- Added `scripts/phase12-final-qa-check.mjs` so the state checkpoint itself cannot bypass full Web CI merely because documentation paths are normally ignored.
 
-Final gates:
-1. Full PR Web CI PASS on the Phase 12 checkpoint branch.
-2. Merge only after PR PASS; record exact merge SHA.
-3. Full main Web CI PASS on that exact merge SHA.
-4. Vercel Production must deploy that exact SHA, reach READY, bind `yhct-hiu-final4-stage.vercel.app`, and report `aliasError=null`.
-5. Live Google Chrome production smoke must pass on mobile `390x844` and desktop `1440x1000`.
-6. Confirm initial modulepreload remains React + Supabase + icons and no performance boundary regresses.
-7. No business logic, RBAC, data, quiz approval, AI contracts or game progression changes are permitted in Phase 12.
+Release evidence:
+- PR `#91`, exact head `7b3c5ca849ebf6c35f63d7fb70b017394af1aa33`.
+- PR Web CI `#652`: FULL PASS, including Phase 12 QA contract, build, performance-dist regression, mobile shell, real Google Chrome, rendered-content contract and adaptive viewport matrix.
+- Squash merge main `81a44f27846bccaaa69e6bfe7924c349badc83d0`.
+- Main Web CI `#653` on exact merge SHA: FULL PASS with the same Chrome/viewport gates.
+- Vercel Production `#538` on exact merge SHA: PASS.
+- Deployment `dpl_5aySZJpsBt2B1bzQJLfi3374UHQf`: READY, production target, primary alias bound, `aliasError=null`.
+- Live Google Chrome production smoke: PASS after exact deployment readiness/alias binding.
+- Primary alias direct HTML verification: HTTP 200; initial modulepreload remains exactly React + Supabase + icons; sole initial stylesheet remains `index-JQfc_xaH.css`.
+- Runtime asset hashes remain unchanged from B3 because Phase 12 changed only execution-state/QA wiring.
 
-## Remaining
+## Next execution rule
 
-- Complete the Phase 12 checkpoint PR through all release gates above.
-- After exact-SHA production and live Chrome verification, mark PHASE 12 DONE / PRODUCTION VERIFIED and use that main SHA as the next execution baseline.
+- Treat `81a44f27846bccaaa69e6bfe7924c349badc83d0` as the production-verified runtime baseline for subsequent feature work.
+- This final state-only checkpoint may advance repository/deployment SHA while leaving runtime assets identical; read repository `main` plus the exact-SHA release workflow for the authoritative checkpoint commit.
+- Start a new phase only from an explicitly scoped objective with measured evidence. Preserve all DO_NOT_BREAK contracts above.
