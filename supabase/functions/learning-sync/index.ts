@@ -49,18 +49,36 @@ function toBase64(bytes:Uint8Array){
   for(let i=0;i<bytes.length;i+=chunk)binary+=String.fromCharCode(...bytes.subarray(i,i+chunk))
   return btoa(binary)
 }
+function fromBase64(value:string){
+  const binary=atob(value)
+  const bytes=new Uint8Array(binary.length)
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i)
+  return bytes
+}
 function toHex(bytes:Uint8Array){return [...bytes].map(x=>x.toString(16).padStart(2,'0')).join('')}
 async function gzip(bytes:Uint8Array){
   const source=new Blob([bytes]).stream()
   const compressed=source.pipeThrough(new CompressionStream('gzip'))
   return new Uint8Array(await new Response(compressed).arrayBuffer())
 }
-async function encryptForMember(memberId:string,plain:Uint8Array){
+async function memberKey(memberId:string,usage:KeyUsage[]){
   const material=new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(`${SECRET_KEY}:learning-sync:v1:${memberId}`)))
-  const key=await crypto.subtle.importKey('raw',material,{name:'AES-GCM'},false,['encrypt'])
+  return crypto.subtle.importKey('raw',material,{name:'AES-GCM'},false,usage)
+}
+async function encryptForMember(memberId:string,plain:Uint8Array){
+  const key=await memberKey(memberId,['encrypt'])
   const iv=crypto.getRandomValues(new Uint8Array(12))
   const encrypted=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,plain))
   return{encrypted,iv}
+}
+async function decryptForMember(memberId:string,ciphertext:Uint8Array,iv:Uint8Array){
+  const key=await memberKey(memberId,['decrypt'])
+  return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv},key,ciphertext))
+}
+async function gunzip(bytes:Uint8Array){
+  const source=new Blob([bytes]).stream()
+  const plain=source.pipeThrough(new DecompressionStream('gzip'))
+  return new Uint8Array(await new Response(plain).arrayBuffer())
 }
 function boundedInt(value:unknown,min:number,max:number,fallback=0){
   const n=Math.floor(Number(value))
@@ -109,7 +127,7 @@ Deno.serve(async(req:Request)=>{
         .eq('member_id',member.id)
         .maybeSingle()
       if(statsReadError)throw statsReadError
-      return json(req,{
+      const base={
         ok:true,
         hasSync:Boolean(stats),
         stats:stats?{
@@ -124,6 +142,31 @@ Deno.serve(async(req:Request)=>{
           reviewCardCount:stats.review_card_count,
           sourceVersion:stats.source_version
         }:null
+      }
+      if(new URL(req.url).searchParams.get('snapshot')!=='1')return json(req,base)
+      const {data:stored,error:snapshotReadError}=await admin.from('learning_sync_snapshots')
+        .select('payload_ciphertext,iv_base64,checksum_sha256,client_updated_at,updated_at,schema_version,source_version')
+        .eq('member_id',member.id)
+        .order('updated_at',{ascending:false})
+        .limit(1)
+        .maybeSingle()
+      if(snapshotReadError)throw snapshotReadError
+      if(!stored)return json(req,{...base,snapshot:null,snapshotMeta:null})
+      const compressed=await decryptForMember(member.id,fromBase64(stored.payload_ciphertext),fromBase64(stored.iv_base64))
+      const checksum=toHex(new Uint8Array(await crypto.subtle.digest('SHA-256',compressed)))
+      if(checksum!==stored.checksum_sha256)throw new Error('Learning snapshot checksum mismatch')
+      const plain=await gunzip(compressed)
+      const snapshot=JSON.parse(new TextDecoder().decode(plain))
+      return json(req,{
+        ...base,
+        snapshot,
+        snapshotMeta:{
+          clientUpdatedAt:stored.client_updated_at,
+          updatedAt:stored.updated_at,
+          checksum:stored.checksum_sha256,
+          schemaVersion:stored.schema_version,
+          sourceVersion:stored.source_version
+        }
       })
     }
 
@@ -145,6 +188,21 @@ Deno.serve(async(req:Request)=>{
     const sourceVersion=String(body.sourceVersion||'study-os-web').slice(0,120)
     const clientUpdatedAtRaw=String(body.clientUpdatedAt||j.updatedAt||'')
     const clientUpdatedAt=Number.isNaN(Date.parse(clientUpdatedAtRaw))?null:new Date(clientUpdatedAtRaw).toISOString()
+
+    if(clientUpdatedAt){
+      const {data:latest,error:latestError}=await admin.from('learning_sync_snapshots')
+        .select('client_updated_at,updated_at,checksum_sha256')
+        .eq('member_id',member.id)
+        .order('updated_at',{ascending:false})
+        .limit(1)
+        .maybeSingle()
+      if(latestError)throw latestError
+      const latestClient=latest?.client_updated_at?Date.parse(latest.client_updated_at):0
+      const incomingClient=Date.parse(clientUpdatedAt)
+      if(latestClient&&incomingClient<latestClient){
+        return json(req,{ok:true,staleIgnored:true,checksum:latest?.checksum_sha256||null,syncedAt:latest?.updated_at||null})
+      }
+    }
 
     const snapshotRow={
       member_id:member.id,
