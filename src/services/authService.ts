@@ -8,6 +8,37 @@ export const SUPABASE_URL=url;
 export const SUPABASE_PUBLISHABLE_KEY=anon;
 export const supabase=createClient(url,anon,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 
+const ECOSYSTEM_HOME_URL='https://hiutmc.com/';
+const ECOSYSTEM_SSO_FLAG='ecosystem_sso';
+
+export async function consumeEcosystemSsoBridge():Promise<boolean>{
+  if(typeof window==='undefined'||!window.location.hash)return false;
+  const params=new URLSearchParams(window.location.hash.slice(1));
+  if(params.get(ECOSYSTEM_SSO_FLAG)!=='1')return false;
+  const accessToken=String(params.get('access_token')||''),refreshToken=String(params.get('refresh_token')||'');
+  window.history.replaceState(null,'',window.location.pathname+window.location.search);
+  if(accessToken.length<40||refreshToken.length<20)throw new Error('Phiên đồng bộ từ HIU YHCT Ecosystem không hợp lệ.');
+  const {error}=await supabase.auth.setSession({access_token:accessToken,refresh_token:refreshToken});
+  if(error)throw error;
+  return true;
+}
+
+export async function openEcosystemHomeWithSession():Promise<void>{
+  const target=new URL(ECOSYSTEM_HOME_URL);
+  try{
+    const {data:{session}}=await supabase.auth.getSession();
+    if(session?.access_token&&session?.refresh_token){
+      const fragment=new URLSearchParams({
+        [ECOSYSTEM_SSO_FLAG]:'1',
+        access_token:session.access_token,
+        refresh_token:session.refresh_token,
+      });
+      target.hash=fragment.toString();
+    }
+  }catch{}
+  window.location.assign(target.toString());
+}
+
 const ref=(()=>{try{return new URL(url).hostname.split('.')[0]}catch{return ''}})();
 const authKey=`sb-${ref}-auth-token`;
 const memberCacheKey='yhct-member-session-cache-v2';
