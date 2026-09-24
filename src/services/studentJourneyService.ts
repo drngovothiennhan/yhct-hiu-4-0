@@ -79,6 +79,19 @@ function withActivity(state:StudentJourney){
   return{...state,lastActiveDate:today,streak,todayDate:today,todayQuestions:state.todayDate===today?state.todayQuestions:0};
 }
 
+
+export function hasMeaningfulStudentJourney(state:StudentJourney){
+  return Boolean(
+    state.preferences||state.onboardedAt||state.lastActiveDate||state.streak>0||state.todayQuestions>0||state.xp>0||
+    Object.keys(state.moduleVisits||{}).length||state.lastModule||state.examAttempts>0||state.lastExamScore!==undefined||state.aiUses>0
+  );
+}
+
+export function restoreStudentJourney(memberId:string,remote:unknown){
+  if(!memberId||!remote||typeof remote!=='object'||Array.isArray(remote))return null;
+  return persist(memberId,normalize(remote as Partial<StudentJourney>));
+}
+
 export function saveStudentPreferences(preferences:StudentPreferences,memberId?:string|null){
   const state=withActivity(readStudentJourney(memberId));
   return persist(memberId,{...state,preferences,onboardedAt:state.onboardedAt||nowIso(),xp:state.xp+(state.preferences?0:5)});
