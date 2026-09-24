@@ -56,9 +56,9 @@ const CONCEPT_ALIASES=new Map(Object.entries({
   'gradient ap suat rieng phan':['gradient phan ap','chenh lech phan ap','chenh lech ap suat rieng','gradient ap suat rieng','phan ap o2','phan ap co2'],
   'chenh lech phan ap':['gradient phan ap','phan ap o2','phan ap co2','ap suat rieng phan o2','ap suat rieng phan co2'],
   'gradient phan ap':['chenh lech phan ap','phan ap o2','phan ap co2','ap suat rieng phan o2','ap suat rieng phan co2'],
-  'te bao bieu mo phe nang type i':['phe bao type i','phe bao i','pneumocyte i','te bao phe nang loai i'],
-  'pneumocyte type i':['phe bao type i','phe bao i','pneumocyte i','te bao phe nang loai i'],
-  'te bao phe nang type i':['phe bao type i','phe bao i','pneumocyte i','te bao phe nang loai i'],
+  'te bao bieu mo phe nang type i':['phe bao type i','phe bao i','pneumocyte i','te bao phe nang loai i','bieu mo phe nang det','te bao bieu mo phe nang det'],
+  'pneumocyte type i':['phe bao type i','phe bao i','pneumocyte i','te bao phe nang loai i','bieu mo phe nang det','te bao bieu mo phe nang det'],
+  'te bao phe nang type i':['phe bao type i','phe bao i','pneumocyte i','te bao phe nang loai i','bieu mo phe nang det','te bao bieu mo phe nang det'],
   'thong huyet':['nhiep huyet','giu huyet trong mach'],
   'bang chung':['kiem chung khach quan','du lieu lam sang','chung minh lam sang'],
   'nghien cuu lam sang':['du lieu lam sang','kiem chung lam sang','chung minh lam sang'],
@@ -67,7 +67,8 @@ const CONCEPT_ALIASES=new Map(Object.entries({
   'renal plasma flow':['luu luong huyet tuong than','huyet tuong qua than','effective renal plasma flow','erpf'],
   'erpf':['effective renal plasma flow','renal plasma flow','luu luong huyet tuong than','huyet tuong qua than'],
   'he than kinh ngoai bien':['he than kinh ngoai vi','pns'],
-  'rung trung':['phong noan','ovulation']
+  'rung trung':['phong noan','ovulation'],
+  'lh':['luteinizing hormone','hormone luteinizing']
 }));
 
 const RUNTIME_GUIDANCE={
@@ -131,7 +132,9 @@ function validateScoringContract(){
   const yhctBoundary=scoreCase({expectedRoute:'study',mustIncludeAny:[['lý luận yhct','khái niệm yhct'],['không đồng nhất','không tương đương','khác với y học hiện đại']],mustNotIncludeAny:[],citationRequired:false},{answer:'Theo lý luận Y học cổ truyền, Thận khai khiếu ra tai là một khái niệm YHCT và không đồng nhất với cơ chế bệnh thận theo y học hiện đại.'});
   const neuroSynonym=scoreCase({expectedRoute:'study',mustIncludeAny:[['hệ thần kinh ngoại biên','pns']],mustNotIncludeAny:[],citationRequired:false},{answer:'Schwann cell tạo myelin trong hệ thần kinh ngoại vi.'});
   const ovulationSynonym=scoreCase({expectedRoute:'study',mustIncludeAny:[['rụng trứng','ovulation']],mustNotIncludeAny:[],citationRequired:false},{answer:'Đỉnh LH kích hoạt quá trình phóng noãn.'});
-  if(!safe.conceptPass||unsafe.conceptPass||!gi.conceptPass||!diagnosis.conceptPass||!yhctBoundary.conceptPass||!neuroSynonym.conceptPass||!ovulationSynonym.conceptPass){fail('semantic scorer regression');return false}ok('semantic scorer contract passed');return true;
+  const histologyFlatEpithelium=scoreCase({expectedRoute:'study',mustIncludeAny:[['tế bào biểu mô phế nang type i','pneumocyte type i'],['màng đáy'],['nội mô mao mạch']],mustNotIncludeAny:[],citationRequired:false},{answer:'Hàng rào khí-máu gồm biểu mô phế nang dẹt, màng đáy và nội mô mao mạch.'});
+  const lhFullName=scoreCase({expectedRoute:'study',mustIncludeAny:[['lh'],['rụng trứng','ovulation']],mustNotIncludeAny:[],citationRequired:false},{answer:'Đỉnh Luteinizing Hormone giữa chu kỳ kích hoạt trực tiếp quá trình rụng trứng.'});
+  if(!safe.conceptPass||unsafe.conceptPass||!gi.conceptPass||!diagnosis.conceptPass||!yhctBoundary.conceptPass||!neuroSynonym.conceptPass||!ovulationSynonym.conceptPass||!histologyFlatEpithelium.conceptPass||!lhFullName.conceptPass){fail('semantic scorer regression');return false}ok('semantic scorer contract passed');return true;
 }
 
 const requestBody=(item,index)=>{const guidance=RUNTIME_GUIDANCE[item.id];return JSON.stringify({mode:'study',query:`${String(item.runtimePrompt||item.prompt)}${guidance?`\n\nYêu cầu độ chính xác cho kiểm định: ${guidance}`:''}`,conversationContext:'',pageContext:'AI Golden Medical Eval',variationMode:index%6})};
