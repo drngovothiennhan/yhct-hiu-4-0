@@ -5,6 +5,8 @@ const SUPABASE_URL=String(process.env.VITE_SUPABASE_URL||'https://gzmpnsrwqjpsbk
 const MAX_PDF_BYTES=48*1024*1024;
 const MAX_RANGE_BYTES=8*1024*1024;
 const allowedOrigins=new Set(['https://hiutmc.com','https://www.hiutmc.com']);
+let cachedDriveToken='';
+let cachedDriveTokenExpiresAt=0;
 
 const clean=(value,max=300)=>String(value??'').replace(/[\\u0000-\\u001f\\u007f]/g,'').replace(/\\s+/g,' ').trim().slice(0,max);
 const b64url=value=>Buffer.from(typeof value==='string'?value:JSON.stringify(value)).toString('base64url');
@@ -19,11 +21,13 @@ function driveServiceAccount(){
 }
 
 async function driveAccessToken(){
+  const now=Date.now();
+  if(cachedDriveToken&&cachedDriveTokenExpiresAt>now+30000)return cachedDriveToken;
   const account=driveServiceAccount();
   if(!account)throw new Error('Drive reader is not configured');
-  const now=Math.floor(Date.now()/1000);
+  const issuedAt=Math.floor(now/1000);
   const header=b64url({alg:'RS256',typ:'JWT'});
-  const claims=b64url({iss:account.email,scope:'https://www.googleapis.com/auth/drive.readonly',aud:'https://oauth2.googleapis.com/token',iat:now,exp:now+300});
+  const claims=b64url({iss:account.email,scope:'https://www.googleapis.com/auth/drive.readonly',aud:'https://oauth2.googleapis.com/token',iat:issuedAt,exp:issuedAt+300});
   const unsigned=header+'.'+claims;
   const signer=createSign('RSA-SHA256');signer.update(unsigned);signer.end();
   const response=await fetch('https://oauth2.googleapis.com/token',{
@@ -36,11 +40,16 @@ async function driveAccessToken(){
   const body=await response.json();
   const token=String(body?.access_token||'');
   if(!token)throw new Error('Drive authorization returned no token');
+  cachedDriveToken=token;
+  cachedDriveTokenExpiresAt=now+Math.min(240000,Math.max(60000,(Number(body?.expires_in)||300)*1000));
   return token;
 }
 
-async function driveRequest(path,token,headers={}){
-  return fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(path),{
+async function driveRequest(path,token,headers={},media=false){
+  const url=new URL('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(path));
+  url.searchParams.set('supportsAllDrives','true');
+  if(media)url.searchParams.set('alt','media');
+  return fetch(url,{
     headers:{authorization:'Bearer '+token,...headers},
     signal:AbortSignal.timeout(15000)
   });
@@ -117,7 +126,7 @@ export async function serveProtectedLearningResource(req,res){
     const range=parseRange(req.headers?.range,size);
     if(range===false)return res.status(416).setHeader('Content-Range','bytes */'+size).end();
     const headers=range?{range:'bytes='+range.start+'-'+range.end}:{};
-    const contentResponse=await driveRequest(source.sourceLocator,token,headers);
+    const contentResponse=await driveRequest(source.sourceLocator,token,headers,true);
     if(contentResponse.status!==200&&contentResponse.status!==206)return res.status(502).json({ok:false,error:'PDF content is temporarily unavailable'});
     const bytes=Buffer.from(await contentResponse.arrayBuffer());
     const expected=range?range.end-range.start+1:size;
