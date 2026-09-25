@@ -33,6 +33,7 @@ export const MODULE_ORDER:ModuleId[]=['feed','ai','research','profile','garden',
 export const PUBLIC_MODULES=new Set<ModuleId>(MODULE_ORDER.filter(id=>!MODULES[id].memberOnly));
 export const PATH_TO_MODULE=new Map<string,ModuleId>(MODULE_ORDER.map(id=>[MODULES[id].path,id]));
 
-export function normalizeModulePath(pathname:string){const value=pathname.replace(/\/+$/,'')||'/';return value.startsWith('/')?value:`/${value}`}
+const HIUTMC_GATEWAY_PREFIX='/apps/study';
+export function normalizeModulePath(pathname:string){const raw=pathname.startsWith(HIUTMC_GATEWAY_PREFIX)?pathname.slice(HIUTMC_GATEWAY_PREFIX.length)||'/':pathname;const value=raw.replace(/\/+$/,'')||'/';return value.startsWith('/')?value:`/${value}`}
 export function moduleFromPath(pathname:string):ModuleId{const path=normalizeModulePath(pathname);if(path==='/messages')return'profile';return PATH_TO_MODULE.get(path)||'feed'}
 export function modulePath(id:ModuleId){return MODULES[id].path}
