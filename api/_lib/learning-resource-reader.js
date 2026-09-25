@@ -1,5 +1,5 @@
 import {createSign} from 'node:crypto';
-import {memberAccess} from '../_lib/member-access.js';
+import {memberAccess} from './member-access.js';
 
 const SUPABASE_URL=String(process.env.VITE_SUPABASE_URL||'https://gzmpnsrwqjpsbklyflqr.supabase.co').trim();
 const MAX_PDF_BYTES=48*1024*1024;
@@ -8,14 +8,14 @@ const allowedOrigins=new Set(['https://hiutmc.com','https://www.hiutmc.com']);
 let cachedDriveToken='';
 let cachedDriveTokenExpiresAt=0;
 
-const clean=(value,max=300)=>String(value??'').replace(/[\\u0000-\\u001f\\u007f]/g,'').replace(/\\s+/g,' ').trim().slice(0,max);
+const clean=(value,max=300)=>String(value??'').replace(/[\u0000-\u001f\u007f]/g,'').replace(/\s+/g,' ').trim().slice(0,max);
 const b64url=value=>Buffer.from(typeof value==='string'?value:JSON.stringify(value)).toString('base64url');
 
 function driveServiceAccount(){
   try{
     const value=JSON.parse(String(process.env.GOOGLE_SERVICE_ACCOUNT_JSON||''));
     const email=clean(value?.client_email,320);
-    const key=String(value?.private_key||'').replace(/\\\\n/g,'\\n');
+    const key=String(value?.private_key||'').replace(/\\n/g,'\n');
     return email&&key?{email,key}:null;
   }catch{return null}
 }
@@ -45,19 +45,16 @@ async function driveAccessToken(){
   return token;
 }
 
-async function driveRequest(path,token,headers={},media=false){
-  const url=new URL('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(path));
+async function driveRequest(fileId,token,headers={},media=false){
+  const url=new URL('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(fileId));
   url.searchParams.set('supportsAllDrives','true');
   if(media)url.searchParams.set('alt','media');
-  return fetch(url,{
-    headers:{authorization:'Bearer '+token,...headers},
-    signal:AbortSignal.timeout(15000)
-  });
+  return fetch(url,{headers:{authorization:'Bearer '+token,...headers},signal:AbortSignal.timeout(15000)});
 }
 
 function parseRange(raw,size){
   if(!raw)return null;
-  const match=/^bytes=(\\d*)-(\\d*)$/.exec(String(raw).trim());
+  const match=/^bytes=(\d*)-(\d*)$/.exec(String(raw).trim());
   if(!match||(!match[1]&&!match[2]))return false;
   let start,end;
   if(!match[1]){
@@ -124,7 +121,10 @@ export async function serveProtectedLearningResource(req,res){
       return res.status(415).json({ok:false,error:'PDF is unavailable or exceeds the reader limit'});
     }
     const range=parseRange(req.headers?.range,size);
-    if(range===false)return res.status(416).setHeader('Content-Range','bytes */'+size).end();
+    if(range===false){
+      res.setHeader('Content-Range','bytes */'+size);
+      return res.status(416).end();
+    }
     const headers=range?{range:'bytes='+range.start+'-'+range.end}:{};
     const contentResponse=await driveRequest(source.sourceLocator,token,headers,true);
     if(contentResponse.status!==200&&contentResponse.status!==206)return res.status(502).json({ok:false,error:'PDF content is temporarily unavailable'});
