@@ -1,5 +1,6 @@
 import {getLearningResource,listLearningResources,publishLearningResource,upsertLearningResource} from '../_lib/knowledge-gateway.js';
 import {retrievePublicResearchEvidence} from '../_lib/public-medical-evidence.js';
+import {serveProtectedLearningResource} from '../_lib/learning-resource-reader.js';
 
 const send=(res,result)=>res.status(result.status||500).json(result.ok?{ok:true,data:result.data}:{ok:false,error:result.error||'Request failed'});
 const actionOf=req=>String(req.query?.action||req.body?.action||'').trim().toLowerCase();
@@ -8,8 +9,19 @@ const clean=value=>String(value||'').replace(/\s+/g,' ').trim().slice(0,500);
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');
   res.setHeader('X-Content-Type-Options','nosniff');
-  res.setHeader('Vary','Authorization');
+  res.setHeader('Vary','Authorization, Origin');
+  const origin=String(req.headers?.origin||'');
+  if(origin==='https://hiutmc.com'||origin==='https://www.hiutmc.com'){
+    res.setHeader('Access-Control-Allow-Origin',origin);
+    res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers','Authorization, Content-Type, Range');
+    res.setHeader('Access-Control-Expose-Headers','Accept-Ranges, Content-Length, Content-Range, Content-Type');
+    res.setHeader('Access-Control-Max-Age','600');
+  }
+  if(req.method==='OPTIONS')return res.status(204).end();
   const action=actionOf(req);
+
+  if(req.method==='GET'&&action==='reader')return serveProtectedLearningResource(req,res);
 
   if(req.method==='GET'){
     if(action==='get')return send(res,await getLearningResource(req,req.query?.key));
