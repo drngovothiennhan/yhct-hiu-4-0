@@ -8,6 +8,8 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 const LOGIN_ID=/^[A-Z0-9][A-Z0-9._-]{3,31}$/
 const allowedOrigins=new Set([
   'https://yhct-hiu-4-0.vercel.app',
+  'https://hiutmc.com',
+  'https://www.hiutmc.com',
   'https://yhct-hiu-4-0-hiu-yhct.vercel.app',
   'https://yhct-hiu-final4-stage.vercel.app',
   'https://yhct-hiu-final4-stage-hiu-yhct.vercel.app',
