@@ -22,11 +22,13 @@ if(!schema.includes("'0 1 * * *'"))fail.push('daily 08:00 Vietnam cron missing')
 const source={id:'source-1',stem:'Nội dung học tập có bốn lựa chọn.',options:['Đáp án A','Đáp án B','Đáp án C','Đáp án D'],correctIndex:1,explanation:'Giải thích nguyên văn từ tài liệu đã duyệt.'};
 const valid={sourceQuestionId:'source-1',stem:'Theo nội dung học tập có bốn lựa chọn, chọn phương án đúng.',options:source.options,correctAnswer:'Đáp án B',explanation:source.explanation,evidenceQuote:'Nội dung học tập'};
 if(validateDailyReviewQuestions([valid],[source]).length!==1)fail.push('valid source-backed item should pass');
-if(validateDailyReviewQuestions([{...valid,correctAnswer:'Đáp án tự tạo'}],[source]).length!==0)fail.push('invented answer was not rejected');
-if(validateDailyReviewQuestions([{...valid,options:['A','B','C','D']}],[source]).length!==0)fail.push('non-source options were not rejected');
-if(validateDailyReviewQuestions([{...valid,evidenceQuote:'không có trong nguồn'}],[source]).length!==0)fail.push('missing evidence quote was not rejected');
-if(validateDailyReviewQuestions([{...valid,sourceQuestionId:'missing'}],[source]).length!==0)fail.push('question without a source FK target was not rejected');
-if(validateDailyReviewQuestionsDetailed([{...valid,correctAnswer:'Đáp án tự tạo'}],[source]).rejections.answer_mismatch!==1)fail.push('source validation diagnostic must identify only the failure category');
+const canonicalized=validateDailyReviewQuestionsDetailed([{...valid,stem:'Một câu bịa không có từ khóa nguồn',options:['A','B','C','D'],correctAnswer:'Đáp án tự tạo',explanation:'Giải thích tự tạo',evidenceQuote:'không có trong nguồn'}],[source]);
+if(canonicalized.accepted.length!==1)fail.push('unusable model stem must fall back to the approved source question');
+if(canonicalized.accepted[0]?.stem!==source.stem||canonicalized.accepted[0]?.options.join('|')!==source.options.join('|')||canonicalized.accepted[0]?.correctAnswer!=='Đáp án B'||canonicalized.accepted[0]?.explanation!==source.explanation||canonicalized.accepted[0]?.evidenceQuote!==source.explanation)fail.push('fallback quiz fields must come only from the approved source');
+if(validateDailyReviewQuestions([], [source])[0]?.stem!==source.stem)fail.push('missing AI candidate must fall back to the source question');
+const unknownSource=validateDailyReviewQuestionsDetailed([{...valid,sourceQuestionId:'missing'}],[source]);
+if(unknownSource.accepted.length!==1||unknownSource.accepted[0]?.sourceQuestionId!=='source-1'||unknownSource.rejections.unknown_source_id!==1)fail.push('unknown source ID must be rejected and replaced only by a valid source question');
+if(validateDailyReviewQuestionsDetailed([{...valid,stem:'x',evidenceQuote:'không có trong nguồn'}],[source]).fallbackCount!==1)fail.push('unsafe generated wording must be replaced by the approved source stem');
 const counts=Array.from({length:100},(_,index)=>chooseDailySourceCount(index/100));
 if(Math.min(...counts)!==3||Math.max(...counts)!==5)fail.push('daily quiz count must stay between 3 and 5');
 
