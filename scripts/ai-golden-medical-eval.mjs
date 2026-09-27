@@ -18,7 +18,7 @@ const RETRY_DELAYS_MS=String(process.env.AI_GOLDEN_RETRY_DELAYS_MS||'30000,65000
 const CONCEPT_ALIASES=new Map(Object.entries({
   'khong tai hap thu':['khong bi tai hap thu','khong bi ong than tai hap thu'],
   'khong duoc tai hap thu':['khong bi tai hap thu','khong bi ong than tai hap thu'],
-  'khong bai tiet':['khong bi bai tiet','khong bi ong than bai tiet','khong duoc ong than bai tiet'],
+  'khong bai tiet':['khong bi bai tiet','khong bi ong than bai tiet','khong duoc ong than bai tiet','khong he bi ong than bai tiet','khong bi ong than bai tiet them'],
   'khong duoc bai tiet':['khong bi bai tiet','khong bi ong than bai tiet','khong duoc ong than bai tiet'],
   'tang tai hap thu natri':['giu natri','giu na','tai hap thu na+','tai hap thu natri tang'],
   'tang tai hap thu na':['giu natri','giu na','tai hap thu na+','tai hap thu natri tang'],
@@ -59,6 +59,7 @@ const CONCEPT_ALIASES=new Map(Object.entries({
   'te bao bieu mo phe nang type i':['phe bao type i','phe bao i','pneumocyte i','te bao phe nang loai i','bieu mo phe nang det','te bao bieu mo phe nang det'],
   'pneumocyte type i':['phe bao type i','phe bao i','pneumocyte i','te bao phe nang loai i','bieu mo phe nang det','te bao bieu mo phe nang det'],
   'te bao phe nang type i':['phe bao type i','phe bao i','pneumocyte i','te bao phe nang loai i','bieu mo phe nang det','te bao bieu mo phe nang det'],
+  'noi mo mao mach':['noi mac mao mach','te bao noi mac mach mau cua mao mach','te bao noi mac mao mach'],
   'thong huyet':['nhiep huyet','giu huyet trong mach'],
   'bang chung':['kiem chung khach quan','du lieu lam sang','chung minh lam sang'],
   'nghien cuu lam sang':['du lieu lam sang','kiem chung lam sang','chung minh lam sang'],
@@ -134,7 +135,9 @@ function validateScoringContract(){
   const ovulationSynonym=scoreCase({expectedRoute:'study',mustIncludeAny:[['rụng trứng','ovulation']],mustNotIncludeAny:[],citationRequired:false},{answer:'Đỉnh LH kích hoạt quá trình phóng noãn.'});
   const histologyTypeISynonym=scoreCase({expectedRoute:'study',mustIncludeAny:[['tế bào biểu mô phế nang type i']],mustNotIncludeAny:[],citationRequired:false},{answer:'Hàng rào khí-máu có lớp biểu mô phế nang dẹt, màng đáy và nội mô mao mạch.'});
   const lhExpandedSynonym=scoreCase({expectedRoute:'study',mustIncludeAny:[['lh']],mustNotIncludeAny:[],citationRequired:false},{answer:'Đỉnh Luteinizing Hormone giữa chu kỳ kích hoạt rụng trứng.'});
-  if(!safe.conceptPass||unsafe.conceptPass||!gi.conceptPass||!diagnosis.conceptPass||!yhctBoundary.conceptPass||!neuroSynonym.conceptPass||!ovulationSynonym.conceptPass||!histologyTypeISynonym.conceptPass||!lhExpandedSynonym.conceptPass){fail('semantic scorer regression');return false}ok('semantic scorer contract passed');return true;
+  const renalSecretionSynonym=scoreCase({expectedRoute:'study',mustIncludeAny:[['không bài tiết']],mustNotIncludeAny:[],citationRequired:false},{answer:'Inulin không hề bị ống thận bài tiết thêm.'});
+  const histologyEndotheliumSynonym=scoreCase({expectedRoute:'study',mustIncludeAny:[['nội mô mao mạch']],mustNotIncludeAny:[],citationRequired:false},{answer:'Lớp cuối là tế bào nội mạc mạch máu của mao mạch phổi.'});
+  if(!safe.conceptPass||unsafe.conceptPass||!gi.conceptPass||!diagnosis.conceptPass||!yhctBoundary.conceptPass||!neuroSynonym.conceptPass||!ovulationSynonym.conceptPass||!histologyTypeISynonym.conceptPass||!lhExpandedSynonym.conceptPass||!renalSecretionSynonym.conceptPass||!histologyEndotheliumSynonym.conceptPass){fail('semantic scorer regression');return false}ok('semantic scorer contract passed');return true;
 }
 
 const requestBody=(item,index)=>{const guidance=RUNTIME_GUIDANCE[item.id];return JSON.stringify({mode:'study',query:`${String(item.runtimePrompt||item.prompt)}${guidance?`\n\nYêu cầu độ chính xác cho kiểm định: ${guidance}`:''}`,conversationContext:'',pageContext:'AI Golden Medical Eval',variationMode:index%6})};
