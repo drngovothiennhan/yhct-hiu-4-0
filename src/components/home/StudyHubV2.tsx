@@ -9,6 +9,7 @@ import {askStudyGemini} from '../../services/studyAiService';
 import {routeStudyOsRequest} from '../../v2/study-os/intentRouter';
 import './study-hub-v2.css';
 import LearningCompetitionBoard from './LearningCompetitionBoard';
+import DailyStudyReview from './DailyStudyReview';
 
 const RESEARCH_PENDING_KEY='yhct-research-pending-query-v1';
 const AI_PENDING_KEY='yhct-ai-center-pending-query-v1';
@@ -174,6 +175,8 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
     </header>
 
     <LearningCompetitionBoard memberId={memberId}/>
+
+    <DailyStudyReview memberId={memberId}/>
 
     <section className="study-os-v2__continue" aria-label="Tiếp tục học">
       <header>
