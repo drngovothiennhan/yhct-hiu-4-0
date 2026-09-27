@@ -10,10 +10,12 @@ import {routeStudyOsRequest} from '../../v2/study-os/intentRouter';
 import './study-hub-v2.css';
 import LearningCompetitionBoard from './LearningCompetitionBoard';
 import DailyStudyReview from './DailyStudyReview';
+import PersonalizedStudyGuide from './PersonalizedStudyGuide';
 
 const RESEARCH_PENDING_KEY='yhct-research-pending-query-v1';
 const AI_PENDING_KEY='yhct-ai-center-pending-query-v1';
 const LEARNING_PENDING_TAB_KEY='yhct-learning-hub-pending-tab-v1';
+const LESSON_RESUME_SECTION_KEY='yhct-study-lesson-resume-section-v1';
 const DAILY_HISTORY_PREFIX='yhct-study-os-daily-v1:';
 
 type Props={member:Member|null;onNavigate:(module:ModuleId)=>void;onLogin:()=>void};
@@ -123,6 +125,7 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
   },[dateKey,memberId,focus,dailyMinutes]);
 
   const openLearning=(tab:LearningTab='quick')=>{try{localStorage.setItem(LEARNING_PENDING_TAB_KEY,tab)}catch{}onNavigate('exam')};
+  const openLesson=(sectionId='overview')=>{try{localStorage.setItem(LEARNING_PENDING_TAB_KEY,'lesson');localStorage.setItem(LESSON_RESUME_SECTION_KEY,sectionId)}catch{}onNavigate('exam')};
   const execute=(raw:string)=>{
     const plan=routeStudyOsRequest(raw);
     if(!plan.query)return;
@@ -173,6 +176,8 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
         </aside>
       </div>
     </header>
+
+    <PersonalizedStudyGuide memberId={memberId} onOpenLesson={openLesson} onOpenReview={()=>openLearning('quick')} onLogin={onLogin}/>
 
     <LearningCompetitionBoard memberId={memberId}/>
 

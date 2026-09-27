@@ -26,5 +26,6 @@ export async function submitTodayDailyReview(answers:Array<{questionId:string;se
   if(error)throw new Error(error.message||'Không thể nộp bài ôn tập.');
   const payload=data as Partial<DailyReviewResult>|null;
   if(!payload||!Array.isArray(payload.review))throw new Error('Kết quả bài ôn chưa hợp lệ.');
+  if(typeof window!=='undefined')window.dispatchEvent(new Event('yhct:review'));
   return{score:Number(payload.score)||0,correctCount:Number(payload.correctCount)||0,total:Number(payload.total)||0,review:payload.review};
 }
