@@ -189,7 +189,7 @@ end $$;
 revoke all on function public.daily_study_review_submit_v1(jsonb) from public,anon;
 grant execute on function public.daily_study_review_submit_v1(jsonb) to authenticated;
 
-select cron.unschedule('daily-study-os-grounded-review');
+select cron.unschedule(jobid) from cron.job where jobname='daily-study-os-grounded-review';
 select cron.schedule(
   'daily-study-os-grounded-review',
   '0 1 * * *',
