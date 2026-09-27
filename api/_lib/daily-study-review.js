@@ -17,11 +17,17 @@ const normalize=value=>clean(value,2000).toLocaleLowerCase('vi').normalize('NFC'
 const tokens=value=>normalize(value).match(/[\p{L}\p{N}]{3,}/gu)||[];
 
 export function validateDailyReviewQuestions(raw,sourceQuestions){
+  return validateDailyReviewQuestionsDetailed(raw,sourceQuestions).accepted;
+}
+
+export function validateDailyReviewQuestionsDetailed(raw,sourceQuestions){
   const sources=new Map(sourceQuestions.map(source=>[String(source.id),source]));
-  const seen=new Set(),accepted=[];
+  const seen=new Set(),accepted=[],rejections={};
+  const reject=reason=>{rejections[reason]=(rejections[reason]||0)+1};
   for(const item of Array.isArray(raw)?raw:[]){
     const source=sources.get(String(item?.sourceQuestionId||''));
-    if(!source||seen.has(source.id))continue;
+    if(!source){reject('unknown_source_id');continue}
+    if(seen.has(source.id)){reject('duplicate_source_id');continue}
     const stem=clean(item.stem,700),options=Array.isArray(item.options)?item.options.map(value=>clean(value,500)):[];
     const sourceOptions=Array.isArray(source.options)?source.options.map(value=>clean(value,500)):[];
     const sourceText=[source.stem,...sourceOptions,source.explanation].map(value=>clean(value,3000)).join(' ');
@@ -31,11 +37,16 @@ export function validateDailyReviewQuestions(raw,sourceQuestions){
     const answer=clean(item.correctAnswer,500),canonicalAnswer=sourceOptions[Number(source.correctIndex)];
     const explanation=clean(item.explanation,1000),canonicalExplanation=clean(source.explanation,1000);
     const evidenceExists=evidence.length>=8&&normalize(sourceText).includes(normalize(evidence));
-    if(stem.length<12||!choicesMatch||!canonicalAnswer||normalize(answer)!==normalize(canonicalAnswer)||!canonicalExplanation||normalize(explanation)!==normalize(canonicalExplanation)||!evidenceExists||overlap<0.65)continue;
+    if(stem.length<12){reject('short_stem');continue}
+    if(!choicesMatch){reject('options_mismatch');continue}
+    if(!canonicalAnswer||normalize(answer)!==normalize(canonicalAnswer)){reject('answer_mismatch');continue}
+    if(!canonicalExplanation||normalize(explanation)!==normalize(canonicalExplanation)){reject('explanation_mismatch');continue}
+    if(!evidenceExists){reject('evidence_not_in_source');continue}
+    if(overlap<0.65){reject('low_source_overlap');continue}
     seen.add(source.id);
     accepted.push({sourceQuestionId:source.id,questionType:'multiple_choice',stem,options,correctAnswer:canonicalAnswer,explanation:canonicalExplanation,evidenceQuote:evidence});
   }
-  return accepted.slice(0,MAX_PER_USER);
+  return{accepted:accepted.slice(0,MAX_PER_USER),candidateCount:Array.isArray(raw)?raw.length:0,rejections};
 }
 
 export async function generateDailyReview(sourceQuestions,signal){
@@ -61,8 +72,8 @@ export async function generateDailyReview(sourceQuestions,signal){
   ].join(' ');
   const prompt=`Tạo một câu hỏi ôn tập cho từng nguồn dưới đây. Giữ nguyên sourceQuestionId, thứ tự lựa chọn có thể giữ nguyên.\nSOURCE=${JSON.stringify(context)}`;
   const output=await createGeminiJson({systemInstruction,prompt,schema:QUESTION_SCHEMA,maxOutputTokens:2600,signal,mode:'default'});
-  const validated=validateDailyReviewQuestions(output.questions,selected);
-  if(validated.length<3)throw new Error('Fewer than three questions passed source validation');
+  const validation=validateDailyReviewQuestionsDetailed(output.questions,selected),validated=validation.accepted;
+  if(validated.length<3){const error=new Error('Fewer than three questions passed source validation');error.safeDetails={candidateCount:validation.candidateCount,acceptedCount:validated.length,rejections:validation.rejections};throw error}
   return{questions:validated,provider:'gemini',model:geminiAiModel()};
 }
 
@@ -85,7 +96,7 @@ async function dailyReviewRpc(name,args){
 async function mapConcurrent(items,limit,run){
   let next=0;const results=[];
   await Promise.all(Array.from({length:Math.min(limit,items.length)},async()=>{
-    while(next<items.length){const index=next++;try{results[index]=await run(items[index])}catch(error){results[index]={ok:false,reason:dailyReviewFailureCategory(error)}}}
+    while(next<items.length){const index=next++;try{results[index]=await run(items[index])}catch(error){results[index]={ok:false,reason:dailyReviewFailureCategory(error),details:error?.safeDetails&&typeof error.safeDetails==='object'?error.safeDetails:null}}}
   }));
   return results;
 }
@@ -131,7 +142,8 @@ export async function handleDailyStudyReviewCron(req,res){
     });
     const skipped=results.filter(item=>!item?.ok);
     const skippedReasons=skipped.reduce((counts,item)=>{const reason=item.reason||'daily_review_error';counts[reason]=(counts[reason]||0)+1;return counts;},{});
-    const response={ok:true,date,eligibleUsers:eligible.length,createdUsers:results.filter(item=>item?.ok&&item.created).length,skippedUsers:skipped.length,skippedReasons,provider:'gemini'};
+    const validationRejects=skipped.reduce((counts,item)=>{for(const[reason,count]of Object.entries(item.details?.rejections||{}))counts[reason]=(counts[reason]||0)+Number(count||0);return counts;},{});
+    const response={ok:true,date,eligibleUsers:eligible.length,createdUsers:results.filter(item=>item?.ok&&item.created).length,skippedUsers:skipped.length,skippedReasons,validationRejects,provider:'gemini'};
     console.info(JSON.stringify({event:'daily_study_review_cron',...response}));
     return res.status(200).json(response);
   }catch(error){

@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import {validateDailyReviewQuestions,chooseDailySourceCount} from '../api/_lib/daily-study-review.js';
+import {validateDailyReviewQuestions,validateDailyReviewQuestionsDetailed,chooseDailySourceCount} from '../api/_lib/daily-study-review.js';
 
 const fail=[];
 const need=(body,tokens,label)=>tokens.forEach(token=>{if(!body.includes(token))fail.push(`${label} missing ${token}`)});
@@ -25,6 +25,7 @@ if(validateDailyReviewQuestions([{...valid,correctAnswer:'Đáp án tự tạo'}
 if(validateDailyReviewQuestions([{...valid,options:['A','B','C','D']}],[source]).length!==0)fail.push('non-source options were not rejected');
 if(validateDailyReviewQuestions([{...valid,evidenceQuote:'không có trong nguồn'}],[source]).length!==0)fail.push('missing evidence quote was not rejected');
 if(validateDailyReviewQuestions([{...valid,sourceQuestionId:'missing'}],[source]).length!==0)fail.push('question without a source FK target was not rejected');
+if(validateDailyReviewQuestionsDetailed([{...valid,correctAnswer:'Đáp án tự tạo'}],[source]).rejections.answer_mismatch!==1)fail.push('source validation diagnostic must identify only the failure category');
 const counts=Array.from({length:100},(_,index)=>chooseDailySourceCount(index/100));
 if(Math.min(...counts)!==3||Math.max(...counts)!==5)fail.push('daily quiz count must stay between 3 and 5');
 
