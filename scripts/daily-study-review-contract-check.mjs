@@ -13,6 +13,7 @@ const service=fs.readFileSync('src/services/dailyStudyReviewService.ts','utf8');
 const schema=migration?fs.readFileSync(`supabase/migrations/${migration}`,'utf8'):'';
 need(schema,['source_question_id uuid not null references public.practice_questions(id)','source_file_id text not null references public.practice_source_documents(drive_file_id)','unique(member_id,quiz_date)','daily_study_review_candidates_v1','daily_study_review_generate_v1','daily_study_review_today_v1','daily_study_review_submit_v1','daily_study_review_secret_valid_v1','last_seen_at >= now()-interval \'30 days\'','cron.schedule','daily-study-os-grounded-review'],'database provenance, eligibility and restricted daily scheduling');
 need(cron,['daily_study_review_secret_valid_v1','generateDailyReview','daily_study_review_candidates_v1','daily_study_review_generate_v1','Asia/Ho_Chi_Minh'],'shared gateway uses Vault-authenticated scheduler and grounded generation');
+if(!cron.includes('parsed=JSON.parse(output.text)'))fail.push('Gemini JSON text must be parsed before source validation');
 need(assistant,["req.body?.task==='daily_review_cron'",'handleDailyStudyReviewCron'],'scheduled job reuses the existing AI Gateway function');
 need(ui,['ÔN TẬP HÔM NAY','Xem lại bài học gốc','Chưa có lượt ôn nội dung nguồn được duyệt','không hiển thị câu chưa được xác thực'],'inline quiz and truthful empty/source-review states');
 need(service,['daily_study_review_today_v1','daily_study_review_submit_v1'],'member quiz fetch and grading RPC');

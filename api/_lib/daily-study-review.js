@@ -72,7 +72,9 @@ export async function generateDailyReview(sourceQuestions,signal){
   ].join(' ');
   const prompt=`Tạo một câu hỏi ôn tập cho từng nguồn dưới đây. Giữ nguyên sourceQuestionId, thứ tự lựa chọn có thể giữ nguyên.\nSOURCE=${JSON.stringify(context)}`;
   const output=await createGeminiJson({systemInstruction,prompt,schema:QUESTION_SCHEMA,maxOutputTokens:2600,signal,mode:'default'});
-  const validation=validateDailyReviewQuestionsDetailed(output.questions,selected),validated=validation.accepted;
+  let parsed;
+  try{parsed=JSON.parse(output.text)}catch{throw new Error('Gemini returned invalid JSON for daily review')}
+  const validation=validateDailyReviewQuestionsDetailed(parsed?.questions,selected),validated=validation.accepted;
   if(validated.length<3){const error=new Error('Fewer than three questions passed source validation');error.safeDetails={candidateCount:validation.candidateCount,acceptedCount:validated.length,rejections:validation.rejections};throw error}
   return{questions:validated,provider:'gemini',model:geminiAiModel()};
 }
