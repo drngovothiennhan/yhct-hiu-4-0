@@ -67,6 +67,6 @@ forbid(trustedIngest,['parseMcqDocument','explicit-answer-key-v1','trusted-quiz-
 need(bankMigration,['practice_quiz_config_v1','practice_quiz_page_v1','practice_subject_folders_sync_admin_v1','where active is true',"q.review_status in('source_verified','expert_approved')"],'data-first member bank and safe-update folder sync');
 forbid(bankMigration,['sourceFileName'],'member quiz RPC must not expose source filename');
 
-if(vercel?.git?.deploymentEnabled!==false)fail.push('Vercel Git auto-deploy must remain disabled so production is gated by Web CI');
+if(vercel?.git?.deploymentEnabled?.main!==false)fail.push('Vercel Git auto-deploy must be disabled on main so production is gated by Web CI');
 if(fail.length){console.error('AI ROLE CONTRACT FAILED');fail.forEach(x=>console.error(`- ${x}`));process.exit(1)}
 console.log('AI role contract PASS: task assistant, contextual non-repeating AI responses, shared evidence-first Gemini Study quiz, server-bounded Gemini medical Research, role-aware proposal quota and one canonical red-answer bank are isolated and enforced.');
