@@ -85,9 +85,21 @@ async function dailyReviewRpc(name,args){
 async function mapConcurrent(items,limit,run){
   let next=0;const results=[];
   await Promise.all(Array.from({length:Math.min(limit,items.length)},async()=>{
-    while(next<items.length){const index=next++;try{results[index]=await run(items[index])}catch(error){results[index]={ok:false,error:error instanceof Error?error.message:'generation_failed'}}}
+    while(next<items.length){const index=next++;try{results[index]=await run(items[index])}catch(error){results[index]={ok:false,reason:dailyReviewFailureCategory(error)}}}
   }));
   return results;
+}
+
+function dailyReviewFailureCategory(error){
+  const message=String(error?.message||'');
+  const databaseStatus=message.match(/database operation returned (\d{3})/i);
+  if(databaseStatus)return`database_http_${databaseStatus[1]}`;
+  const providerStatus=Number(error?.status||error?.statusCode);
+  if(Number.isInteger(providerStatus)&&providerStatus>=400&&providerStatus<=599)return`provider_http_${providerStatus}`;
+  if(/passed source validation|source validation/i.test(message))return'grounding_validation';
+  if(/abort|timeout|timed out/i.test(message)||error?.name==='AbortError')return'timeout';
+  if(/gemini|provider|model/i.test(message))return'provider_error';
+  return'daily_review_error';
 }
 
 export async function handleDailyStudyReviewCron(req,res){
@@ -117,7 +129,9 @@ export async function handleDailyStudyReviewCron(req,res){
         return{ok:true,created:Boolean(saved?.created)};
       }finally{clearTimeout(timer)}
     });
-    const response={ok:true,date,eligibleUsers:eligible.length,createdUsers:results.filter(item=>item?.ok&&item.created).length,skippedUsers:results.filter(item=>!item?.ok).length,provider:'gemini'};
+    const skipped=results.filter(item=>!item?.ok);
+    const skippedReasons=skipped.reduce((counts,item)=>{const reason=item.reason||'daily_review_error';counts[reason]=(counts[reason]||0)+1;return counts;},{});
+    const response={ok:true,date,eligibleUsers:eligible.length,createdUsers:results.filter(item=>item?.ok&&item.created).length,skippedUsers:skipped.length,skippedReasons,provider:'gemini'};
     console.info(JSON.stringify({event:'daily_study_review_cron',...response}));
     return res.status(200).json(response);
   }catch(error){

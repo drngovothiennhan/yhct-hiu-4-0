@@ -205,4 +205,3 @@ select cron.schedule(
     );
   $job$
 );
-
