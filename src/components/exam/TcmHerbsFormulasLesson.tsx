@@ -1,6 +1,10 @@
-import {useMemo,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import {BookOpen,CheckCircle2,CircleHelp,Layers3,RotateCcw,Sparkles} from 'lucide-react';
 import './tcm-herbs-formulas-lesson.css';
+import {readCachedMember} from '../../services/authService';
+import {getStudyLessonProgress,saveStudyLessonProgress} from '../../services/studyPersonalizationService';
+
+const LESSON_RESUME_SECTION_KEY='yhct-study-lesson-resume-section-v1';
 
 type LessonMode='lesson'|'flashcards'|'quiz';
 type Herb={name:string;zh:string;pinyin:string;actions:string;example:string};
@@ -67,6 +71,13 @@ const SECTION_SUMMARY=[
 ] as const;
 
 export default function TcmHerbsFormulasLesson(){
+  const memberId=readCachedMember()?.id||null;
+  const lessonRoot=useRef<HTMLElement|null>(null);
+  const currentSection=useRef('overview');
+  const progressPct=useRef(0);
+  const writeInFlight=useRef(false);
+  const lessonCompleted=useRef(false);
+  const [progressNotice,setProgressNotice]=useState('');
   const [mode,setMode]=useState<LessonMode>('lesson');
   const [flashIndex,setFlashIndex]=useState(0);
   const [revealed,setRevealed]=useState(false);
@@ -80,7 +91,76 @@ export default function TcmHerbsFormulasLesson(){
   const resetQuiz=()=>{setAnswers({});setSubmitted(false)};
   const nextCard=(step:number)=>{setFlashIndex(index=>(index+step+flashcards.length)%flashcards.length);setRevealed(false)};
 
-  return <section className="tcm-lesson" aria-label="Bài học Dược liệu và Phương tễ">
+  useEffect(()=>{
+    if(!memberId)return;
+    let alive=true,observer:IntersectionObserver|null=null,mutationObserver:MutationObserver|null=null,timer=0,pendingSectionSave=0,activeSeconds=0;
+    const sectionOrder=['overview','herbs','classification','preparation','formulas','usage','flashcards','quiz'];
+    const scrollToSection=(sectionId:string)=>{
+      if(sectionId==='flashcards')setMode('flashcards');
+      else if(sectionId==='quiz')setMode('quiz');
+      else setMode('lesson');
+      window.setTimeout(()=>document.getElementById(`study-lesson-${sectionId}`)?.scrollIntoView({behavior:'smooth',block:'start'}),120);
+    };
+    const flush=async(seconds=0,finish=false)=>{
+      if(!alive||lessonCompleted.current&&!finish)return;
+      if(writeInFlight.current){window.setTimeout(()=>void flush(seconds,finish),250);return}
+      writeInFlight.current=true;
+      try{
+        await saveStudyLessonProgress({sectionId:currentSection.current,progressPct:finish?100:progressPct.current,activeSeconds:seconds,completed:finish});
+        if(finish)lessonCompleted.current=true;
+        setProgressNotice('Tiến độ bài học đã được lưu theo tài khoản.');
+      }catch(error){setProgressNotice(error instanceof Error?error.message:'Chưa lưu được tiến độ bài học.');}
+      finally{writeInFlight.current=false}
+    };
+    const start=async()=>{
+      try{
+        const saved=await getStudyLessonProgress();
+        if(!alive)return;
+        lessonCompleted.current=saved?.status==='completed';
+        let requestedSection='';
+        try{requestedSection=localStorage.getItem(LESSON_RESUME_SECTION_KEY)||'';localStorage.removeItem(LESSON_RESUME_SECTION_KEY)}catch{}
+        const sectionToOpen=requestedSection||(saved?.status==='in_progress'?saved.lastSectionId:'');
+        if(sectionToOpen){
+          currentSection.current=sectionToOpen;
+          progressPct.current=saved?.progressPct||0;
+          scrollToSection(sectionToOpen);
+        }
+        if(!saved)await flush(0,false);
+      }catch(error){if(alive)setProgressNotice(error instanceof Error?error.message:'Chưa đọc được tiến độ bài học đã lưu.');}
+      if(!alive)return;
+      const root=lessonRoot.current;
+      if(root&&'IntersectionObserver'in window){
+        const attached=new WeakSet<Element>();
+        observer=new IntersectionObserver(entries=>{
+          const visible=entries.filter(entry=>entry.isIntersecting).sort((a,b)=>a.boundingClientRect.top-b.boundingClientRect.top);
+          const entry=visible[0];
+          const sectionId=(entry?.target as HTMLElement|undefined)?.dataset.studySection;
+          if(!sectionId||!sectionOrder.includes(sectionId)||sectionId==='overview')return;
+          const index=sectionOrder.indexOf(sectionId);
+          currentSection.current=sectionId;
+          progressPct.current=Math.min(95,Math.round((index/(sectionOrder.length-1))*100));
+          window.clearTimeout(pendingSectionSave);
+          pendingSectionSave=window.setTimeout(()=>void flush(),1500);
+        },{threshold:0.15,rootMargin:'-15% 0px -55% 0px'});
+        const observeTargets=()=>root.querySelectorAll<HTMLElement>('[data-study-section]').forEach(target=>{if(!attached.has(target)){attached.add(target);observer?.observe(target)}});
+        observeTargets();
+        mutationObserver=new MutationObserver(observeTargets);
+        mutationObserver.observe(root,{childList:true,subtree:true});
+      }
+      timer=window.setInterval(()=>{
+        if(document.visibilityState==='visible'&&lessonRoot.current?.getClientRects().length){
+          activeSeconds+=30;
+          if(!writeInFlight.current){const elapsed=activeSeconds;activeSeconds=0;void flush(elapsed)}
+        }
+      },30000);
+    };
+    void start();
+    const onVisibility=()=>{if(document.visibilityState==='hidden'&&activeSeconds&&!writeInFlight.current){const seconds=activeSeconds;activeSeconds=0;void flush(seconds)}};
+    document.addEventListener('visibilitychange',onVisibility);
+    return()=>{if(activeSeconds)void saveStudyLessonProgress({sectionId:currentSection.current,progressPct:progressPct.current,activeSeconds});alive=false;window.clearInterval(timer);window.clearTimeout(pendingSectionSave);observer?.disconnect();mutationObserver?.disconnect();document.removeEventListener('visibilitychange',onVisibility)};
+  },[memberId]);
+
+  return <section ref={lessonRoot} className="tcm-lesson" aria-label="Bài học Dược liệu và Phương tễ">
     <header className="tcm-lesson__hero">
       <div><span><Sparkles/> BÀI HỌC TỪ TÀI LIỆU MÔN HỌC</span><h2>Dược liệu &amp; Phương tễ trong Y học cổ truyền</h2><p>Học theo nội dung tài liệu của ThS.BS Nhan Hồng Tâm · ưu tiên nhớ tên Hán – pinyin – công dụng – phối phương.</p></div>
       <BookOpen aria-hidden="true"/>
@@ -88,7 +168,9 @@ export default function TcmHerbsFormulasLesson(){
 
     <div className="tcm-lesson__source-note"><CheckCircle2/><span><b>Nguồn bài học:</b> file “DƯỢC LIỆU VÀ PHƯƠNG TỄ TRONG Y HỌC CỔ TRUYỀN”. Nội dung bên dưới bám theo tài liệu đã cung cấp, dùng cho học tập và không thay thế chỉ định điều trị.</span></div>
 
-    <nav className="tcm-lesson__modes" aria-label="Chế độ học">
+    {progressNotice&&<p className="tcm-lesson__progress-status" role="status">{progressNotice}</p>}
+
+    <nav id="study-lesson-overview" data-study-section="overview" className="tcm-lesson__modes" aria-label="Chế độ học">
       <button className={mode==='lesson'?'active':''} onClick={()=>setMode('lesson')}><BookOpen/> Bài học</button>
       <button className={mode==='flashcards'?'active':''} onClick={()=>setMode('flashcards')}><Layers3/> Flashcard <small>{flashcards.length}</small></button>
       <button className={mode==='quiz'?'active':''} onClick={()=>setMode('quiz')}><CircleHelp/> Tự kiểm tra <small>{QUIZ.length}</small></button>
@@ -97,12 +179,12 @@ export default function TcmHerbsFormulasLesson(){
     {mode==='lesson'&&<div className="tcm-lesson__content">
       <div className="tcm-lesson__outline">{SECTION_SUMMARY.map(item=><article key={item[0]}><i>{item[0]}</i><div><b>{item[1]}</b><small>{item[2]}</small></div></article>)}</div>
 
-      <article className="tcm-lesson__chapter">
+      <article id="study-lesson-herbs" data-study-section="herbs" className="tcm-lesson__chapter">
         <div className="tcm-lesson__chapter-head"><span>01</span><div><h3>Dược liệu phổ biến</h3><p>14 vị xuất hiện trong tài liệu.</p></div></div>
         <div className="tcm-lesson__grid">{HERBS.map((herb,index)=><details className="tcm-lesson__card" key={herb.name} open={index<2}><summary><span className="tcm-lesson__han">{herb.zh}</span><span><b>{herb.name}</b><small>{herb.pinyin}</small></span></summary><div><p><strong>Công dụng:</strong> {herb.actions}</p><p><strong>Ví dụ theo tài liệu:</strong> {herb.example}</p></div></details>)}</div>
       </article>
 
-      <article className="tcm-lesson__chapter">
+      <article id="study-lesson-classification" data-study-section="classification" className="tcm-lesson__chapter">
         <div className="tcm-lesson__chapter-head"><span>02</span><div><h3>Phân loại dược liệu</h3><p>Ba cách phân loại được trình bày trong tài liệu.</p></div></div>
         <div className="tcm-lesson__three">
           <section><b>Theo tính chất</b><p>Hàn (lạnh), nhiệt (nóng), ôn (ấm), lương (mát).</p><small>Ví dụ: dược liệu tính hàn dùng để thanh nhiệt giải độc như Hoàng liên; dược liệu tính ôn dùng để bổ khí dưỡng huyết như Nhân sâm.</small></section>
@@ -111,7 +193,7 @@ export default function TcmHerbsFormulasLesson(){
         </div>
       </article>
 
-      <article className="tcm-lesson__chapter">
+      <article id="study-lesson-preparation" data-study-section="preparation" className="tcm-lesson__chapter">
         <div className="tcm-lesson__chapter-head"><span>03</span><div><h3>Cách bào chế dược liệu</h3><p>Bốn phương pháp được nêu trong tài liệu.</p></div></div>
         <div className="tcm-lesson__process">
           <section><b>炒 Chǎo · Sao</b><p>Làm khô và tăng tính ấm của dược liệu bằng cách rang trên lửa nhỏ.</p><small>Ví dụ tài liệu: Hoàng kỳ có thể sao trước khi dùng để tăng cường hiệu quả bổ khí.</small></section>
@@ -121,12 +203,12 @@ export default function TcmHerbsFormulasLesson(){
         </div>
       </article>
 
-      <article className="tcm-lesson__chapter">
+      <article id="study-lesson-formulas" data-study-section="formulas" className="tcm-lesson__chapter">
         <div className="tcm-lesson__chapter-head"><span>04</span><div><h3>Phương tễ phổ biến</h3><p>8 phương thuốc, tập trung học thành phần và công dụng.</p></div></div>
         <div className="tcm-lesson__formula-list">{FORMULAS.map((formula,index)=><details key={formula.name} className="tcm-lesson__formula" open={index<2}><summary><span><em>{formula.zh}</em><b>{formula.name}</b><small>{formula.pinyin}</small></span></summary><div><p><strong>Thành phần:</strong> {formula.components}</p><p><strong>Công dụng:</strong> {formula.actions}</p></div></details>)}</div>
       </article>
 
-      <article className="tcm-lesson__chapter">
+      <article id="study-lesson-usage" data-study-section="usage" className="tcm-lesson__chapter">
         <div className="tcm-lesson__chapter-head"><span>05</span><div><h3>Cách dùng, điều chỉnh và lưu ý</h3><p>Tóm tắt đúng các mốc và cảnh báo có trong tài liệu.</p></div></div>
         <div className="tcm-lesson__notes">
           <section><b>Sắc thuốc</b><p>Cần chú ý lửa và thời gian. Một phần tài liệu nêu lửa nhỏ khoảng 30 phút; phần phương pháp sắc thuốc nêu 30–45 phút, đun lửa to cho sôi rồi hạ nhỏ lửa.</p></section>
@@ -139,7 +221,7 @@ export default function TcmHerbsFormulasLesson(){
       </article>
     </div>}
 
-    {mode==='flashcards'&&<div className="tcm-flash">
+    {mode==='flashcards'&&<div id="study-lesson-flashcards" data-study-section="flashcards" className="tcm-flash">
       <div className="tcm-flash__progress"><span>Thẻ {flashIndex+1}/{flashcards.length}</span><strong>{Math.round(((flashIndex+1)/flashcards.length)*100)}%</strong></div>
       <button className={'tcm-flash__card '+(revealed?'revealed':'')} onClick={()=>setRevealed(value=>!value)} aria-label="Lật flashcard">
         <div><span>{revealed?'ĐÁP ÁN':'NHẬN DIỆN'}</span><h3>{flashcards[flashIndex].front}</h3><p>{flashcards[flashIndex].sub}</p>{revealed?<strong>{flashcards[flashIndex].back}</strong>:<small>Chạm để xem công dụng / thành phần</small>}</div>
@@ -147,10 +229,10 @@ export default function TcmHerbsFormulasLesson(){
       <div className="tcm-flash__controls"><button onClick={()=>nextCard(-1)}>← Thẻ trước</button><button onClick={()=>setRevealed(value=>!value)}>{revealed?'Ẩn đáp án':'Xem đáp án'}</button><button onClick={()=>nextCard(1)}>Thẻ sau →</button></div>
     </div>}
 
-    {mode==='quiz'&&<div className="tcm-quiz">
+    {mode==='quiz'&&<div id="study-lesson-quiz" data-study-section="quiz" className="tcm-quiz">
       <div className="tcm-quiz__head"><div><b>Tự kiểm tra 20 câu</b><small>Chọn một đáp án cho mỗi câu. Câu hỏi chỉ dùng nội dung trong tài liệu.</small></div>{submitted&&<div className="tcm-quiz__score"><strong>{score}/{QUIZ.length}</strong><span>{Math.round(score/QUIZ.length*100)}%</span></div>}</div>
       <div className="tcm-quiz__list">{QUIZ.map((item,index)=><article key={item.question} className={submitted?(answers[index]===item.answer?'correct':'incorrect'):''}><p><b>Câu {index+1}.</b> {item.question}</p><div>{item.options.map((option,optionIndex)=><label key={option}><input type="radio" name={'tcm-q-'+index} checked={answers[index]===optionIndex} disabled={submitted} onChange={()=>setAnswers(current=>({...current,[index]:optionIndex}))}/><span>{String.fromCharCode(65+optionIndex)}. {option}</span></label>)}</div>{submitted&&<small><strong>Đáp án: {String.fromCharCode(65+item.answer)}.</strong> {item.explain}</small>}</article>)}</div>
-      <div className="tcm-quiz__actions">{!submitted?<button disabled={Object.keys(answers).length<QUIZ.length} onClick={()=>setSubmitted(true)}><CheckCircle2/> Chấm điểm</button>:<button onClick={resetQuiz}><RotateCcw/> Làm lại</button>}<span>{Object.keys(answers).length}/{QUIZ.length} câu đã trả lời</span></div>
+      <div className="tcm-quiz__actions">{!submitted?<button disabled={Object.keys(answers).length<QUIZ.length} onClick={()=>{setSubmitted(true);currentSection.current='quiz';progressPct.current=100;const saveCompletion=()=>{if(writeInFlight.current){window.setTimeout(saveCompletion,250);return}writeInFlight.current=true;void saveStudyLessonProgress({sectionId:'quiz',progressPct:100,activeSeconds:0,completed:true}).then(()=>{lessonCompleted.current=true;setProgressNotice('Đã hoàn thành và lưu bài học theo tài khoản.')}).catch(error=>setProgressNotice(error instanceof Error?error.message:'Chưa lưu được kết quả hoàn thành bài học.')).finally(()=>{writeInFlight.current=false})};saveCompletion()}}><CheckCircle2/> Chấm điểm</button>:<button onClick={resetQuiz}><RotateCcw/> Làm lại</button>}<span>{Object.keys(answers).length}/{QUIZ.length} câu đã trả lời</span></div>
     </div>}
   </section>;
 }
