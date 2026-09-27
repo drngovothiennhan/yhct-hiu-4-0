@@ -1,12 +1,14 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {CheckCircle2,Mail,RefreshCw,UserPlus,X} from 'lucide-react';
-import {readCachedMember,supabase} from '../../services/authService';
+import {supabase} from '../../services/authService';
 import {registerMemberSelf,resendMemberActivation} from '../../services/authRuntimeService';
 
 const initialForm={studentCode:'',fullName:'',className:'',faculty:'',email:'',password:'',confirmPassword:''};
 
 export default function SelfRegistrationPortal(){
-  const [hidden,setHidden]=useState(()=>Boolean(readCachedMember()));
+  const [hidden,setHidden]=useState(true);
+  const [authResolved,setAuthResolved]=useState(false);
+  const registerIntent=useRef(typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('auth')==='register');
   const [open,setOpen]=useState(false);
   const [form,setForm]=useState(initialForm);
   const [busy,setBusy]=useState(false);
@@ -16,11 +18,28 @@ export default function SelfRegistrationPortal(){
   const [activationNotice,setActivationNotice]=useState(()=>new URLSearchParams(window.location.search).get('member_activation')==='done');
 
   useEffect(()=>{
+    let live=true;
+    const resolveSession=(authenticated:boolean)=>{
+      if(!live)return;
+      setHidden(authenticated);
+      setAuthResolved(true);
+      if(registerIntent.current&&!authenticated){
+        registerIntent.current=false;
+        setOpen(true);
+        setSuccess(false);
+        setError('');
+        const url=new URL(window.location.href);
+        url.searchParams.delete('auth');
+        window.history.replaceState(null,'',`${url.pathname}${url.search}${url.hash}`);
+      }
+    };
     const {data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
-      if((event==='SIGNED_IN'||event==='INITIAL_SESSION')&&session)setHidden(true);
-      if(event==='SIGNED_OUT')setHidden(false);
+      if(event==='INITIAL_SESSION')resolveSession(Boolean(session));
+      else if(event==='SIGNED_IN'&&session){setHidden(true);setOpen(false);setAuthResolved(true)}
+      else if(event==='SIGNED_OUT'){setHidden(false);setAuthResolved(true)}
     });
-    return()=>subscription.unsubscribe();
+    void supabase.auth.getSession().then(({data})=>resolveSession(Boolean(data.session))).catch(()=>resolveSession(false));
+    return()=>{live=false;subscription.unsubscribe()};
   },[]);
 
   const setField=(key:keyof typeof initialForm,value:string)=>setForm(current=>({...current,[key]:value}));
@@ -45,7 +64,7 @@ export default function SelfRegistrationPortal(){
   };
   const resend=async()=>{if(resendBusy||!form.email.trim())return;setResendBusy(true);setError('');try{await resendMemberActivation(form.email);setError('Email kích hoạt đã được gửi lại.')}catch(e){setError((e as Error).message)}finally{setResendBusy(false)}};
 
-  if(hidden)return null;
+  if(!authResolved||hidden)return null;
   return <>
     {activationNotice&&<div className="member-activation-toast" role="status"><CheckCircle2/><span><b>Email đã được xác minh.</b><small>Bạn có thể đăng nhập bằng MSSV và mật khẩu đã tạo.</small></span><button onClick={()=>{setActivationNotice(false);const url=new URL(window.location.href);url.searchParams.delete('member_activation');window.history.replaceState(null,'',`${url.pathname}${url.search}${url.hash}`)}} aria-label="Đóng thông báo"><X/></button></div>}
     <button className="member-register-launch" onClick={()=>{setOpen(true);setSuccess(false);setError('')}}><UserPlus/><span>Đăng ký thành viên</span></button>
