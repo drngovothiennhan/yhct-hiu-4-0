@@ -26,7 +26,8 @@ const canonicalized=validateDailyReviewQuestionsDetailed([{...valid,stem:'Một 
 if(canonicalized.accepted.length!==1)fail.push('unusable model stem must fall back to the approved source question');
 if(canonicalized.accepted[0]?.stem!==source.stem||canonicalized.accepted[0]?.options.join('|')!==source.options.join('|')||canonicalized.accepted[0]?.correctAnswer!=='Đáp án B'||canonicalized.accepted[0]?.explanation!==source.explanation||canonicalized.accepted[0]?.evidenceQuote!==source.explanation)fail.push('fallback quiz fields must come only from the approved source');
 if(validateDailyReviewQuestions([], [source])[0]?.stem!==source.stem)fail.push('missing AI candidate must fall back to the source question');
-if(validateDailyReviewQuestions([{...valid,sourceQuestionId:'missing'}],[source]).length!==0)fail.push('question without a source FK target was not rejected');
+const unknownSource=validateDailyReviewQuestionsDetailed([{...valid,sourceQuestionId:'missing'}],[source]);
+if(unknownSource.accepted.length!==1||unknownSource.accepted[0]?.sourceQuestionId!=='source-1'||unknownSource.rejections.unknown_source_id!==1)fail.push('unknown source ID must be rejected and replaced only by a valid source question');
 if(validateDailyReviewQuestionsDetailed([{...valid,stem:'x',evidenceQuote:'không có trong nguồn'}],[source]).fallbackCount!==1)fail.push('unsafe generated wording must be replaced by the approved source stem');
 const counts=Array.from({length:100},(_,index)=>chooseDailySourceCount(index/100));
 if(Math.min(...counts)!==3||Math.max(...counts)!==5)fail.push('daily quiz count must stay between 3 and 5');
