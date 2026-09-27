@@ -44,7 +44,7 @@ export function validateDailyReviewQuestionsDetailed(raw,sourceQuestions){
     const evidenceExists=evidence.length>=8&&normalize(sourceText).includes(normalize(evidence));
     const generatedGrounded=Boolean(item&&generatedStem.length>=12&&overlap>=0.65&&evidenceExists);
     const stem=generatedGrounded?generatedStem:clean(source.stem,700);
-    const sourceEvidence=clean(canonicalExplanation,600);
+    const sourceEvidence=clean(canonicalExplanation.length>=8?canonicalExplanation:source.stem,600);
     const finalEvidence=generatedGrounded?evidence:sourceEvidence;
     if(!generatedGrounded){
       fallbackCount++;
