@@ -7,6 +7,7 @@ import {handleAcademicDailyPost} from '../_lib/academic-daily-post-handler.js';
 import {handleXiaoZhiMini} from '../_lib/xiaozhi-mini-handler.js';
 import {normalizeAiVariation,responseDiversityInstruction} from '../_lib/ai-response-diversity.js';
 import {handleDailyStudyReviewCron} from '../_lib/daily-study-review.js';
+import {creditCapability,creditRefusal,creditShouldRefund,handleCredits,isCreditsRequest,refundAiCredit,reserveAiCredit} from '../_lib/ai-credits.js';
 
 const MAX_QUERY=4000;
 const MAX_SOURCES=6;
@@ -157,7 +158,7 @@ async function runGemini({developer,user,sources,started,res,mode}){
   }finally{clearTimeout(timer)}
 }
 
-export default async function handler(req,res){
+async function routeAssistant(req,res){
   if(req.body?.task==='daily_review_cron')return handleDailyStudyReviewCron(req,res);
   if(req.body?.mode==='academic-daily-post')return handleAcademicDailyPost(req,res);
   if(req.body?.mode==='study')return handleStudyAssistant(req,res);
@@ -244,4 +245,15 @@ export default async function handler(req,res){
     console.warn(JSON.stringify({event:'ai_gateway',ok:false,provider:geminiPrimaryFailure?'multi':'openai',model,mode,role:access.role,sourceCount:sources.length,toolCount:toolsUsed.length,latencyMs,failureClass}));
     return res.status(200).json({...baseFallback,latencyMs,toolsUsed:[...new Set(toolsUsed)]});
   }finally{clearTimeout(timer)}
+}
+
+// Single gateway entry. Credits are inert unless ENABLE_AI_CREDITS=true and the database switch is on.
+export default async function handler(req,res){
+  if(isCreditsRequest(req))return handleCredits(req,res);
+  const gate=await reserveAiCredit(req,creditCapability(req.body));
+  if(gate.allowed===false)return creditRefusal(res,gate);
+  let failed=false;
+  try{return await routeAssistant(req,res)}
+  catch(error){failed=true;throw error}
+  finally{if(gate.ref&&(failed||creditShouldRefund(res)))await refundAiCredit(req,gate.ref)}
 }
