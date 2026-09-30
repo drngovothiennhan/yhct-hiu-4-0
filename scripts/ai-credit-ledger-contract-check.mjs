@@ -12,6 +12,10 @@ const migration=read('supabase/migrations/202609301700_ai_credit_ledger_v1.sql')
 const gate=read('api/_lib/ai-credits.js');
 const assistant=read('api/ai/assistant.js');
 const doc=read('docs/AI_CREDITS_V1.md');
+const examGap=read('api/ai/exam-gap.js');
+const docxSummary=read('api/ai/docx-summary.js');
+const creditClient=read('src/services/aiCreditService.ts');
+const aiCenter=read('src/components/ai/AiCenter.tsx');
 
 need(migration,[
   'ai_credit_settings_v1','enforce boolean not null default false',
@@ -31,6 +35,11 @@ need(gate,['ENABLE_AI_CREDITS','AI_CREDITS_FAIL_CLOSED','ai_credit_spend_v1','ai
 forbid(gate,['res.setHeader(\'X-AI-Credit-Ref','ref:ref,','JSON.stringify({ref'],'credit ref must never be sent to the browser');
 need(assistant,['async function routeAssistant(req,res)','reserveAiCredit(req,creditCapability(req.body))','creditRefusal(res,gate)','isCreditsRequest(req)','refundAiCredit(req,gate.ref)'],'assistant gateway credit hook');
 if((assistant.match(/export default async function handler/g)||[]).length!==1)fail.push('assistant must keep exactly one exported handler');
+need(examGap,["reserveAiCredit(req,'exam_gap')",'creditRefusal(res,gate)','refundAiCredit(req,gate.ref)'],'exam-gap goes through the credit gate');
+need(docxSummary,["reserveAiCredit(req,'docx_summary')",'creditRefusal(res,gate)','refundAiCredit(req,gate.ref)'],'docx-summary goes through the credit gate');
+need(creditClient,["mode:'credits'",'launch-2026-10-01','/api/ai/assistant?action=credits','return null'],'client credit service is silent when credits are off');
+need(aiCenter,['loadAiCredits','credits?.enforced&&!credits.unlimited','ai-center__credits'],'AI center shows balance only when enforced');
+forbid(creditClient,['console.log','p_ref','ai_credit_spend_v1'],'client must never see spend refs or call spend');
 need(doc,['ENABLE_AI_CREDITS','ai_credit_settings_v1','launch-2026-10-01','Không rút thành tiền'],'credit doc');
 
 // Vercel Hobby allows 12 functions: credits must live inside an existing function.
@@ -121,6 +130,12 @@ script=[{approved:true,role:'member',memberId:'m1'}];res=mkRes();
 await gateMod.handleCredits(req({mode:'credits',op:'claim',campaign:'BAD CAMPAIGN'}),res);
 ok(res.statusCode===400,'claim rejects a malformed campaign id');
 ok(gateMod.isCreditsRequest({method:'GET',query:{action:'credits'}})&&gateMod.isCreditsRequest({method:'POST',body:{mode:'credits'}})&&!gateMod.isCreditsRequest({method:'POST',body:{mode:'study'}}),'credits request detection');
+
+// With the server switch off the credits endpoint must not touch the database at all.
+delete process.env.ENABLE_AI_CREDITS;
+calls=[];script=[];res=mkRes();
+await gateMod.handleCredits(req({mode:'credits',op:'claim',campaign:'launch-2026-10-01'}),res);
+ok(res.statusCode===200&&res.body?.disabled===true&&res.body?.credits===null&&calls.length===0,'credits endpoint is inert while ENABLE_AI_CREDITS is off');
 
 globalThis.fetch=realFetch;
 delete process.env.ENABLE_AI_CREDITS;

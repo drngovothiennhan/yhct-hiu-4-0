@@ -28,6 +28,8 @@ Bảng `private.ai_credit_policy_v1` có sẵn giá trị đề xuất. Capabili
 | study_quiz | 2 | 10 |
 | study_chat | 1 | 20 |
 | xiaozhi_mini | 1 | 20 |
+| exam_gap | 2 | 5 |
+| docx_summary | 3 | 3 |
 
 Ngày tính theo giờ Việt Nam (Asia/Ho_Chi_Minh). Admin không bị tính.
 

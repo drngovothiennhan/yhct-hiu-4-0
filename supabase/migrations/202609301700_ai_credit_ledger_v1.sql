@@ -71,7 +71,9 @@ insert into private.ai_credit_policy_v1(capability, cost, free_daily) values
   ('assistant_research', 5, 3),
   ('study_quiz', 2, 10),
   ('study_chat', 1, 20),
-  ('xiaozhi_mini', 1, 20)
+  ('xiaozhi_mini', 1, 20),
+  ('exam_gap', 2, 5),
+  ('docx_summary', 3, 3)
 on conflict (capability) do nothing;
 
 insert into private.ai_credit_campaign_v1(campaign, amount, starts_at, ends_at, credit_valid_days, enabled) values

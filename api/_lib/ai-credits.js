@@ -62,6 +62,7 @@ export function creditRefusal(res,gate){
 // Balance / claim. Lives in the existing assistant function to stay within the Vercel function limit.
 export async function handleCredits(req,res){
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Vary','Authorization');
+  if(!aiCreditsEnabled())return res.status(200).json({disabled:true,credits:null});
   const access=await memberAccess(req,'member');if(!access.ok)return res.status(access.status).json({error:access.error});
   try{
     if(req.method==='POST'&&req.body?.op==='claim'){

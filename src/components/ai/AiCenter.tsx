@@ -4,6 +4,7 @@ import type {Member} from '../../types';
 import {askStudyGemini,type StudyAiSource} from '../../services/studyAiService';
 import {findRelatedLearningResources,type LearningResourceHit} from '../../services/learningResourceService';
 import {readStudentJourney,recordAiUse} from '../../services/studentJourneyService';
+import {loadAiCredits,type AiCredits} from '../../services/aiCreditService';
 import '../../ai-center.css';
 
 type Message={id:string;role:'user'|'assistant';text:string;sources?:StudyAiSource[];suggestions?:string[];research?:boolean;researchQuery?:string};
@@ -28,6 +29,8 @@ export default function AiCenter({member,onOpenResearch}:{member:Member;onOpenRe
   const [messages,setMessages]=useState<Message[]>([]),[query,setQuery]=useState(''),[busy,setBusy]=useState(false),[status,setStatus]=useState('');
   const [resourceHits,setResourceHits]=useState<LearningResourceHit[]>([]),[resourceBusy,setResourceBusy]=useState(false),[freshSession,setFreshSession]=useState(false);
   const request=useRef<AbortController|null>(null),turn=useRef(0);
+  const [credits,setCredits]=useState<AiCredits|null>(null);
+  const refreshCredits=async()=>{const value=await loadAiCredits(member.id);if(value)setCredits(value)};
   const displayName=useMemo(()=>member.herbalAlias||member.fullName,[member.herbalAlias,member.fullName]);
   const journey=useMemo(()=>readStudentJourney(member.id),[member.id]);
   const studyFocus=journey.preferences?.focus||'';
@@ -55,12 +58,13 @@ export default function AiCenter({member,onOpenResearch}:{member:Member;onOpenRe
       }else{
         setMessages(current=>[...current,{id:crypto.randomUUID(),role:'assistant',text:reply.answer,sources:reply.sources,suggestions:reply.suggestions}]);
       }
-      recordAiUse(member.id);
+      recordAiUse(member.id);void refreshCredits();
     }catch(error){if(controller.signal.aborted||id!==turn.current)return;setStatus((error as Error).message||'Gemini Study chưa thể xử lý yêu cầu lúc này.')}
     finally{if(id===turn.current){request.current=null;setBusy(false)}}
   };
   useEffect(()=>{let alive=true;queueMicrotask(()=>{if(!alive)return;let seed='';try{seed=clean(localStorage.getItem(AI_PENDING_KEY)||'');if(seed)localStorage.removeItem(AI_PENDING_KEY)}catch{}if(seed)setQuery(seed);if(seed)void send(seed)});return()=>{alive=false}},[]);
   useEffect(()=>()=>{turn.current++;request.current?.abort();request.current=null},[]);
+  useEffect(()=>{void refreshCredits()},[member.id]);
   const openResearch=(seed:string)=>{try{localStorage.setItem(RESEARCH_PENDING_KEY,seed)}catch{}onOpenResearch()};
   const submit=(event:FormEvent)=>{event.preventDefault();void send()};
   const continueWith=(instruction:string)=>void send(instruction);
@@ -82,6 +86,7 @@ export default function AiCenter({member,onOpenResearch}:{member:Member;onOpenRe
       {messages.length===0?<div className="ai-center__empty"><span className="ai-center__empty-icon"><Lightbulb/></span><h3>Chào {displayName}</h3><p>Hỏi đúng phần bạn đang học. Gemini Study sẽ giữ mạch các lượt gần nhất, nhưng câu hỏi hiện tại luôn được ưu tiên cao nhất.</p><small>{!freshSession&&studyFocus?`Đang ưu tiên: ${studyFocus}. `:''}Nếu ngữ cảnh chưa đủ rõ, trợ lý sẽ hỏi lại thay vì tự đoán môn học, kỳ thi hoặc mục tiêu của bạn.</small></div>:messages.map((item,index)=>{const isLatest=item.role==='assistant'&&index===messages.length-1&&!item.research,userTurns=messages.slice(0,index+1).filter(message=>message.role==='user').length,actions=item.suggestions?.length?item.suggestions:fallbackFollowups[userTurns%fallbackFollowups.length];return <article key={item.id} className={`ai-center__message ${item.role}`}><div>{item.text}</div>{item.sources?.length?<div className="ai-center__sources">{item.sources.map(source=><a key={source.url} href={source.url} target="_blank" rel="noreferrer"><ExternalLink/>{source.title}</a>)}</div>:null}{item.research&&item.role==='assistant'?<button type="button" className="ai-center__research" onClick={()=>openResearch(item.researchQuery||'')}><FlaskConical/>Mở Trung tâm nghiên cứu</button>:null}{isLatest?<><div className="ai-center__followups" aria-label="Gợi ý học tiếp theo">{actions.slice(0,4).map(action=><button type="button" key={action} disabled={busy} onClick={()=>continueWith(action)}>{action}</button>)}<button type="button" disabled={busy||resourceBusy} onClick={()=>void findResources()}><FileSearch/>{resourceBusy?'Đang tìm…':'Tài liệu liên quan'}</button></div>{resourceHits.length?<div className="ai-center__resources" aria-label="Tài liệu học tập liên quan"><b>Tài liệu đã phát hành trong HIU YHCT</b>{resourceHits.map(resource=><div key={resource.resourceKey}><FileSearch/><span><strong>{resource.title}</strong><small>{resourceTypeLabel(resource.resourceType)}</small></span></div>)}<small>Chỉ hiển thị metadata an toàn. Gemini không nhận nội dung hoặc đường dẫn Drive từ thao tác này.</small></div>:null}</>:null}</article>})}
       {busy&&<div className="ai-center__thinking"><LoaderCircle/>Gemini đang xử lý theo ngữ cảnh gần nhất…</div>}
     </div>
+    {credits?.enforced&&!credits.unlimited&&<div className="ai-center__credits" role="status">Tín dụng AI: <b>{credits.balance}</b>{credits.expiringWithin30Days>0&&<small> · {credits.expiringWithin30Days} tín dụng hết hạn trong 30 ngày</small>}</div>}
     {status&&<div className="ai-center__status" role="status">{status}</div>}
     <form className="ai-center__composer" onSubmit={submit}><textarea aria-label="Câu hỏi học tập" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Hỏi phần YHCT hoặc môn học bạn đang cần…" maxLength={2200} rows={2}/><button type="submit" disabled={busy||!clean(query)} aria-label="Gửi câu hỏi cho Gemini"><Send/></button></form>
   </section>;
