@@ -16,6 +16,7 @@
     "audit:ai-health": "node scripts/ai-health-phase10-check.mjs",
     "audit:ai-quality": "node scripts/ai-quality-hardening-check.mjs",
     "audit:ai-credits": "node scripts/ai-credit-ledger-contract-check.mjs",
+    "audit:study-coach": "tsx scripts/study-coach-contract-check.mjs",
     "audit:golden-medical": "node scripts/ai-golden-medical-eval.mjs --validate-only",
     "eval:golden-medical": "node scripts/ai-golden-medical-eval.mjs --runtime",
     "audit:assistant-safe-zone": "node scripts/mobile-assistant-safe-zone-check.mjs",

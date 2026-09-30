@@ -2,6 +2,7 @@ import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {BookOpen,ExternalLink,FileSearch,FlaskConical,GraduationCap,Lightbulb,LoaderCircle,RotateCcw,Send,Square} from 'lucide-react';
 import type {Member} from '../../types';
 import {askStudyGemini,type StudyAiSource} from '../../services/studyAiService';
+import {readStudyCoachContext} from '../../services/studyCoach';
 import {findRelatedLearningResources,type LearningResourceHit} from '../../services/learningResourceService';
 import {readStudentJourney,recordAiUse} from '../../services/studentJourneyService';
 import {loadAiCredits,type AiCredits} from '../../services/aiCreditService';
@@ -42,9 +43,10 @@ export default function AiCenter({member,onOpenResearch}:{member:Member;onOpenRe
       !freshSession&&preferences?.goal?`study_goal=${preferences.goal}`:'',
       !freshSession&&preferences?.year?`study_year=${preferences.year}`:'',
       !freshSession&&preferences?.dailyMinutes?`daily_minutes=${preferences.dailyMinutes}`:'',
-      !freshSession&&journey.lastModule?`last_module=${journey.lastModule}`:''
+      !freshSession&&journey.lastModule?`last_module=${journey.lastModule}`:'',
+      !freshSession?readStudyCoachContext(member.id):''
     ].filter(Boolean).join(' | ').slice(0,600);
-  },[freshSession,journey]);
+  },[freshSession,journey,member.id]);
   const stop=()=>{turn.current++;request.current?.abort();request.current=null;setBusy(false);setStatus('Đã dừng yêu cầu.')};
   const reset=()=>{stop();setFreshSession(true);setMessages([]);setResourceHits([]);setQuery('');setStatus('');try{localStorage.removeItem(AI_PENDING_KEY)}catch{}};
   const send=async(value=query)=>{
