@@ -51,3 +51,13 @@ Xem số dư: `GET /api/ai/assistant?action=credits`.
 ## Kiểm tra
 
 `npm run audit:ai-credits` kiểm tra hợp đồng tĩnh và chạy thử logic với Supabase giả. Logic SQL đã được chạy trên PostgreSQL 16 cục bộ (46 khẳng định: hạn mức miễn phí, trừ lô theo hạn, idempotent, hoàn tiền, quyền truy cập, tăng cường bảo mật bảng `private`).
+
+## Đo chi phí thật trước khi chốt giá
+
+Mỗi lượt Gemini ghi một dòng log `ai_usage` (chỉ số token, không chứa câu hỏi hay câu trả lời). Tổng hợp từ log Vercel:
+
+`vercel logs <deployment> --since 1d | node scripts/ai-usage-summary.mjs --input-per-m <giá> --output-per-m <giá>`
+
+Giá (USD/1 triệu token) lấy từ trang giá hiện hành của Google, script không đặt sẵn giá. Kết quả có "USD/1000 lượt" theo từng model và chế độ, dùng để chỉnh cột `cost` và `free_daily` ở bảng trên.
+
+Quyết định về provider miễn phí dự phòng: xem `docs/AI_FREE_PROVIDER_DECISION_2026-09-30.md`.

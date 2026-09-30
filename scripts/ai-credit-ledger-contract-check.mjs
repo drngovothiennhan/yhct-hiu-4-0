@@ -16,6 +16,8 @@ const examGap=read('api/ai/exam-gap.js');
 const docxSummary=read('api/ai/docx-summary.js');
 const creditClient=read('src/services/aiCreditService.ts');
 const aiCenter=read('src/components/ai/AiCenter.tsx');
+const geminiProvider=read('api/_lib/gemini-provider.js');
+const {summarize}=await import('./ai-usage-summary.mjs');
 
 need(migration,[
   'ai_credit_settings_v1','enforce boolean not null default false',
@@ -40,6 +42,21 @@ need(docxSummary,["reserveAiCredit(req,'docx_summary')",'creditRefusal(res,gate)
 need(creditClient,["mode:'credits'",'launch-2026-10-01','/api/ai/assistant?action=credits','return null'],'client credit service is silent when credits are off');
 need(aiCenter,['loadAiCredits','credits?.enforced&&!credits.unlimited','ai-center__credits'],'AI center shows balance only when enforced');
 forbid(creditClient,['console.log','p_ref','ai_credit_spend_v1'],'client must never see spend refs or call spend');
+need(geminiProvider,["event:'ai_usage'",'usageMetadata','promptTokenCount','candidatesTokenCount'],'gemini usage telemetry');
+forbid(geminiProvider.slice(geminiProvider.indexOf('function extractUsage'),geminiProvider.indexOf('async function requestGemini')),['text','prompt:','systemInstruction'],'usage telemetry must log token counts only');
+{
+  const sample=[
+    'noise {"event":"ai_usage","provider":"gemini","model":"m1","mode":"default","promptTokens":1000,"outputTokens":200,"thoughtsTokens":0,"totalTokens":1200}',
+    '{"event":"ai_usage","provider":"gemini","model":"m1","mode":"default","promptTokens":3000,"outputTokens":400,"thoughtsTokens":100,"totalTokens":3500}',
+    '{"event":"ai_gateway","ok":true}',
+    '{"event":"ai_usage","provider":"gemini","model":"m2","mode":"research","promptTokens":10,"outputTokens":10,"thoughtsTokens":0,"totalTokens":20}'
+  ].join('\n');
+  const rows=summarize(sample,{inputPerM:1,outputPerM:2});
+  const m1=rows.find(r=>r.model==='m1');
+  ok(rows.length===2&&m1?.calls===2&&m1.promptTokens===4000&&m1.avgOutputTokens===350,'usage summary aggregates calls and tokens per model/mode');
+  ok(Math.abs(m1.estCostUsd-(4000*1+700*2)/1e6)<1e-12,'usage summary cost uses owner-supplied prices');
+  ok(summarize('nothing here').length===0,'usage summary tolerates logs without usage lines');
+}
 need(doc,['ENABLE_AI_CREDITS','ai_credit_settings_v1','launch-2026-10-01','Không rút thành tiền'],'credit doc');
 
 // Vercel Hobby allows 12 functions: credits must live inside an existing function.

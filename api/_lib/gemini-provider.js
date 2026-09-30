@@ -78,6 +78,13 @@ function attemptSignal(parent,timeoutMs){
 const retryableGeminiStatus=status=>[408,404,429,500,502,503,504].includes(Number(status));
 const transientNetworkError=error=>error?.name==='TypeError'||/fetch failed|network|socket|econnreset|etimedout/i.test(String(error?.message||''));
 
+// Token counts only (never prompt or answer text) so the owner can price credits from real usage.
+function extractUsage(payload){
+  const usage=payload?.usageMetadata;if(!usage||typeof usage!=='object')return null;
+  const count=value=>Number.isFinite(Number(value))?Math.max(0,Math.trunc(Number(value))):0;
+  return{promptTokens:count(usage.promptTokenCount),outputTokens:count(usage.candidatesTokenCount),thoughtsTokens:count(usage.thoughtsTokenCount),totalTokens:count(usage.totalTokenCount)};
+}
+
 async function requestGemini(bodyFactory,signal,mode='default'){
   if(!geminiAiConfigured(mode))throw new Error('Gemini configuration missing');
   const models=geminiModelCandidates(mode),key=process.env.GEMINI_API_KEY;let lastError=null;
@@ -94,7 +101,9 @@ async function requestGemini(bodyFactory,signal,mode='default'){
       }
       const payload=await response.json(),text=extractText(payload);
       if(!text)throw new Error('Gemini returned an empty answer');
-      return{text,model};
+      const usage=extractUsage(payload);
+      if(usage)console.info(JSON.stringify({event:'ai_usage',provider:'gemini',model,mode,...usage}));
+      return{text,model,usage};
     }catch(error){
       lastError=error;
       if(signal?.aborted)throw error;
