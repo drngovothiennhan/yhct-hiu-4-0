@@ -60,4 +60,6 @@ Mỗi lượt Gemini ghi một dòng log `ai_usage` (chỉ số token, không ch
 
 Giá (USD/1 triệu token) lấy từ trang giá hiện hành của Google, script không đặt sẵn giá. Kết quả có "USD/1000 lượt" theo từng model và chế độ, dùng để chỉnh cột `cost` và `free_daily` ở bảng trên.
 
+Hướng dẫn bật từng bước và cách lùi: `docs/ops/AI_CREDITS_LAUNCH_RUNBOOK.md`.
+
 Quyết định về provider miễn phí dự phòng: xem `docs/AI_FREE_PROVIDER_DECISION_2026-09-30.md`.

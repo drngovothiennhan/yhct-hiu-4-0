@@ -17,6 +17,7 @@ const docxSummary=read('api/ai/docx-summary.js');
 const creditClient=read('src/services/aiCreditService.ts');
 const aiCenter=read('src/components/ai/AiCenter.tsx');
 const geminiProvider=read('api/_lib/gemini-provider.js');
+const runbook=read('docs/ops/AI_CREDITS_LAUNCH_RUNBOOK.md');
 const {summarize}=await import('./ai-usage-summary.mjs');
 
 need(migration,[
@@ -57,6 +58,8 @@ forbid(geminiProvider.slice(geminiProvider.indexOf('function extractUsage'),gemi
   ok(Math.abs(m1.estCostUsd-(4000*1+700*2)/1e6)<1e-12,'usage summary cost uses owner-supplied prices');
   ok(summarize('nothing here').length===0,'usage summary tolerates logs without usage lines');
 }
+need(runbook,['Lùi nhanh','enforce = false','ENABLE_AI_CREDITS','launch-2026-10-01','private.ai_credit_lot_v1','SQL editor'],'launch runbook');
+forbid(runbook,['drop table','delete from','truncate'],'runbook must not contain destructive SQL');
 need(doc,['ENABLE_AI_CREDITS','ai_credit_settings_v1','launch-2026-10-01','Không rút thành tiền'],'credit doc');
 
 // Vercel Hobby allows 12 functions: credits must live inside an existing function.
