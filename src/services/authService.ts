@@ -39,6 +39,17 @@ export async function openEcosystemHomeWithSession():Promise<void>{
   window.location.assign(target.toString());
 }
 
+export async function openGameHubWithSession(hubUrl:string):Promise<void>{
+  const target=new URL(hubUrl);
+  try{
+    const {data:{session}}=await supabase.auth.getSession();
+    if(session?.access_token&&session?.refresh_token){
+      target.hash=new URLSearchParams({[ECOSYSTEM_SSO_FLAG]:'1',access_token:session.access_token,refresh_token:session.refresh_token}).toString();
+    }
+  }catch{}
+  window.location.assign(target.toString());
+}
+
 const ref=(()=>{try{return new URL(url).hostname.split('.')[0]}catch{return ''}})();
 const authKey=`sb-${ref}-auth-token`;
 const memberCacheKey='yhct-member-session-cache-v2';

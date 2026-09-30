@@ -30,6 +30,8 @@ const ResearchCenter=lazy(()=>import('./components/research/ResearchCenter'));
 const ProfileCenter=lazy(()=>import('./components/profile/ProfileCenter'));
 const HerbGardenGame=lazy(()=>import('./components/game/HerbGardenGame'));
 const HerbGardenSocialHub=lazy(()=>import('./components/game/HerbGardenSocialHub'));
+const GameHubMoved=lazy(()=>import('./components/game/GameHubMoved'));
+const GAME_HUB_URL=String((import.meta.env as Record<string,string|undefined>).VITE_GAME_HUB_URL||'').trim();
 const NotificationsCenter=lazy(()=>import('./components/notifications/NotificationsCenter'));
 const ScheduleCenter=lazy(()=>import('./components/schedule/ScheduleCenter'));
 const DrlCenter=lazy(()=>import('./components/drl/DrlCenter'));
@@ -90,7 +92,7 @@ export default function App(){
     {tab==='ai'&&member&&<AiCenter member={member} onOpenResearch={()=>go('research')}/>} 
     {tab==='research'&&<ResearchCenter member={member} onLogin={()=>setAuthOpen(true)}/>} 
     {tab==='profile'&&member&&<ProfileCenter member={member}/>} 
-    {tab==='garden'&&member&&<><HerbGardenGame member={member}/><HerbGardenSocialHub member={member}/></>} 
+    {tab==='garden'&&member&&(GAME_HUB_URL?<GameHubMoved hubUrl={GAME_HUB_URL}/>:<><HerbGardenGame member={member}/><HerbGardenSocialHub member={member}/></>)} 
     {tab==='notifications'&&member&&<NotificationsCenter member={member} unreadCount={notificationUnread} onUnreadRefresh={refreshNotificationUnread}/>} 
     {tab==='schedule'&&<ScheduleCenter member={member}/>} 
     {tab==='drl'&&<DrlCenter member={member}/>} 
