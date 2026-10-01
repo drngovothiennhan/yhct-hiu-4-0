@@ -1,26 +1,149 @@
-name: Android AAB
+name: Android AAB Validation
+
 on:
   workflow_dispatch:
-  push:
-    tags: ['v*']
+    inputs:
+      version_code:
+        description: 'Play versionCode candidate (must be greater than current Play Console versionCode)'
+        required: true
+        type: string
+      version_name:
+        description: 'Play versionName candidate'
+        required: true
+        type: string
+  pull_request:
+    paths:
+      - '.github/workflows/android-aab.yml'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-aab-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EXPECTED_APPLICATION_ID: edu.hiu.yhct40
+  RELEASE_VERSION_CODE: ${{ github.event_name == 'workflow_dispatch' && inputs.version_code || '2000000000' }}
+  RELEASE_VERSION_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.version_name || '0.0.0-ci' }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
-      - run: npm install --ignore-scripts --no-audit --no-fund
-      - run: npm run build
-      - run: npx cap add android || true
-      - run: npx cap sync android
-      - run: cd android && ./gradlew bundleRelease
-      - uses: actions/upload-artifact@v4
+
+      - name: Set up Android SDK 36
+        uses: android-actions/setup-android@v4
         with:
-          name: yhct-hiu-aab
-          path: android/app/build/outputs/bundle/release/*.aab
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - name: Validate Android version inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! [[ "$RELEASE_VERSION_CODE" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::versionCode must be a positive integer"
+            exit 1
+          fi
+          if (( RELEASE_VERSION_CODE > 2100000000 )); then
+            echo "::error::versionCode exceeds Google Play maximum 2100000000"
+            exit 1
+          fi
+          if [[ -z "$RELEASE_VERSION_NAME" ]]; then
+            echo "::error::versionName is required"
+            exit 1
+          fi
+
+      - name: Install web dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Generate and sync Capacitor Android project
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -d android ]]; then
+            npx cap sync android
+          else
+            npx cap add android
+            npx cap sync android
+          fi
+          test -f android/variables.gradle
+          test -f android/app/build.gradle
+
+      - name: Pin Android 16 target and version metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          perl -0pi -e 's/(compileSdkVersion\s*=\s*)\d+/${1}36/g; s/(targetSdkVersion\s*=\s*)\d+/${1}36/g' android/variables.gradle
+          VERSION_CODE="$RELEASE_VERSION_CODE" VERSION_NAME="$RELEASE_VERSION_NAME" perl -0pi -e 's/versionCode\s+\d+/versionCode $ENV{VERSION_CODE}/; s/versionName\s+"[^"]+"/versionName "$ENV{VERSION_NAME}"/' android/app/build.gradle
+
+      - name: Verify Android release contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Eq 'compileSdkVersion\s*=\s*36' android/variables.gradle || { echo '::error::compileSdkVersion is not 36'; exit 1; }
+          grep -Eq 'targetSdkVersion\s*=\s*36' android/variables.gradle || { echo '::error::targetSdkVersion is not 36'; exit 1; }
+          grep -Fq "applicationId \"$EXPECTED_APPLICATION_ID\"" android/app/build.gradle || { echo '::error::Unexpected Android applicationId'; exit 1; }
+          grep -Eq "versionCode[[:space:]]+$RELEASE_VERSION_CODE([[:space:]]|$)" android/app/build.gradle || { echo '::error::versionCode was not applied'; exit 1; }
+          grep -Fq "versionName \"$RELEASE_VERSION_NAME\"" android/app/build.gradle || { echo '::error::versionName was not applied'; exit 1; }
+          echo "Android contract PASS: package=$EXPECTED_APPLICATION_ID targetSdk=36 versionCode=$RELEASE_VERSION_CODE versionName=$RELEASE_VERSION_NAME"
+
+      - name: Build release AAB validation artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd android
+          ./gradlew --no-daemon bundleRelease
+
+      - name: Locate AAB and generate evidence
+        id: aab
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find android/app/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | sort)
+          if [[ ${#files[@]} -ne 1 ]]; then
+            echo "::error::Expected exactly one release AAB, found ${#files[@]}"
+            exit 1
+          fi
+          AAB_PATH="${files[0]}"
+          echo "path=$AAB_PATH" >> "$GITHUB_OUTPUT"
+          mkdir -p android-release-evidence
+          sha256sum "$AAB_PATH" | tee android-release-evidence/SHA256SUMS.txt
+          cat > android-release-evidence/release.txt <<EOF
+          commit=$GITHUB_SHA
+          package=$EXPECTED_APPLICATION_ID
+          versionCode=$RELEASE_VERSION_CODE
+          versionName=$RELEASE_VERSION_NAME
+          targetSdk=36
+          signed=false
+          purpose=validation-only
+          generatedAt=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          EOF
+          cat android-release-evidence/release.txt
+
+      - name: Upload validation AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yhct-hiu-aab-validation-${{ github.sha }}
+          path: |
+            ${{ steps.aab.outputs.path }}
+            android-release-evidence/
+          if-no-files-found: error
+          retention-days: 7
