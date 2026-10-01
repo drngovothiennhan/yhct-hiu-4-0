@@ -33,3 +33,18 @@ export function studyCoachContext(signal:StudyCoachSignal):string{
 export function readStudyCoachContext(identity:string|null,now=Date.now()):string{
   try{return studyCoachContext(summarizeStudyCoach(readReviewCards(identity),now))}catch{return''}
 }
+
+export type StudyCoachSuggestion={id:'due'|'weak';label:string;prompt:string};
+
+/** Gợi ý chủ động cho màn hình trống của AI Study: chỉ sinh từ thẻ ôn THẬT; không có dữ liệu thì trả mảng rỗng. Không tự gọi AI. */
+export function studyCoachSuggestions(signal:StudyCoachSignal):StudyCoachSuggestion[]{
+  const out:StudyCoachSuggestion[]=[];
+  const weak=signal.weakTopics[0];
+  if(signal.dueCount>0)out.push({id:'due',label:`Ôn ${signal.dueCount} thẻ đến hạn`,prompt:weak?`Tôi có ${signal.dueCount} thẻ ôn đến hạn, trong đó chủ đề ${weak} còn yếu. Hãy lập phiên ôn ngắn 10 phút, bắt đầu từ ${weak}.`:`Tôi có ${signal.dueCount} thẻ ôn đến hạn. Hãy lập phiên ôn ngắn 10 phút cho các chủ đề tôi đang học.`});
+  if(weak)out.push({id:'weak',label:`Củng cố: ${weak}`,prompt:`Chủ đề ${weak} tôi vừa ôn chưa đạt. Giải thích lại ý cốt lõi, điểm dễ nhầm, rồi kiểm tra tôi bằng 3 câu.`});
+  return out.slice(0,2);
+}
+
+export function readStudyCoachSuggestions(identity:string|null,now=Date.now()):StudyCoachSuggestion[]{
+  try{return studyCoachSuggestions(summarizeStudyCoach(readReviewCards(identity),now))}catch{return[]}
+}
