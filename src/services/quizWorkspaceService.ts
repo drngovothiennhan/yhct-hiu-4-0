@@ -5,7 +5,7 @@ export type QuizDriveRoot={id:string;name:string};
 export type QuizBrowseResult={folder:QuizDriveItem;roots:QuizDriveRoot[];items:QuizDriveItem[];nextPageToken?:string|null};
 export type QuizRootsResult={roots:QuizDriveRoot[];driveConfigured:boolean;credentialMode:string};
 export type QuizPublishResult={ok:boolean;resourceKey:string;status:string;audience:string;approvedNow:number;questionCount:number;publishedAt:string;title:string};
-export type TrustedQuizImportResult={ok:boolean;status:string;fileName?:string;subject?:string;total?:number;valid?:number;invalid?:number;inserted?:number;updated?:number;message?:string;marker?:string};
+export type TrustedQuizImportResult={ok:boolean;status:string;fileId?:string;fileName?:string;subject?:string;total?:number;valid?:number;invalid?:number;inserted?:number;updated?:number;message?:string;marker?:string};
 export type TrustedQuizSyncResult={ok:boolean;folderId?:string;folderName?:string;filesSeen?:number;alreadySynced?:number;pending?:number;remaining?:number;errors?:number;subjects?:string[];ungroupedFiles?:number;processed:TrustedQuizImportResult[]};
 export type QuizCandidate={id:string;number:string;stem:string;options:string[];correctIndex:number|null;explanation:string;issues:string[];raw:string;answerEvidence:string;importedSnapshot?:Partial<QuizCandidate>;imported?:boolean};
 export type QuizPipelineState='processing'|'needs_review'|'ready'|'error';
@@ -39,3 +39,10 @@ export const syncTrustedApprovedDrive=syncQuizBank;
 export const tryTrustedQuizUpload=async(fileName:string,base64:string,subjectName:string):Promise<TrustedQuizImportResult|null>=>{try{return await quizWorkspace<TrustedQuizImportResult>('trusted-quiz-upload',{fileName,base64,subjectName})}catch(error){const status=(error as QuizWorkspaceError).status;if(status===400||status===422)return null;throw error}};
 export async function sourceFileBase64(file:File){if(!/\.(?:docx|txt|pdf)$/i.test(file.name)||file.size>2000000)throw new Error('Chọn tệp .docx, .txt hoặc .pdf tối đa 2 MB.');const bytes=new Uint8Array(await file.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(binary)}
 export async function wordBase64(file:File){if(!/\.docx$/i.test(file.name))throw new Error('Chọn tệp .docx tối đa 2 MB.');return sourceFileBase64(file)}
+
+export const listQuizDrafts=()=>quizWorkspace<{drafts:QuizDraftSummary[]}>('quiz-drafts').then(r=>Array.isArray(r.drafts)?r.drafts:[]);
+export const getQuizDraft=(id:string)=>quizWorkspace<QuizDraft>('quiz-draft',{id});
+export type QuizCommitEntry={id:string;confirmed:true;stem?:string;options?:string[];correctIndex?:number;explanation?:string};
+export const commitQuizDraft=(draft:QuizDraft,selection:QuizCommitEntry[])=>quizWorkspace<{inserted?:number;updated?:number;remaining?:number}>('quiz-commit',{id:draft.id,revision:draft.revision,selection});
+/** Tài liệu chưa đạt chuẩn đáp án đỏ → tạo BẢN NHÁP trắc nghiệm bằng AI (chưa nhập vào ngân hàng; cần quản lý xác nhận). */
+export const draftQuizFromDriveFile=(fileId:string,subject:string,onUpdate?:QuizPipelineUpdate)=>startQuizPipeline({fileId,autoSubject:subject,conversionMode:'auto'},onUpdate);

@@ -80,7 +80,7 @@ async function registerSeenInvalid(req,file,sourceHash,parsed){
 
 async function importRedAnswerDocx(req,file,buffer){
   const subject=sourceSubject(file),sourceHash=sha256(buffer),sourceFile={...file,parentName:subject},parsed=parseTrustedMarkedDocx(buffer,sourceFile,sourceHash);
-  if(!parsed.questions.length){const message=await registerSeenInvalid(req,file,sourceHash,parsed);return{ok:false,status:'invalid_red_answer_format',fileName:clean(file.name,300),subject,total:parsed.total,valid:0,invalid:parsed.invalid.length,message}}
+  if(!parsed.questions.length){const message=await registerSeenInvalid(req,file,sourceHash,parsed);return{ok:false,status:'invalid_red_answer_format',fileId:String(file.id),fileName:clean(file.name,300),subject,total:parsed.total,valid:0,invalid:parsed.invalid.length,message}}
   const result=await memberRpc(req,'practice_trusted_quiz_ingest_v1',{p_document:documentMeta(file,sourceHash,parsed.valid,parsed.invalid.length?'needs_review':'ready',parsed.invalid.length?`${parsed.valid} câu đạt chuẩn; ${parsed.invalid.length} câu bị bỏ qua.`:''),p_questions:parsed.questions});
   let message='';if(parsed.invalid.length)message=await registerSeenInvalid(req,file,sourceHash,parsed);
   return{ok:true,status:parsed.invalid.length?'imported_partial':'imported',fileName:clean(file.name,300),subject,total:parsed.total,valid:parsed.valid,invalid:parsed.invalid.length,inserted:Number(result?.inserted||0),updated:Number(result?.updated||0),marker:'word-font-color-red-v1',parserRevision:PARSER_REVISION,message};

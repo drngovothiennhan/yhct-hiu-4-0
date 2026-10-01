@@ -82,6 +82,7 @@ async function resolveSource(body){
   const folder=await scopedQuizItem(body.subjectFolderId);if(folder.mimeType!=='application/vnd.google-apps.folder')throw new Error('Chủ đề phải là thư mục kiến thức');
   source.file.parentName=folder.name;source.file.subjectFolderId=folder.id;
  }else if(!body.fileId&&clean(body.subjectName,160))source.file.parentName=clean(body.subjectName,160);
+ if(body.fileId&&!source.file.parentName&&clean(body.autoSubject,160))source.file.parentName=clean(body.autoSubject,160);
  if(!source.file.parentName)throw new Error('Hãy chọn thư mục kiến thức hoặc nhập tên chủ đề trước khi tải tài liệu.');
  return source;
 }
