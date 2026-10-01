@@ -2,14 +2,16 @@ import {useEffect,useRef,useState} from 'react';
 import {AlertTriangle,BookOpenCheck,CheckCircle2,FolderOpen,RefreshCcw,ShieldCheck} from 'lucide-react';
 import {syncQuizBank,type TrustedQuizSyncResult} from '../../services/quizWorkspaceService';
 import AnswerReviewQueue from './AnswerReviewQueue';
+import QuizDraftReview from './QuizDraftReview';
+import {draftSkippedFiles} from '../../services/quizAutoSync';
 import './quiz-import.css';
 
 export default function LearningContentManagerPanel(){
-  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[last,setLast]=useState<TrustedQuizSyncResult|null>(null),autoStarted=useRef(false);
+  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[last,setLast]=useState<TrustedQuizSyncResult|null>(null),autoStarted=useRef(false),[draftTick,setDraftTick]=useState(0);
   const update=async()=>{
     if(busy)return;setBusy(true);setMessage('Đang quét toàn bộ tài liệu trong “Thêm thủ công”, chuẩn hóa đáp án tô đỏ và đồng bộ chủ đề cho người học…');setLast(null);
     try{
-      const result=await syncQuizBank(10);setLast(result);
+      const result=await syncQuizBank(10);setLast(result);void draftSkippedFiles(result.processed).then(()=>setDraftTick(x=>x+1));
       if(result.ok===false){setMessage('Drive ngân hàng đề thi chưa sẵn sàng. Kiểm tra kết nối hệ thống rồi bấm Cập nhật lại.');return}
       const processed=result.processed||[],qualified=processed.filter(x=>x.ok),skipped=processed.filter(x=>!x.ok&&x.status!=='error'),errors=processed.filter(x=>x.status==='error'),questions=qualified.reduce((sum,x)=>sum+Number(x.inserted||0)+Number(x.updated||0),0);
       setMessage(processed.length===0?'Đã đồng bộ chủ đề. Không còn tài liệu mới cần chuyển đổi.':`Cập nhật xong · ${processed.length} tài liệu đã quét · ${questions} câu đã đưa vào ngân hàng người dùng${skipped.length?` · ${skipped.length} tài liệu chưa nhận diện đủ 4 lựa chọn/đáp án đỏ`:''}${errors.length?` · ${errors.length} lỗi cần thử lại`:''}.`);
@@ -28,6 +30,7 @@ export default function LearningContentManagerPanel(){
       {last&&<div className="quiz-bank-update-stats"><span><b>{qualified}</b> tệp đạt chuẩn</span><span><b>{skipped}</b> tệp bỏ qua</span><span><b>{errors}</b> lỗi</span><span><b>{Number(last.remaining||0)}</b> còn lại</span></div>}
       {errors>0&&<p className="warning"><AlertTriangle/> Có lỗi vận chuyển/đọc Drive. Bấm Cập nhật lại; tệp lỗi chưa được đánh dấu đã xử lý.</p>}
     </div>
+    <QuizDraftReview key={draftTick}/>
     <details className="quiz-bank-secondary"><summary>Phản hồi đáp án từ người học</summary><AnswerReviewQueue/></details>
   </section>;
 }
