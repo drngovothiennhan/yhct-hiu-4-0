@@ -1,0 +1,14 @@
+.subject-picker{display:grid;gap:8px;min-width:0}
+.subject-picker__label{font-size:14px;font-weight:600}
+.subject-picker__tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}
+.subject-picker__tabs button{flex:0 0 auto;border:1px solid #cfd9d4;background:#fff;border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;color:inherit;cursor:pointer;white-space:nowrap}
+.subject-picker__tabs button small{opacity:.7;font-size:12px}
+.subject-picker__tabs button.active{background:#17705b;border-color:#17705b;color:#fff}
+.subject-picker__tabs button:disabled,.subject-picker__search:disabled,.subject-picker__item:disabled{opacity:.55;cursor:not-allowed}
+.subject-picker__search{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #cfd9d4;border-radius:8px;font:inherit;font-size:14px;background:#fff;color:inherit}
+.subject-picker__list{display:grid;gap:6px;max-height:260px;overflow-y:auto;padding-right:2px}
+.subject-picker__item{display:flex;align-items:center;justify-content:space-between;width:100%;box-sizing:border-box;min-height:44px;padding:10px 12px;border:1px solid #dfe6e2;border-radius:10px;background:#fff;font:inherit;font-size:15px;text-align:left;color:inherit;cursor:pointer}
+.subject-picker__item.selected{border-color:#17705b;box-shadow:inset 0 0 0 1px #17705b;background:#eef7f3;font-weight:600}
+.subject-picker__item.selected::after{content:'✓';color:#17705b}
+.subject-picker__empty{margin:0;font-size:13px;opacity:.7}
+.subject-picker__current{margin:0;font-size:13px;opacity:.8}

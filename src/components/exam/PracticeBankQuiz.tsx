@@ -6,6 +6,7 @@ import {generateStudyGeminiQuiz,type StudyAiSource} from '../../services/studyAi
 import {readCachedMember} from '../../services/authService';
 import {recordReview} from '../../services/adaptiveReview';
 import QuestionReasoningGuide from './QuestionReasoningGuide';
+import SubjectPicker from './SubjectPicker';
 import '../../practice-bank-quiz.css';
 import '../../practice-answer-review.css';
 
@@ -57,7 +58,7 @@ export default function PracticeBankQuiz({preferredSource='hiu',initialSubject='
     </div>}
 
     <div className="practice-bank__controls">
-      {sourceMode==='hiu'?<label><span>Thư mục HIU</span><div><select value={subject} disabled={guest||busy||questions.length>0} onChange={e=>setSubject(e.target.value)}><option value="">Tất cả thư mục HIU</option>{config?.subjects.map(x=><option key={x} value={x}>{x}</option>)}</select><ChevronDown/></div></label>:<label className="practice-bank__topic"><span>Chủ đề Gemini</span><div><input value={aiTopic} disabled={guest||busy||questions.length>0} onChange={e=>setAiTopic(e.target.value)} placeholder="Ví dụ: Sinh lý nội tiết, Bát cương, Châm cứu..." maxLength={220}/><Sparkles/></div></label>}
+      {sourceMode==='hiu'?<SubjectPicker label="Thư mục HIU" allLabel="Tất cả thư mục HIU" subjects={config?.subjects||[]} value={subject} disabled={guest||busy||questions.length>0} onChange={setSubject}/>:<label className="practice-bank__topic"><span>Chủ đề Gemini</span><div><input value={aiTopic} disabled={guest||busy||questions.length>0} onChange={e=>setAiTopic(e.target.value)} placeholder="Ví dụ: Sinh lý nội tiết, Bát cương, Châm cứu..." maxLength={220}/><Sparkles/></div></label>}
       <label><span>Số câu</span><div><select value={count} disabled={guest||busy||questions.length>0} onChange={e=>setCount(Number(e.target.value))}>{counts.map(x=><option key={x} value={x}>{x===0?'Toàn bộ':`${x} câu`}</option>)}</select><ChevronDown/></div></label>
       {questions.length===0?<button className="primary" disabled={startDisabled} onClick={()=>void start()}>{busy?<LoaderCircle className="spin"/>:sourceMode==='ai'?<Sparkles/>:<FileQuestion/>}{guest?'Cần đăng nhập':busy&&sourceMode==='ai'?'A.I đang tìm nguồn...':sourceMode==='ai'?'Tạo đề & học':'Học đề HIU'}</button>:<button className="secondary" disabled={busy} onClick={reset}><RotateCcw/>Chọn lại</button>}
     </div>

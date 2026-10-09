@@ -5,6 +5,7 @@ import {recordReview} from '../../services/adaptiveReview';
 import {answerDailyPractice,getDailyPracticeConfig,getTodayDailyPractice,type DailyPracticeAnswer,type DailyPracticeConfig,type DailyPracticeSession} from '../../services/dailyPracticeService';
 import {getPracticeQuizConfig} from '../../services/practiceQuizService';
 import QuestionReasoningGuide from './QuestionReasoningGuide';
+import SubjectPicker from './SubjectPicker';
 import '../../daily-drive-practice.css';
 import '../../daily-drive-practice-controls.css';
 
@@ -31,7 +32,7 @@ export default function DailyDrivePractice({onChooseGemini,onChooseAll}:DailyDri
       <button type="button" className="ai" aria-pressed="false" disabled={busy} onClick={chooseGemini}><Bot/><span><b>Đề Gemini <em>A.I</em></b><small>A.I soạn theo chủ đề</small></span></button>
     </div>
     <div className="daily-drive__setup" aria-label="Chọn thư mục và số câu">
-      <label><span>Thư mục HIU</span><select value={selectedSubject} disabled={busy||guest} onChange={event=>setSelectedSubject(event.target.value)}><option value="">Tất cả thư mục HIU</option>{subjects.map(item=><option key={item} value={item}>{item}</option>)}</select></label>
+      <SubjectPicker label="Thư mục HIU" allLabel="Tất cả thư mục HIU" subjects={subjects} value={selectedSubject} disabled={busy||guest} onChange={setSelectedSubject}/>
       <div><span>Số câu</span><div className="daily-drive__count-picker" role="group" aria-label="Số câu ôn tập nhanh">{DAILY_COUNTS.map(count=><button key={count} type="button" className={selectedCount===count?'active':''} disabled={busy||!config?.ready} onClick={()=>setSelectedCount(count)}><b>{count}</b><small>câu</small></button>)}<button type="button" disabled={busy||!config?.ready} onClick={()=>onChooseAll?.(selectedSubject)}><b>Toàn bộ</b><small>luyện theo đợt</small></button></div></div>
       <button className="daily-drive__apply" disabled={busy||!config?.ready} onClick={()=>void openToday(selectedCount,selectedSubject,Boolean(session))}><BookOpenCheck/>{guest?'Cần đăng nhập':session?'Đổi bộ':`Học ${selectedCount} câu`}</button>
       {session&&<small>Đổi thư mục hoặc số câu rồi nhấn “Đổi bộ”; tiến độ của bộ hiện tại sẽ được tạo lại.</small>}
