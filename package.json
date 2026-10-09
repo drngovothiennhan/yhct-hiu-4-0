@@ -65,9 +65,9 @@
     "audit:admin-password-reset": "node scripts/admin-password-reset-contract-check.mjs"
   },
   "dependencies": {
-    "@capacitor/android": "7.4.3",
+    "@capacitor/android": "7.6.9",
     "@capacitor/app": "7.0.1",
-    "@capacitor/core": "7.4.3",
+    "@capacitor/core": "7.6.9",
     "@napi-rs/canvas": "0.1.80",
     "@supabase/supabase-js": "2.57.4",
     "lucide-react": "0.468.0",
@@ -79,7 +79,7 @@
   },
   "devDependencies": {
     "@capacitor/assets": "3.0.5",
-    "@capacitor/cli": "7.4.3",
+    "@capacitor/cli": "7.6.9",
     "@types/react": "18.3.12",
     "@types/react-dom": "18.3.1",
     "@vitejs/plugin-react": "4.3.4",
