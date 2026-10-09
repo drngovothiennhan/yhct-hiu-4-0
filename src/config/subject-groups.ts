@@ -13,7 +13,7 @@ export type SubjectGroup = {
 export const SUBJECT_GROUPS: SubjectGroup[] = [
   { id: 'co-so', label: 'Y học cơ sở', subjects: ['Sinh lý', 'Sinh lý bệnh', 'Hóa học', 'Ký sinh trùng'] },
   { id: 'chuyen-nganh', label: 'Chuyên ngành', subjects: ['Điều dưỡng cơ bản', 'Sức khỏe môi trường'] },
-  { id: 'yhct', label: 'Y học cổ truyền', subjects: ['Châm cứu', 'Thuốc yhct', 'YHCT cơ sở', 'YHCT co sở'] },
+  { id: 'yhct', label: 'Y học cổ truyền', subjects: ['Châm cứu', 'Thuốc yhct', 'YHCT cơ sở', 'YHCT co sở', 'Dược liệu & Phương tễ'] },
   { id: 'ky-nang', label: 'Kỹ năng & đại cương', subjects: ['Phương pháp NCKH', 'Tâm lý đạo đức'] },
 ];
 
