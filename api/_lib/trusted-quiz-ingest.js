@@ -59,7 +59,7 @@ async function listNewIntakeCandidates(){
   if(!manual)throw new Error(`Không tìm thấy thư mục ${MANUAL_INTAKE_FOLDER} trong ${BANK_FOLDER_NAME}.`);
   const rows=await listChildren(manual.id,1000),directFiles=rows.filter(isConvertibleDocument).map(file=>({...file,parentName:MEMBER_SUBJECT,parentFolderId:manual.id})),subjectFolders=rows.filter(row=>row?.mimeType===FOLDER_MIME&&clean(row?.name,160)),visited=new Set();
   const nestedGroups=await Promise.all(subjectFolders.map(async folder=>collectSubjectDocuments(folder,clean(folder.name,160)||MEMBER_SUBJECT,visited)));
-  const nestedFiles=nestedGroups.flat(),files=[...directFiles,...nestedFiles].sort((a,b)=>String(b.createdTime||'').localeCompare(String(a.createdTime||''))),subjects=[...new Set([...subjectFolders.map(folder=>clean(folder.name,160)).filter(Boolean),...(directFiles.length?[MEMBER_SUBJECT]:[])])].sort((a,b)=>a.localeCompare(b,'vi'));
+  const nestedFiles=nestedGroups.flat(),files=[...directFiles,...nestedFiles].sort((a,b)=>String(b.createdTime||'').localeCompare(String(a.createdTime||''))),subjects=[...new Set(subjectFolders.map(folder=>clean(folder.name,160)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
   return{configured:true,folder:rootId,intakeFolderId:manual.id,subjects,files};
 }
 
