@@ -3,6 +3,7 @@ import {ChevronDown} from 'lucide-react';
 import {readReviewCards,saveReviewCard,scheduleReview,type ReviewCard} from '../../services/adaptiveReview';
 import {getPracticeQuizConfig} from '../../services/practiceQuizService';
 import QuestionReasoningGuide from './QuestionReasoningGuide';
+import SubjectPicker from './SubjectPicker';
 
 const REVIEW_COUNTS=[5,10,20,0] as const;
 export default function AdaptiveReview({identity}:{identity:string|null}){
@@ -20,7 +21,7 @@ export default function AdaptiveReview({identity}:{identity:string|null}){
  const rate=(correct:boolean)=>{if(!card||!revealed)return;const turn=`${card.id}:${card.lastAttempt}`;if(lastRated.current===turn)return;lastRated.current=turn;const ok=saveReviewCard(identity,scheduleReview(card,correct,crypto.randomUUID()));if(!ok)lastRated.current='';else setReviewed(value=>value+1);setNotice(ok?(correct?'Đã lên lịch ôn tiếp.':'Sẽ nhắc ôn lại sau 10 phút.'):'Không lưu được lịch ôn trên thiết bị. Vui lòng kiểm tra dung lượng.');};
  return <section className="panel adaptive-review"><h2>Ôn tập ngắt quãng</h2><p>{due.length} thẻ đến hạn · {validCards.length} thẻ thuộc các thư mục HIU hiện hành. Chọn thư mục và số thẻ muốn ôn; lịch ôn lưu riêng trên thiết bị này, không thay đổi điểm thi.</p>
  <div className="adaptive-review__controls">
-   <label><span>Nội dung</span><div><select value={subject} disabled={!bankReady} onChange={event=>{setSubject(event.target.value);setRevealed(false)}}><option value="">Tất cả nội dung</option>{subjects.map(item=><option key={item} value={item}>{item}</option>)}</select><ChevronDown/></div></label>
+   <SubjectPicker label="Nội dung" allLabel="Tất cả nội dung" subjects={subjects} value={subject} disabled={!bankReady} onChange={value=>{setSubject(value);setRevealed(false)}}/>
    <label><span>Số thẻ</span><div><select value={count} onChange={event=>setCount(Number(event.target.value))}>{REVIEW_COUNTS.map(value=><option key={value} value={value}>{value===0?'Toàn bộ':`${value} thẻ`}</option>)}</select><ChevronDown/></div></label>
  </div>
  {card?<article key={card.id}><small>{card.subject}</small><h3>{card.stem}</h3><QuestionReasoningGuide questionId={card.id} subject={card.subject||subject||'Ôn tập HIU'} topic={card.topic} stem={card.stem} sourceLabel="Ngân hàng HIU đã duyệt"/>{revealed?<><p style={{whiteSpace:'pre-wrap'}}>{card.answer}</p><small>Nguồn: {card.source||'Ngân hàng HIU đã duyệt'}</small><div className="row"><button onClick={()=>rate(false)}>Cần ôn lại</button><button onClick={()=>rate(true)}>Đã nhớ</button></div></>:<button onClick={()=>setRevealed(true)}>Xem giải thích</button>}</article>:<p>{!bankReady?'Đang đồng bộ danh sách thư mục HIU…':count>0&&reviewed>=count?'Đã hoàn thành số thẻ đã chọn. Chọn số thẻ khác để tiếp tục.':validCards.length?(subject?'Chưa có thẻ đến hạn cho thư mục đã chọn. Hãy làm quiz của thư mục này để tạo thêm thẻ.':'Bạn đã hoàn thành các thẻ đến hạn.'):'Chưa có thẻ ôn thuộc các thư mục HIU hiện hành. Hãy làm bài luyện tập để tạo thẻ mới.'}</p>}
