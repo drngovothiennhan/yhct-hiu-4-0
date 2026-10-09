@@ -1,0 +1,28 @@
+name: Dep Audit Probe
+on:
+  push:
+    branches: [claude/fix-prod-audit]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: ['3ab128a5045b02f9e1506bf6884379165f02da54', '4f1029ae26bbfd888b83bbf082debfcf74a63e5e']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: npx tsc -b && npx vite build
+      - name: Report CSS payload
+        run: |
+          out=$(node scripts/performance-chunk-boundary-check.mjs --dist 2>&1 | grep "PERF METRIC" | cut -c1-300 | tr '\n' '|')
+          files=$(ls -l dist/assets/*.css | awk '{print $5" "$9}' | sed 's#dist/assets/##' | tr '\n' ';')
+          echo "::error title=css-payload::ref=${{ matrix.ref }} $out files=$files"
