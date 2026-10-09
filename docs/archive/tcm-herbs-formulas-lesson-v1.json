@@ -1,0 +1,383 @@
+{
+  "HERBS": [
+    {
+      "name": "Nhân Sâm",
+      "zh": "人参",
+      "pinyin": "Rénshēn",
+      "actions": "Đại bổ nguyên khí, tăng cường sức khỏe, tăng cường miễn dịch.",
+      "example": "Nhân sâm có tác dụng bổ khí, tăng cường sức khỏe, phù hợp với người bị suy nhược, mệt mỏi."
+    },
+    {
+      "name": "Đương Quy",
+      "zh": "当归",
+      "pinyin": "Dāngguī",
+      "actions": "Bổ huyết, điều kinh, dưỡng huyết.",
+      "example": "Đương quy thường được sử dụng để bổ huyết điều kinh, đặc biệt thích hợp cho phụ nữ."
+    },
+    {
+      "name": "Xuyên Khung",
+      "zh": "川芎",
+      "pinyin": "Chuānxiōng",
+      "actions": "Hoạt huyết, hành khí, giảm đau đầu.",
+      "example": "Xuyên khung có tác dụng hoạt huyết, hành khí, thường được sử dụng trong điều trị đau đầu."
+    },
+    {
+      "name": "Hoàng Kỳ",
+      "zh": "黄芪",
+      "pinyin": "Huángqí",
+      "actions": "Bổ khí, tăng cường sức đề kháng, lợi tiểu.",
+      "example": "Hoàng kỳ có thể tăng cường hệ miễn dịch, thích hợp cho những người có thể trạng yếu."
+    },
+    {
+      "name": "Bạch Thược",
+      "zh": "白芍",
+      "pinyin": "Báisháo",
+      "actions": "Dưỡng huyết, bổ can, giảm đau.",
+      "example": "Bạch thược thường được sử dụng để điều hòa can tỳ, giảm đau."
+    },
+    {
+      "name": "Bạch Chỉ",
+      "zh": "白芷",
+      "pinyin": "Báizhǐ",
+      "actions": "Giải biểu, khu phong, chỉ thống.",
+      "example": "Bạch chỉ có tác dụng giải biểu, thường dùng trong cảm mạo gây đau đầu."
+    },
+    {
+      "name": "Hoàng Liên",
+      "zh": "黄连",
+      "pinyin": "Huánglián",
+      "actions": "Thanh nhiệt, giải độc, chỉ tả.",
+      "example": "Hoàng liên có thể thanh nhiệt giải độc, thích hợp cho các bệnh do nhiệt độc gây ra."
+    },
+    {
+      "name": "Hoàng Cầm",
+      "zh": "黄芩",
+      "pinyin": "Huángqín",
+      "actions": "Thanh nhiệt, táo thấp, chỉ ho.",
+      "example": "Hoàng cầm thường được sử dụng để điều trị ho do phế nhiệt và tiêu chảy do thấp nhiệt."
+    },
+    {
+      "name": "Hà Thủ Ô",
+      "zh": "何首乌",
+      "pinyin": "Héshǒuwū",
+      "actions": "Bổ Can thận, bổ huyết, làm đen tóc.",
+      "example": "Hà thủ ô giúp bổ thận dưỡng huyết, làm chậm quá trình lão hóa."
+    },
+    {
+      "name": "Đỗ Trọng",
+      "zh": "杜仲",
+      "pinyin": "Dùzhòng",
+      "actions": "Bổ can thận, cường gân cốt, an thai.",
+      "example": "Đỗ trọng có tác dụng mạnh gân cốt, thường được sử dụng cho các trường hợp đau lưng, đầu gối yếu."
+    },
+    {
+      "name": "Xạ Can",
+      "zh": "射干",
+      "pinyin": "Shègān",
+      "actions": "Thanh nhiệt, giải độc, tiêu đàm.",
+      "example": "Xạ can có tác dụng thanh nhiệt giải độc, phù hợp với các trường hợp viêm họng sưng đau."
+    },
+    {
+      "name": "Câu Kỷ Tử",
+      "zh": "枸杞子",
+      "pinyin": "Gǒuqǐzǐ",
+      "actions": "Bổ Can thận, dưỡng huyết, minh mục.",
+      "example": "Câu kỷ tử thường được sử dụng để bổ Can thận, dưỡng huyết, sáng mắt."
+    },
+    {
+      "name": "Kê Huyết Đằng",
+      "zh": "鸡血藤",
+      "pinyin": "Jīxuèténg",
+      "actions": "Bổ huyết, hoạt huyết, thư cân.",
+      "example": "Kê huyết đằng giúp hoạt huyết, thư cân, thường được dùng cho người thiếu máu, thể trạng yếu."
+    },
+    {
+      "name": "Ngưu Tất",
+      "zh": "牛膝",
+      "pinyin": "Niúxī",
+      "actions": "Hoạt huyết, lợi niệu, thư cân.",
+      "example": "Ngưu tất có tác dụng lợi tiểu, hoạt huyết, thường được dùng cho đau khớp."
+    }
+  ],
+  "FORMULAS": [
+    {
+      "name": "Tứ Quân Tử Thang",
+      "zh": "四君子汤",
+      "pinyin": "Sì Jūn Zǐ Tāng",
+      "components": "Nhân Sâm, Bạch Truật, Phục Linh, Cam Thảo.",
+      "actions": "Bổ khí kiện tỳ, thích hợp cho người bị tỳ vị hư nhược, ăn uống kém, mệt mỏi, khí huyết suy yếu."
+    },
+    {
+      "name": "Tứ Vật Thang",
+      "zh": "四物汤",
+      "pinyin": "Sì Wù Tāng",
+      "components": "Đương Quy, Xuyên Khung, Thục Địa, Bạch Thược.",
+      "actions": "Bổ huyết, hoạt huyết, điều kinh. Thường dùng cho phụ nữ có kinh nguyệt không đều, đau bụng kinh."
+    },
+    {
+      "name": "Bát Trân Thang",
+      "zh": "八珍汤",
+      "pinyin": "Bā Zhēn Tāng",
+      "components": "Tứ Quân Tử Thang kết hợp với Tứ Vật Thang.",
+      "actions": "Bổ khí huyết, thích hợp cho người bị thiếu máu, suy nhược cơ thể."
+    },
+    {
+      "name": "Thập Toàn Đại Bổ Hoàn",
+      "zh": "十全大补丸",
+      "pinyin": "Shí Quán Dà Bǔ Wán",
+      "components": "Bát Trân Thang kết hợp với Hoàng Kỳ và Nhục Quế.",
+      "actions": "Bổ khí huyết, tăng cường sức khỏe, cải thiện tình trạng suy nhược."
+    },
+    {
+      "name": "Lục Vị Địa Hoàng Hoàn",
+      "zh": "六味地黄丸",
+      "pinyin": "Liù Wèi Dì Huáng Wán",
+      "components": "Thục Địa, Sơn Thù, Hoài Sơn, Trạch Tả, Phục Linh, Mẫu Đơn Bì.",
+      "actions": "Bổ thận âm, thích hợp cho các bệnh về thận âm hư, đau lưng, mỏi gối, ù tai."
+    },
+    {
+      "name": "Bát Vị Quế Phụ Hoàn",
+      "zh": "桂附八味丸",
+      "pinyin": "Guì Fù Bā Wèi Wán",
+      "components": "Lục Vị Địa Hoàng Hoàn kết hợp với Quế Nhục, Phụ Tử.",
+      "actions": "Bổ thận dương, thích hợp cho người bị thận dương hư, lạnh lưng, lạnh gối, tiểu đêm nhiều."
+    },
+    {
+      "name": "Quy Tỳ Thang",
+      "zh": "归脾汤",
+      "pinyin": "Guī Pí Tāng",
+      "components": "Đương Quy, Hoàng Kỳ chích, Long Nhãn, Viễn Chí sao, Bạch Truật sao, Phục Thần, Nhân sâm, Toan táo nhân sao, Mộc hương, Cam thảo chích, Sinh khương, Đại táo.",
+      "actions": "Bổ tỳ ích khí, dưỡng huyết an thần, thích hợp cho người bị tỳ khí hư, mất ngủ, hay quên."
+    },
+    {
+      "name": "Bổ Trung Ích Khí Hoàn",
+      "zh": "补中益气丸",
+      "pinyin": "Bǔ Zhōng Yì Qì Wán",
+      "components": "Hoàng Kỳ, Nhân Sâm, Bạch Truật, Cam Thảo, Đương Quy, Trần Bì, Thăng ma, Sài hồ.",
+      "actions": "Bổ khí thăng dương, ích trung tiêu, thường dùng trong các trường hợp tỳ vị khí hư, mệt mỏi, chán ăn."
+    }
+  ],
+  "QUIZ": [
+    {
+      "question": "Theo tài liệu, Nhân Sâm có công dụng nổi bật nào?",
+      "options": [
+        "Thanh nhiệt táo thấp",
+        "Đại bổ nguyên khí",
+        "Hoạt huyết thư cân",
+        "Giải biểu khu phong"
+      ],
+      "answer": 1,
+      "explain": "Nhân Sâm: đại bổ nguyên khí, tăng cường sức khỏe, tăng cường miễn dịch."
+    },
+    {
+      "question": "Dược liệu nào được mô tả “bổ huyết, điều kinh, dưỡng huyết”?",
+      "options": [
+        "Đương Quy",
+        "Hoàng Cầm",
+        "Đỗ Trọng",
+        "Ngưu Tất"
+      ],
+      "answer": 0,
+      "explain": "Đương Quy được tài liệu mô tả với công dụng bổ huyết, điều kinh, dưỡng huyết."
+    },
+    {
+      "question": "Xuyên Khung được nêu với nhóm công dụng nào?",
+      "options": [
+        "Bổ can thận, an thai",
+        "Hoạt huyết, hành khí, giảm đau đầu",
+        "Thanh nhiệt, chỉ tả",
+        "Dưỡng huyết, minh mục"
+      ],
+      "answer": 1,
+      "explain": "Xuyên Khung: hoạt huyết, hành khí, giảm đau đầu."
+    },
+    {
+      "question": "Hoàng Kỳ theo tài liệu có công dụng nào?",
+      "options": [
+        "Bổ khí, tăng sức đề kháng, lợi tiểu",
+        "Thanh nhiệt, giải độc, tiêu đàm",
+        "Bổ huyết, thư cân",
+        "Bổ thận âm"
+      ],
+      "answer": 0,
+      "explain": "Hoàng Kỳ: bổ khí, tăng cường sức đề kháng, lợi tiểu."
+    },
+    {
+      "question": "Bạch Chỉ thuộc mô tả nào?",
+      "options": [
+        "Giải biểu, khu phong, chỉ thống",
+        "Bổ huyết, điều kinh",
+        "Thanh nhiệt, táo thấp, chỉ ho",
+        "Bổ can thận, cường gân cốt"
+      ],
+      "answer": 0,
+      "explain": "Bạch Chỉ: giải biểu, khu phong, chỉ thống."
+    },
+    {
+      "question": "Hoàng Liên được tài liệu xếp công dụng chính là gì?",
+      "options": [
+        "Bổ khí",
+        "Thanh nhiệt, giải độc, chỉ tả",
+        "Dưỡng huyết",
+        "Lợi niệu, thư cân"
+      ],
+      "answer": 1,
+      "explain": "Hoàng Liên: thanh nhiệt, giải độc, chỉ tả."
+    },
+    {
+      "question": "Hoàng Cầm thường được nêu cho ho do đâu?",
+      "options": [
+        "Phế nhiệt",
+        "Khí hư",
+        "Huyết hư",
+        "Thận dương hư"
+      ],
+      "answer": 0,
+      "explain": "Ví dụ trong tài liệu: Hoàng cầm dùng cho ho do phế nhiệt và tiêu chảy do thấp nhiệt."
+    },
+    {
+      "question": "Dược liệu nào có mô tả “bổ Can thận, dưỡng huyết, minh mục”?",
+      "options": [
+        "Xạ Can",
+        "Câu Kỷ Tử",
+        "Kê Huyết Đằng",
+        "Bạch Chỉ"
+      ],
+      "answer": 1,
+      "explain": "Câu Kỷ Tử: bổ Can thận, dưỡng huyết, minh mục."
+    },
+    {
+      "question": "Đỗ Trọng được nêu với công dụng nào?",
+      "options": [
+        "Bổ can thận, cường gân cốt, an thai",
+        "Bổ thận âm, minh mục",
+        "Thanh nhiệt, giải độc, chỉ tả",
+        "Hoạt huyết, hành khí"
+      ],
+      "answer": 0,
+      "explain": "Đỗ Trọng: bổ can thận, cường gân cốt, an thai."
+    },
+    {
+      "question": "Ngưu Tất được mô tả với nhóm tác dụng nào?",
+      "options": [
+        "Hoạt huyết, lợi niệu, thư cân",
+        "Bổ khí, kiện tỳ",
+        "Bổ huyết, điều kinh",
+        "Giải biểu, khu phong"
+      ],
+      "answer": 0,
+      "explain": "Ngưu Tất: hoạt huyết, lợi niệu, thư cân."
+    },
+    {
+      "question": "Tứ Quân Tử Thang gồm nhóm nào?",
+      "options": [
+        "Nhân Sâm, Bạch Truật, Phục Linh, Cam Thảo",
+        "Đương Quy, Xuyên Khung, Thục Địa, Bạch Thược",
+        "Thục Địa, Sơn Thù, Hoài Sơn, Trạch Tả",
+        "Hoàng Kỳ, Nhân Sâm, Trần Bì, Sài hồ"
+      ],
+      "answer": 0,
+      "explain": "Bốn vị được nêu là Nhân Sâm, Bạch Truật, Phục Linh, Cam Thảo."
+    },
+    {
+      "question": "Tứ Vật Thang gồm thành phần nào?",
+      "options": [
+        "Nhân Sâm, Bạch Truật, Phục Linh, Cam Thảo",
+        "Đương Quy, Xuyên Khung, Thục Địa, Bạch Thược",
+        "Hoàng Kỳ, Nhục Quế, Phụ Tử, Cam Thảo",
+        "Sơn Thù, Hoài Sơn, Trạch Tả, Phục Linh"
+      ],
+      "answer": 1,
+      "explain": "Tứ Vật Thang: Đương Quy, Xuyên Khung, Thục Địa, Bạch Thược."
+    },
+    {
+      "question": "Bát Trân Thang trong tài liệu được cấu tạo như thế nào?",
+      "options": [
+        "Lục Vị + Quế Nhục + Phụ Tử",
+        "Tứ Quân Tử + Tứ Vật",
+        "Tứ Vật + Hoàng Kỳ",
+        "Quy Tỳ + Nhục Quế"
+      ],
+      "answer": 1,
+      "explain": "Bát Trân Thang = Tứ Quân Tử Thang kết hợp Tứ Vật Thang."
+    },
+    {
+      "question": "Thập Toàn Đại Bổ Hoàn được mô tả là Bát Trân Thang cộng thêm gì?",
+      "options": [
+        "Hoàng Kỳ và Nhục Quế",
+        "Quế Nhục và Phụ Tử",
+        "Trần Bì và Sài hồ",
+        "Sơn Thù và Trạch Tả"
+      ],
+      "answer": 0,
+      "explain": "Thập Toàn Đại Bổ Hoàn = Bát Trân Thang + Hoàng Kỳ + Nhục Quế."
+    },
+    {
+      "question": "Lục Vị Địa Hoàng Hoàn được nêu với công dụng chính nào?",
+      "options": [
+        "Bổ thận âm",
+        "Bổ thận dương",
+        "Bổ khí kiện tỳ",
+        "Thanh nhiệt giải độc"
+      ],
+      "answer": 0,
+      "explain": "Tài liệu nêu Lục Vị Địa Hoàng Hoàn có công dụng bổ thận âm."
+    },
+    {
+      "question": "Bát Vị Quế Phụ Hoàn được tạo từ Lục Vị Địa Hoàng Hoàn cộng thêm gì?",
+      "options": [
+        "Hoàng Kỳ, Nhục Quế",
+        "Quế Nhục, Phụ Tử",
+        "Đương Quy, Xuyên Khung",
+        "Nhân Sâm, Cam Thảo"
+      ],
+      "answer": 1,
+      "explain": "Bát Vị Quế Phụ Hoàn = Lục Vị Địa Hoàng Hoàn + Quế Nhục + Phụ Tử."
+    },
+    {
+      "question": "“Sao” trong phần bào chế được mô tả như thế nào?",
+      "options": [
+        "Nấu dược liệu trong nước",
+        "Rang trên lửa nhỏ để làm khô và tăng tính ấm",
+        "Ngâm trong nước hoặc dung dịch khác",
+        "Chỉ phơi dưới nắng"
+      ],
+      "answer": 1,
+      "explain": "Tài liệu mô tả sao là rang dược liệu trên lửa nhỏ để làm khô và tăng tính ấm."
+    },
+    {
+      "question": "“Tẩm” được tài liệu mô tả là gì?",
+      "options": [
+        "Ngâm dược liệu trong nước hoặc dung dịch khác",
+        "Rang khô trên lửa nhỏ",
+        "Sắc 30–45 phút",
+        "Nghiền thành bột"
+      ],
+      "answer": 0,
+      "explain": "Tẩm là ngâm dược liệu trong nước hoặc dung dịch khác để loại tạp chất hoặc tăng tính chất của thuốc."
+    },
+    {
+      "question": "Theo phần “Phương pháp sắc thuốc”, thời gian sắc thuốc thường được nêu là bao lâu?",
+      "options": [
+        "5–10 phút",
+        "15–20 phút",
+        "30–45 phút",
+        "90–120 phút"
+      ],
+      "answer": 2,
+      "explain": "Tài liệu nêu thuốc thường được sắc 30–45 phút, đầu tiên lửa to cho sôi rồi hạ nhỏ lửa."
+    },
+    {
+      "question": "Lưu ý an toàn nào được tài liệu nhấn mạnh?",
+      "options": [
+        "Mọi dược liệu đều dùng được cùng thuốc Tây",
+        "Phụ nữ có thai, trẻ em, người già không cần tư vấn",
+        "Một số dược liệu có thể tương tác với thuốc Tây",
+        "Có thể tự tăng liều nếu triệu chứng nặng"
+      ],
+      "answer": 2,
+      "explain": "Tài liệu nhấn mạnh một số dược liệu có thể tương tác với thuốc Tây và cần đặc biệt chú ý."
+    }
+  ],
+  "SECTION_SUMMARY": "ERR no SECTION_SUMMARY"
+}
