@@ -11,6 +11,7 @@ const dataSql = read('supabase/migrations/20261010131000_study_os_data_repair_v1
 const hub = read('src/components/home/StudyHubV2.tsx');
 const hubCss = read('src/components/home/study-hub-v2.css');
 const aiService = read('src/services/studyAiService.ts');
+const driveRag = read('api/ai/drive-rag.js');
 const pkg = JSON.parse(read('package.json'));
 
 need(/create or replace function public\.daily_study_review_candidates_v1/.test(fnSql), 'function migration must replace daily_study_review_candidates_v1');
@@ -39,6 +40,7 @@ need(/\.study-os-v2__continue-grid\{display:grid;grid-template-columns:repeat\(2
 need(aiService.includes('normalizeStudySources(payload?.sources)') && aiService.includes('raw.label'), 'study AI sources must accept title or label from every provider');
 need(pkg.scripts?.['audit:study-os-repair'] === 'node scripts/study-os-repair-check.mjs', 'package.json must expose audit:study-os-repair');
 need(String(pkg.scripts?.prebuild || '').includes('npm run audit:study-os-repair'), 'prebuild must run audit:study-os-repair');
+need(driveRag.includes("'approve-ai-drafts'") && /\['quiz-roots'[^\]]*'approve-ai-drafts'\]\.includes\(req\.body\?\.action\)/.test(driveRag), 'drive-rag must route approve-ai-drafts to the quiz workspace handler; without it the admin approve button returns "Query is required"');
 
 if (failures.length) {
   console.error('study-os-repair-check failed:');
