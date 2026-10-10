@@ -8,6 +8,17 @@ export type StudyAiQuiz={aiGenerated:true;topic:string;title:string;questions:St
 
 let variationTurn=Math.abs(Date.now())%6;
 const nextVariationMode=()=>{variationTurn=(variationTurn+1)%6;return variationTurn};
+// Providers return citations as {title} (Gemini) or {label} (OpenAI web fallback). Normalize both to {title,url}; keep https links only.
+const normalizeStudySources=(value:unknown):StudyAiSource[]=>{
+  if(!Array.isArray(value))return[];
+  return value.flatMap((item:unknown)=>{
+    const raw=(item&&typeof item==='object'?item:{}) as {title?:unknown;label?:unknown;url?:unknown};
+    const url=typeof raw.url==='string'?raw.url.trim():'';
+    if(!url.startsWith('https://'))return[];
+    const title=String(raw.title||raw.label||url).replace(/\s+/g,' ').trim().slice(0,260);
+    return[{title,url}];
+  }).slice(0,6);
+};
 
 async function memberToken(){
   const {data}=await supabase.auth.getSession(),token=data.session?.access_token;
@@ -30,7 +41,7 @@ export async function askStudyGemini(query:string,conversationContext='',pageCon
     if(!response.ok)throw new Error(payload?.error||`Gemini Study lỗi ${response.status}`);
     return{
       answer:String(payload?.answer||'Gemini Study chưa có câu trả lời.'),
-      sources:Array.isArray(payload?.sources)?payload.sources.filter(source=>source&&typeof source.url==='string'&&source.url.startsWith('https://')).slice(0,6):[],
+      sources:normalizeStudySources(payload?.sources),
       suggestions:Array.isArray(payload?.suggestions)?payload.suggestions.map(value=>String(value||'').replace(/\s+/g,' ').trim().slice(0,46)).filter(Boolean).slice(0,4):[],
       provider:String(payload?.provider||'gemini'),
       degraded:Boolean(payload?.degraded),
@@ -61,7 +72,7 @@ export async function generateStudyGeminiQuiz(topic:string,count:number,signal?:
       return Boolean(question&&typeof question.stem==='string'&&Array.isArray(question.options)&&question.options.length===4&&Number.isInteger(correct)&&correct>=0&&correct<4&&typeof question.explanation==='string');
     }).slice(0,requested):[];
     if(questions.length!==requested)throw new Error('A.I chưa tạo đủ số câu hợp lệ. Vui lòng thử lại.');
-    const sources=Array.isArray(payload?.sources)?payload.sources.filter(source=>source&&typeof source.url==='string'&&source.url.startsWith('https://')).slice(0,6):[];
+    const sources=normalizeStudySources(payload?.sources);
     if(!sources.length)throw new Error('Đề A.I chưa có nguồn web xác minh nên không được phát hành.');
     return{
       aiGenerated:true,

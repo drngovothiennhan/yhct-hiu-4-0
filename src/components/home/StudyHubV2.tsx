@@ -177,11 +177,11 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
       </div>
     </header>
 
+    <DailyStudyReview memberId={memberId}/>
+
     <PersonalizedStudyGuide memberId={memberId} onOpenLesson={openLesson} onOpenReview={()=>openLearning('quick')} onLogin={onLogin}/>
 
     <LearningCompetitionBoard memberId={memberId}/>
-
-    <DailyStudyReview memberId={memberId}/>
 
     <section className="study-os-v2__continue" aria-label="Tiếp tục học">
       <header>
@@ -189,7 +189,6 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
         <button onClick={()=>openLearning('quick')}>Learning Hub <ArrowRight/></button>
       </header>
       <div className="study-os-v2__continue-grid">
-        <button onClick={()=>execute(`Giúp tôi tiếp tục học ${focus} trong ${dailyMinutes} phút`)}><Brain/><span><small>TRỌNG TÂM</small><b>{focus}</b><em>{dailyMinutes} phút theo mục tiêu</em></span><ArrowRight/></button>
         <button onClick={()=>openLearning('adaptive')}><BookOpen/><span><small>ÔN NGẮT QUÃNG</small><b>{review.dueCount} thẻ đến hạn</b><em>Cần củng cố: {review.weakFolder}</em></span><ArrowRight/></button>
         <button onClick={()=>openLearning('bank')}><GraduationCap/><span><small>TIẾN ĐỘ HÔM NAY</small><b>{journey.todayQuestions} câu đã luyện</b><em>Mở quiz theo thư mục hoặc chủ đề</em></span><ArrowRight/></button>
       </div>
