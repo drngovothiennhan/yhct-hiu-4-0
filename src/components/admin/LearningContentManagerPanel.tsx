@@ -3,6 +3,7 @@ import {AlertTriangle,BookOpenCheck,CheckCircle2,FolderOpen,RefreshCcw,ShieldChe
 import {syncQuizBank,type TrustedQuizSyncResult} from '../../services/quizWorkspaceService';
 import AnswerReviewQueue from './AnswerReviewQueue';
 import QuizDraftReview from './QuizDraftReview';
+import AiDraftApproval from './AiDraftApproval';
 import {draftSkippedFiles} from '../../services/quizAutoSync';
 import './quiz-import.css';
 
@@ -30,6 +31,7 @@ export default function LearningContentManagerPanel(){
       {last&&<div className="quiz-bank-update-stats"><span><b>{qualified}</b> tệp đạt chuẩn</span><span><b>{skipped}</b> tệp bỏ qua</span><span><b>{errors}</b> lỗi</span><span><b>{Number(last.remaining||0)}</b> còn lại</span></div>}
       {errors>0&&<p className="warning"><AlertTriangle/> Có lỗi vận chuyển/đọc Drive. Bấm Cập nhật lại; tệp lỗi chưa được đánh dấu đã xử lý.</p>}
     </div>
+    <AiDraftApproval/>
     <QuizDraftReview key={draftTick}/>
     <details className="quiz-bank-secondary"><summary>Phản hồi đáp án từ người học</summary><AnswerReviewQueue/></details>
   </section>;
