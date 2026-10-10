@@ -74,6 +74,10 @@ export async function handleQuizWorkspace(req,res){
  const body=req.body||{},action=String(body.action||'');
  const rpc=(type,key='',payload={})=>memberRpc(req,'practice_import_workspace_v2',{p_action:type,p_key:key,p_payload:payload});
  try{
+  if(action==='approve-ai-drafts'){
+   const approved=await memberRpc(req,'practice_approve_ai_drafts_v1',{p_prefix:'claude-draft:'});
+   return res.json({approved:Number(approved)||0});
+  }
   if(action==='quiz-roots'){const credentialMode=driveCredentialMode();return res.json({roots:quizRoots(),driveConfigured:credentialMode!=='none',credentialMode});}
   if(action==='quiz-browse')return res.json(await browseQuizFolder(body.folderId,body.pageToken));
   if(action==='quiz-drafts')return res.json({drafts:await rpc('list')});
