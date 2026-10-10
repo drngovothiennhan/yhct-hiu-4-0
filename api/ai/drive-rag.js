@@ -72,6 +72,6 @@ export default async function handler(req,res){
   if(['trusted-quiz-upload','trusted-quiz-sync'].includes(String(req.body?.action||'')))return handleTrustedQuizIngest(req,res);
   if(isQuizPipelineV2Action(req.body?.action))return handleQuizPipelineV2(req,res);
   if(req.body?.action==='quiz-publish')return handleQuizPublish(req,res);
-  if(['quiz-roots','quiz-browse','quiz-preview','quiz-commit','quiz-drafts','quiz-draft'].includes(req.body?.action))return handleQuizWorkspace(req,res);
+  if(['quiz-roots','quiz-browse','quiz-preview','quiz-commit','quiz-drafts','quiz-draft','approve-ai-drafts'].includes(req.body?.action))return handleQuizWorkspace(req,res);
   return clean(req.body?.action,40)==='quiz-sync'?handleQuizSync(req,res):handleDriveRag(req,res);
 }
