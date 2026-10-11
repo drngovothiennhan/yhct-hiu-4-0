@@ -87,9 +87,9 @@ export default function SpiritPetCard({memberId,onLogin,context,onOpenLearning}:
 
   const fallbackStyle=species&&iconFailed?{background:SPECIES_COLOR[species]}:undefined;
   return <section className="study-os-v2__spirit-pet" aria-label="Linh thú">
-    <button type="button" className="study-os-v2__spirit-pet-launcher" aria-expanded={open} aria-label={label} onClick={()=>setOpen(v=>!v)} style={fallbackStyle}>
+    <button type="button" className="study-os-v2__spirit-pet-launcher" aria-expanded={open} aria-label={label} onClick={()=>{setIconFailed(false);setOpen(v=>!v)}} style={fallbackStyle}>
       {species&&!iconFailed
-        ? <img src={spiritPetIconUrl(species)} alt="" width={56} height={56} loading="lazy" onError={()=>setIconFailed(true)}/>
+        ? <img src={spiritPetIconUrl(species)} alt="" width={56} height={56} loading="lazy" referrerPolicy="no-referrer" onError={()=>setIconFailed(true)}/>
         : <span aria-hidden="true" className="study-os-v2__spirit-pet-fallback">{species?initials(SPIRIT_PET_NAMES[species]):'✦'}</span>}
     </button>
     {open&&<div className="study-os-v2__spirit-pet-panel" role="dialog" aria-label="Chi tiết linh thú">
