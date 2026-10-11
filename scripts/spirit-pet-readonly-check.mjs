@@ -23,6 +23,14 @@ for (const token of ['gemini', 'openai', 'askXiaoZhiMini', 'studyAiService', 'ac
   forbid(service + card, token, 'pet must not depend on AI modules');
 }
 
+// Trò chuyện linh thú là kịch bản cố định: không mạng, không AI.
+const script = fs.readFileSync('src/services/spiritPetScript.ts', 'utf8');
+for (const token of ['fetch(', 'gemini', 'openai', 'askXiaoZhiMini', 'studyAiService', 'academicAiService', 'supabase', 'localStorage']) {
+  forbid(script, token, 'pet script must be deterministic and offline');
+}
+need(card, 'answerPetScript(clean,context)', 'pet card answers only through the script');
+need(card, "onOpenLearning(result.action.tab)", 'pet navigation goes through learning tabs');
+
 // Được mount đúng một lần trên trang chủ học.
 need(home, '<SpiritPetCard memberId={memberId}', 'Study home mounts the pet card');
 if ((home.match(/<SpiritPetCard\b/g) || []).length !== 1) fail.push('Study home must mount the pet card exactly once');
@@ -32,4 +40,4 @@ if (fail.length) {
   fail.forEach((x) => console.error(`- ${x}`));
   process.exit(1);
 }
-console.log('spirit-pet-readonly-ok: Study OS reads shared HIU TMC species one-way; no client writes, no AI coupling, one home mount.');
+console.log('spirit-pet-readonly-ok: species read one-way; scripted chat is deterministic and offline; no client writes, no AI coupling, one home mount.');

@@ -184,7 +184,7 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
 
     <LearningCompetitionBoard memberId={memberId}/>
 
-    <SpiritPetCard memberId={memberId} onLogin={onLogin}/>
+    <SpiritPetCard memberId={memberId} onLogin={onLogin} context={{todayQuestions:journey.todayQuestions,dueCount:review.dueCount,weakFolder:review.weakFolder}} onOpenLearning={openLearning}/>
 
     <section className="study-os-v2__continue" aria-label="Tiếp tục học">
       <header>

@@ -5,3 +5,11 @@
 .study-os-v2__spirit-pet-body img{width:96px;height:96px;object-fit:contain;flex:0 0 96px}
 .study-os-v2__spirit-pet-body p{margin:4px 0 0;font-size:13px;opacity:.8}
 .study-os-v2__spirit-pet button{background:none;border:0;color:inherit;text-decoration:underline;cursor:pointer;padding:0}
+.study-os-v2__spirit-pet-chat{margin-top:10px;max-height:180px;overflow:auto;display:grid;gap:6px}
+.study-os-v2__spirit-pet-chat p{margin:0;padding:6px 10px;border-radius:10px;font-size:13px}
+.study-os-v2__spirit-pet-chat p.you{justify-self:end;background:rgba(0,0,0,.06)}
+.study-os-v2__spirit-pet-chat p.pet{justify-self:start;background:rgba(0,0,0,.03)}
+.study-os-v2__spirit-pet-suggest{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.study-os-v2__spirit-pet-suggest button{border:1px solid rgba(0,0,0,.12);border-radius:999px;padding:4px 10px;background:none;font-size:12px;cursor:pointer}
+.study-os-v2__spirit-pet-form{display:flex;gap:6px;margin-top:8px}
+.study-os-v2__spirit-pet-form input{flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid rgba(0,0,0,.15)}
