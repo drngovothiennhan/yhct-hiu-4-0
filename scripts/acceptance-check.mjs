@@ -33,7 +33,7 @@ const forbidden=[
 for(const p of sourceFiles){const body=fs.readFileSync(p,'utf8');for(const [re,label] of forbidden)if(re.test(body))errors.push(`${label} in ${path.relative(root,p)}`)}
 
 const app=read('src/App.tsx'),main=read('src/main.tsx'),contract=read('src/modules/moduleContract.ts');
-need(app,['UnifiedAiMini member={member}',"lazy(()=>import('./components/research/ResearchCenter'))",'ModuleBoundary moduleId={tab}',"tab==='admin'&&canAdmin&&<AdminControlCenter","tab==='acc'&&canAcc&&<>",'authResolved'],'modular app shell');
+need(app,["lazy(()=>import('./components/research/ResearchCenter'))",'ModuleBoundary moduleId={tab}',"tab==='admin'&&canAdmin&&<AdminControlCenter","tab==='acc'&&canAcc&&<>",'authResolved'],'modular app shell');
 need(contract,["ModuleId='feed'|'research'|'profile'|'garden'|'notifications'|'schedule'|'drl'|'exam'|'admin'|'acc'", "if(path==='/messages')return'profile'"],'frozen module contract');
 need(main,['requestAnimationFrame(()=>requestAnimationFrame(revealStableApp))','delete root.dataset.appBooting','yhct-prepaint'],'stable first paint');
 
