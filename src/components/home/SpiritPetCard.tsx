@@ -44,7 +44,7 @@ export default function SpiritPetCard({memberId,onLogin,context,onOpenLearning}:
     let alive=true;
     setState({status:'loading'});
     // Đồng bộ XP từ điểm học đã ghi trên máy chủ; máy chủ tính cấp và XP.
-    syncSpiritProgress().then(progress=>{if(alive)setState(progress?{status:'ready',progress}:{status:'empty'})})
+    syncSpiritPetProgress().then(progress=>{if(alive)setState(progress?{status:'ready',progress}:{status:'empty'})})
       .catch(()=>{if(alive)setState({status:'error'})});
     return()=>{alive=false};
   },[memberId]);
