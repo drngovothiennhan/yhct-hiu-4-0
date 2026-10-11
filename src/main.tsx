@@ -29,6 +29,7 @@ import './viewport-native-hotfix.css';
 import './desktop-phone-full.css';
 import './module-display-fixes.css';
 import './xiaozhi-mini-v10.css';
+import './spirit-pet-card.css';
 import './feed-avatar-v10.css';
 import './home-feed-phase4.css';
 import './responsive-phase7.css';
