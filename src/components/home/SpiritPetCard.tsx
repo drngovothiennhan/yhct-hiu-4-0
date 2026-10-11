@@ -89,7 +89,7 @@ export default function SpiritPetCard({memberId,onLogin,context,onOpenLearning}:
   return <section className="study-os-v2__spirit-pet" aria-label="Linh thú">
     <button type="button" className="study-os-v2__spirit-pet-launcher" aria-expanded={open} aria-label={label} onClick={()=>{setIconFailed(false);setOpen(v=>!v)}} style={fallbackStyle}>
       {species&&!iconFailed
-        ? <img src={spiritPetIconUrl(species)} alt="" width={56} height={56} loading="lazy" referrerPolicy="no-referrer" onError={()=>setIconFailed(true)}/>
+        ? <img src={spiritPetIconUrl(species)} alt="" width={56} height={56} onError={()=>setIconFailed(true)}/>
         : <span aria-hidden="true" className="study-os-v2__spirit-pet-fallback">{species?initials(SPIRIT_PET_NAMES[species]):'✦'}</span>}
     </button>
     {open&&<div className="study-os-v2__spirit-pet-panel" role="dialog" aria-label="Chi tiết linh thú">
