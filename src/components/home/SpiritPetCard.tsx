@@ -1,4 +1,4 @@
-import {useEffect,useState,type FormEvent} from 'react';
+import {useEffect,useRef,useState,type FormEvent,type PointerEvent as ReactPointerEvent} from 'react';
 import {
   SPIRIT_PET_NAMES,careSpiritPet,spiritPetIconUrl,syncSpiritPetProgress,
   type SpiritPetCareAction,type SpiritPetProgress,type SpiritPetSpecies,
@@ -36,6 +36,10 @@ export default function SpiritPetCard({memberId,onLogin,context,onOpenLearning}:
   const [state,setState]=useState<State>({status:'guest'});
   const [open,setOpen]=useState(false);
   const [iconFailed,setIconFailed]=useState(false);
+  // Vị trí nút nổi do người dùng kéo (chỉ trong phiên, không lưu cục bộ).
+  const [pos,setPos]=useState<{right:number;bottom:number}|null>(null);
+  const drag=useRef<{id:number;x:number;y:number;right:number;bottom:number;moved:boolean}|null>(null);
+  const suppressClick=useRef(false);
   const [lines,setLines]=useState<Line[]>([]);
   const [draft,setDraft]=useState('');
   const [busy,setBusy]=useState(false);
@@ -85,9 +89,37 @@ export default function SpiritPetCard({memberId,onLogin,context,onOpenLearning}:
   const species=state.status==='ready'?state.progress.species:null;
   const label=species?`Mở linh thú ${SPIRIT_PET_NAMES[species]}`:'Mở linh thú';
 
+  const clampPos=(right:number,bottom:number)=>({
+    right:Math.min(Math.max(6,right),Math.max(6,window.innerWidth-70)),
+    bottom:Math.min(Math.max(6,bottom),Math.max(6,window.innerHeight-70)),
+  });
+  const onPointerDown=(e:ReactPointerEvent<HTMLButtonElement>)=>{
+    const r=e.currentTarget.getBoundingClientRect();
+    drag.current={id:e.pointerId,x:e.clientX,y:e.clientY,right:window.innerWidth-r.right,bottom:window.innerHeight-r.bottom,moved:false};
+    try{e.currentTarget.setPointerCapture(e.pointerId)}catch{/* không bắt buộc */}
+  };
+  const onPointerMove=(e:ReactPointerEvent<HTMLButtonElement>)=>{
+    const d=drag.current;
+    if(!d||d.id!==e.pointerId)return;
+    const dx=e.clientX-d.x,dy=e.clientY-d.y;
+    if(!d.moved&&Math.hypot(dx,dy)<6)return;
+    d.moved=true;
+    setPos(clampPos(d.right-dx,d.bottom-dy));
+  };
+  const onPointerEnd=(e:ReactPointerEvent<HTMLButtonElement>)=>{
+    const d=drag.current;
+    if(!d||d.id!==e.pointerId)return;
+    suppressClick.current=d.moved;
+    drag.current=null;
+    try{e.currentTarget.releasePointerCapture(e.pointerId)}catch{/* không bắt buộc */}
+  };
+  // Nút ở sát mép trên thì mở panel xuống dưới để không bị cắt.
+  const panelBelow=!!pos&&(window.innerHeight-pos.bottom-64)<380;
+  const rootStyle=pos?{right:pos.right,bottom:pos.bottom,flexDirection:panelBelow?'column' as const:'column-reverse' as const}:undefined;
   const fallbackStyle=species&&iconFailed?{background:SPECIES_COLOR[species]}:undefined;
-  return <section className="study-os-v2__spirit-pet" aria-label="Linh thú">
-    <button type="button" className="study-os-v2__spirit-pet-launcher" aria-expanded={open} aria-label={label} onClick={()=>{setIconFailed(false);setOpen(v=>!v)}} style={fallbackStyle}>
+  return <section className="study-os-v2__spirit-pet" aria-label="Linh thú" style={rootStyle}>
+    <button type="button" className="study-os-v2__spirit-pet-launcher" aria-expanded={open} aria-label={label} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd}
+      onClick={()=>{if(suppressClick.current){suppressClick.current=false;return}setIconFailed(false);setOpen(v=>!v)}} style={fallbackStyle}>
       {species&&!iconFailed
         ? <img src={spiritPetIconUrl(species)} alt="" width={56} height={56} onError={()=>setIconFailed(true)}/>
         : <span aria-hidden="true" className="study-os-v2__spirit-pet-fallback">{species?initials(SPIRIT_PET_NAMES[species]):'✦'}</span>}
