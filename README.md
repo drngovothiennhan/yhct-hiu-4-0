@@ -6,7 +6,7 @@ Main production repository for **YHCT HIU 4.0 — Mạng xã hội Học thuật
 Before changing any A.I behavior, routing, provider integration or A.I UX, read `docs/AI_CANONICAL_ARCHITECTURE_2026-09-11.md`. It overrides older AI prompts/docs when they conflict.
 
 Current product roles:
-- **A.I Mini / XiaoZhi** = Trợ lý ứng dụng, public/default interaction layer.
+- **A.I Mini / XiaoZhi** = đã bỏ khỏi Study OS (2026-10-11) theo quyết định của chủ dự án. Mã còn lại chỉ phục vụ tương thích, không được mount trong app.
 - **Trung tâm nghiên cứu** = Research A.I for academic/medical literature workflows.
 - **Module-specific AI** = contextual capabilities such as Exam Tutor / ACC Quiz Designer, not standalone provider chatbots.
 

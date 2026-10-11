@@ -34,7 +34,7 @@ const checks=[
   ['composer allows non-clinical post types',has(files.composer,"['news','Tin tức']","['reference','Bài tham khảo']",'Nội dung YHCT chuyên sâu — tùy chọn')],
   ['work blocks max-five contract surfaced',has(files.moderation,'Tối đa 5 nội dung','moderation_workbench_v2','p_on_date')],
   ['Word summary import preserved',has(files.feed,'DocxImportPanel')&&has(files.docx,'docx')],
-  ['Task assistant and Gemini Study are both available',has(files.app,'UnifiedAiMini member={member}')&&has(files.mini,'openStudyAi(text)','VOICE_KEY','startListening')&&not(files.mini,'askXiaoZhiMini')&&has(files.aiCenter,'askStudyGemini')&&has(files.studyService,"fetch('/api/ai/assistant'")]
+  ['Gemini Study available; global task assistant removed',!has(files.app,'UnifiedAiMini')&&has(files.mini,'openStudyAi(text)','VOICE_KEY','startListening')&&not(files.mini,'askXiaoZhiMini')&&has(files.aiCenter,'askStudyGemini')&&has(files.studyService,"fetch('/api/ai/assistant'")]
  ]],
  ['USER',[
   ['frozen module contract',has(files.contract,"ModuleId='feed'|'research'|'profile'|'garden'|'notifications'|'schedule'|'drl'|'exam'|'admin'|'acc'","if(path==='/messages')return'profile'")&&not(files.app,"tab==='messages'","go('messages')")],

@@ -29,7 +29,7 @@ const vercel=JSON.parse(read('vercel.json'));
 
 need(mini,['Trợ lý tác vụ','researchIntent','openResearch(text)','openStudyAi(text)'],'AI Mini task assistant');
 forbid(mini,['askXiaoZhiMini','searchOpenAlex','searchPubMed','searchClinicalTrials','searchDriveRag','searchKnowledge'],'AI Mini academic boundary');
-if((app.match(/<UnifiedAiMini\b/g)||[]).length!==1)fail.push('App must render exactly one global task assistant launcher');
+if((app.match(/<UnifiedAiMini\b/g)||[]).length!==0)fail.push('Study OS must not render a global task assistant launcher');
 need(xz,['hiu.vn','appAssistantQuery'],'official HIU task-assistant source policy');
 need(xzServer,['isResearchIntent',"route:'research'"],'XiaoZhi research handoff');
 
