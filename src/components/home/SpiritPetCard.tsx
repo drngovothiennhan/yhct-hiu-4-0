@@ -1,5 +1,8 @@
 import {useEffect,useState,type FormEvent} from 'react';
-import {SPIRIT_PET_NAMES,readSpiritPetSpecies,spiritPetImageUrl,type SpiritPetSpecies} from '../../services/spiritPetService';
+import {
+  SPIRIT_PET_NAMES,careSpiritPet,spiritPetImageUrl,syncSpiritPetProgress,
+  type SpiritPetCareAction,type SpiritPetProgress,
+} from '../../services/spiritPetService';
 import {answerPetScript,type PetContext,type PetLearningTab} from '../../services/spiritPetScript';
 
 type Props={
@@ -13,24 +16,54 @@ type State=
   |{status:'loading'}
   |{status:'error'}
   |{status:'empty'}
-  |{status:'ready';species:SpiritPetSpecies};
+  |{status:'ready';progress:SpiritPetProgress};
 type Line={from:'pet'|'you';text:string};
+
+const CARE_LABELS:Record<SpiritPetCareAction,string>={feed:'Cho ăn',groom:'Chải lông',play:'Chơi cùng'};
+const CARE_FAIL:Record<'limit'|'unknown'|'missing'|'error',string>={
+  limit:'Hôm nay bạn đã chăm sóc đủ số lượt. Quay lại vào ngày mai.',
+  unknown:'Hành động chăm sóc này chưa có.',
+  missing:'Chưa có linh thú để chăm sóc.',
+  error:'Chưa chăm sóc được. Thử lại sau.',
+};
+const LEVEL_NEXT=[100,300,600];
 
 export default function SpiritPetCard({memberId,onLogin,context,onOpenLearning}:Props){
   const [state,setState]=useState<State>({status:'guest'});
   const [lines,setLines]=useState<Line[]>([]);
   const [draft,setDraft]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [notice,setNotice]=useState('');
   const [suggestions,setSuggestions]=useState<string[]>(['Tiến độ hôm nay','Thẻ đến hạn','Mở quiz','Bạn làm được gì?']);
 
   useEffect(()=>{
     if(!memberId){setState({status:'guest'});return}
     let alive=true;
     setState({status:'loading'});
-    readSpiritPetSpecies(memberId)
-      .then(species=>{if(alive)setState(species?{status:'ready',species}:{status:'empty'})})
+    // Đồng bộ XP từ điểm học đã ghi trên máy chủ; máy chủ tính cấp và XP.
+    syncSpiritPetProgress()
+      .then(progress=>{if(alive)setState(progress?{status:'ready',progress}:{status:'empty'})})
       .catch(()=>{if(alive)setState({status:'error'})});
     return()=>{alive=false};
   },[memberId]);
+
+  const care=async(action:SpiritPetCareAction)=>{
+    if(busy)return;
+    setBusy(true);
+    setNotice('');
+    try{
+      const result=await careSpiritPet(action);
+      if(result.ok){
+        setState({status:'ready',progress:result.progress});
+        const left=result.progress.remainingToday;
+        setNotice(`${CARE_LABELS[action]} xong.${typeof left==='number'?` Còn ${left} lượt hôm nay.`:''}`);
+      }else{
+        setNotice(CARE_FAIL[result.reason]);
+      }
+    }finally{
+      setBusy(false);
+    }
+  };
 
   const ask=(text:string)=>{
     const clean=text.trim();
@@ -54,9 +87,19 @@ export default function SpiritPetCard({memberId,onLogin,context,onOpenLearning}:
     {state.status==='empty'&&<p>Bạn chưa có linh thú. Mở HIU TMC để chọn linh thú, rồi quay lại đây.</p>}
     {state.status==='ready'&&<>
       <div className="study-os-v2__spirit-pet-body">
-        <img src={spiritPetImageUrl(state.species)} alt={`Linh thú ${SPIRIT_PET_NAMES[state.species]}`} width={96} height={96} loading="lazy"/>
-        <div><b>{SPIRIT_PET_NAMES[state.species]}</b><p>Trò chuyện theo kịch bản cố định. Không dùng AI.</p></div>
+        <img src={spiritPetImageUrl(state.progress.species)} alt={`Linh thú ${SPIRIT_PET_NAMES[state.progress.species]}`} width={96} height={96} loading="lazy"/>
+        <div>
+          <b>{SPIRIT_PET_NAMES[state.progress.species]}</b>
+          <p>Cấp {state.progress.level} · {state.progress.xp} XP{LEVEL_NEXT[state.progress.level-1]?` · cấp kế tiếp ở ${LEVEL_NEXT[state.progress.level-1]} XP`:' · cấp tối đa'}</p>
+          <p>Thân mật: {state.progress.affection}</p>
+        </div>
       </div>
+      <div className="study-os-v2__spirit-pet-suggest" aria-label="Chăm sóc">
+        {(Object.keys(CARE_LABELS) as SpiritPetCareAction[]).map(action=>
+          <button key={action} type="button" disabled={busy} onClick={()=>care(action)}>{CARE_LABELS[action]}</button>
+        )}
+      </div>
+      {notice&&<p role="status">{notice}</p>}
       <div className="study-os-v2__spirit-pet-chat" aria-live="polite">
         {lines.map((line,i)=><p key={i} className={line.from==='you'?'you':'pet'}>{line.text}</p>)}
       </div>

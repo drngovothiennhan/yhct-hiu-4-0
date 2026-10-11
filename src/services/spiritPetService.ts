@@ -33,3 +33,64 @@ export async function readSpiritPetSpecies(memberId:string):Promise<SpiritPetSpe
   const species=data?.species;
   return isSpiritPetSpecies(species)?species:null;
 }
+
+// Tiến độ và chăm sóc: chỉ gọi 3 RPC do máy chủ kiểm soát (HIU TMC). Máy chủ tính cấp, XP và giới hạn.
+export const SPIRIT_PET_CARE_ACTIONS=['feed','groom','play'] as const;
+export type SpiritPetCareAction=typeof SPIRIT_PET_CARE_ACTIONS[number];
+
+export type SpiritPetProgress={
+  species:SpiritPetSpecies;
+  level:1|2|3|4;
+  xp:number;
+  affection:number;
+  remainingToday?:number;
+};
+
+function toProgress(value:unknown):SpiritPetProgress|null{
+  if(!value||typeof value!=='object') return null;
+  const v=value as Record<string,unknown>;
+  if(!isSpiritPetSpecies(v.species)) return null;
+  const level=Number(v.level);
+  if(![1,2,3,4].includes(level)) return null;
+  const remaining=v.remaining_today;
+  return {
+    species:v.species,
+    level:level as 1|2|3|4,
+    xp:Number(v.xp)||0,
+    affection:Number(v.affection)||0,
+    remainingToday:typeof remaining==='number'?remaining:undefined,
+  };
+}
+
+export async function readSpiritPetProgress():Promise<SpiritPetProgress|null>{
+  const {data,error}=await supabase.rpc('spirit_pet_profile_get');
+  if(error) throw error;
+  return toProgress(data);
+}
+
+// Đồng bộ XP từ điểm học đã ghi trên máy chủ. Không có hồ sơ (P0002) thì coi như chưa có linh thú.
+export async function syncSpiritPetProgress():Promise<SpiritPetProgress|null>{
+  const {data,error}=await supabase.rpc('spirit_pet_sync_xp');
+  if(error){
+    if(error.code==='P0002') return null;
+    throw error;
+  }
+  return toProgress(data);
+}
+
+export type SpiritPetCareResult=
+  |{ok:true;progress:SpiritPetProgress}
+  |{ok:false;reason:'limit'|'unknown'|'missing'|'error'};
+
+export async function careSpiritPet(action:SpiritPetCareAction):Promise<SpiritPetCareResult>{
+  if(!(SPIRIT_PET_CARE_ACTIONS as readonly string[]).includes(action)) return {ok:false,reason:'unknown'};
+  const {data,error}=await supabase.rpc('spirit_pet_care',{p_action:action});
+  if(error){
+    if(error.code==='P0001') return {ok:false,reason:'limit'};
+    if(error.code==='22023') return {ok:false,reason:'unknown'};
+    if(error.code==='P0002') return {ok:false,reason:'missing'};
+    return {ok:false,reason:'error'};
+  }
+  const progress=toProgress(data);
+  return progress?{ok:true,progress}:{ok:false,reason:'error'};
+}
