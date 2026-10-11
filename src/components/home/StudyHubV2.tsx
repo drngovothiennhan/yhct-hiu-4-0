@@ -1,3 +1,4 @@
+import SpiritPetCard from './SpiritPetCard';
 import {useEffect,useMemo,useState,type FormEvent} from 'react';
 import {ArrowRight,BookOpen,Brain,FlaskConical,GraduationCap,Sparkles,Target} from 'lucide-react';
 import type {Member} from '../../types';
@@ -182,6 +183,8 @@ export default function StudyHubV2({member,onNavigate,onLogin}:Props){
     <PersonalizedStudyGuide memberId={memberId} onOpenLesson={openLesson} onOpenReview={()=>openLearning('quick')} onLogin={onLogin}/>
 
     <LearningCompetitionBoard memberId={memberId}/>
+
+    <SpiritPetCard memberId={memberId} onLogin={onLogin}/>
 
     <section className="study-os-v2__continue" aria-label="Tiếp tục học">
       <header>

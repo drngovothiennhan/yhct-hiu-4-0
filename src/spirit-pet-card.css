@@ -1,0 +1,7 @@
+.study-os-v2__spirit-pet{margin-top:14px;padding:14px;border-radius:14px;background:var(--surface,#fff);border:1px solid rgba(0,0,0,.08)}
+.study-os-v2__spirit-pet header span{font-size:11px;letter-spacing:.08em;opacity:.7}
+.study-os-v2__spirit-pet h3{margin:2px 0 0;font-size:16px}
+.study-os-v2__spirit-pet-body{display:flex;gap:12px;align-items:center;margin-top:10px}
+.study-os-v2__spirit-pet-body img{width:96px;height:96px;object-fit:contain;flex:0 0 96px}
+.study-os-v2__spirit-pet-body p{margin:4px 0 0;font-size:13px;opacity:.8}
+.study-os-v2__spirit-pet button{background:none;border:0;color:inherit;text-decoration:underline;cursor:pointer;padding:0}
