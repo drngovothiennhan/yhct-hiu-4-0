@@ -1,11 +1,11 @@
 import {useEffect,useState,type FormEvent} from 'react';
 import {
   SPIRIT_PET_NAMES,careSpiritPet,spiritPetIconUrl,syncSpiritPetProgress,
-  type SpiritPetCareAction,type SpiritPetProgress,
+  type SpiritPetCareAction,type SpiritPetProgress,type SpiritPetSpecies,
 } from '../../services/spiritPetService';
 import {answerPetScript,type PetContext,type PetLearningTab} from '../../services/spiritPetScript';
 
-// Trang chủ chỉ hiện biểu tượng linh thú (như launcher HIU TMC). Bấm vào mới mở bảng chi tiết.
+// Biểu tượng linh thú nổi ở góc phải dưới (như launcher HIU TMC). Bấm vào mới mở bảng chi tiết.
 type Props={
   memberId:string|null;
   onLogin:()=>void;
@@ -28,6 +28,9 @@ const CARE_FAIL:Record<'limit'|'unknown'|'missing'|'error',string>={
   error:'Chưa chăm sóc được. Thử lại sau.',
 };
 const LEVEL_NEXT=[100,300,600];
+const SPECIES_COLOR:Record<SpiritPetSpecies,string>={thanh_long:'#2f8e8a',chu_tuoc:'#c64b3d',kim_su:'#b97b35',ky_lan:'#568c80',ho_ly:'#b85d34',khong_tuoc:'#237a77'};
+// Chữ viết tắt hiện khi ảnh không tải được: "Thanh Long" -> "TL".
+function initials(name:string):string{return name.split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase()}
 
 export default function SpiritPetCard({memberId,onLogin,context,onOpenLearning}:Props){
   const [state,setState]=useState<State>({status:'guest'});
@@ -82,13 +85,14 @@ export default function SpiritPetCard({memberId,onLogin,context,onOpenLearning}:
   const species=state.status==='ready'?state.progress.species:null;
   const label=species?`Mở linh thú ${SPIRIT_PET_NAMES[species]}`:'Mở linh thú';
 
+  const fallbackStyle=species&&iconFailed?{background:SPECIES_COLOR[species]}:undefined;
   return <section className="study-os-v2__spirit-pet" aria-label="Linh thú">
-    <button type="button" className="study-os-v2__spirit-pet-launcher" aria-expanded={open} aria-label={label} onClick={()=>setOpen(v=>!v)}>
+    <button type="button" className="study-os-v2__spirit-pet-launcher" aria-expanded={open} aria-label={label} onClick={()=>setOpen(v=>!v)} style={fallbackStyle}>
       {species&&!iconFailed
         ? <img src={spiritPetIconUrl(species)} alt="" width={56} height={56} loading="lazy" onError={()=>setIconFailed(true)}/>
-        : <span aria-hidden="true">✦</span>}
+        : <span aria-hidden="true" className="study-os-v2__spirit-pet-fallback">{species?initials(SPIRIT_PET_NAMES[species]):'✦'}</span>}
     </button>
-    {open&&<div className="study-os-v2__spirit-pet-panel">
+    {open&&<div className="study-os-v2__spirit-pet-panel" role="dialog" aria-label="Chi tiết linh thú">
       <header>
         <div><span>LINH THÚ</span><h3>Người bạn đồng hành học tập</h3></div>
         <button type="button" className="study-os-v2__spirit-pet-close" onClick={()=>setOpen(false)} aria-label="Đóng">×</button>
