@@ -20,8 +20,9 @@ export function isSpiritPetSpecies(value:unknown):value is SpiritPetSpecies{
 
 // Ảnh giai đoạn 1 của loài (bản xem trước). Không phản ánh cấp thật.
 // Biểu tượng nhỏ cho nút mở linh thú (cùng bộ tài nguyên với HIU TMC).
-export function spiritPetIconUrl(species:SpiritPetSpecies,stage:1|2|3|4=1):string{
-  return `${ASSET_BASE}${ASSET_KEY[species]}-stage-${stage}-icon.webp`;
+// Bản sao cùng nguồn tài nguyên, đặt trong Study OS (cùng origin, không phụ thuộc hiutmc.com). Chỉ có giai đoạn 1.
+export function spiritPetIconUrl(species:SpiritPetSpecies):string{
+  return `/spirit-pets/${ASSET_KEY[species]}-stage-1-icon.webp`;
 }
 
 export function spiritPetImageUrl(species:SpiritPetSpecies,stage:1|2|3|4=1):string{
