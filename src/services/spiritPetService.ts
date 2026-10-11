@@ -1,4 +1,5 @@
 import {supabase} from './authService';
+import {SPIRIT_PET_ICON_DATA} from './spiritPetIcons';
 
 // Linh thú: đọc một chiều từ hồ sơ dùng chung trên máy chủ (HIU TMC).
 // Chỉ đọc. Không lưu cục bộ, không khởi tạo hồ sơ, không nhận điểm từ trình duyệt.
@@ -22,7 +23,7 @@ export function isSpiritPetSpecies(value:unknown):value is SpiritPetSpecies{
 // Biểu tượng nhỏ cho nút mở linh thú (cùng bộ tài nguyên với HIU TMC).
 // Bản sao cùng nguồn tài nguyên, đặt trong Study OS (cùng origin, không phụ thuộc hiutmc.com). Chỉ có giai đoạn 1.
 export function spiritPetIconUrl(species:SpiritPetSpecies):string{
-  return `/spirit-pets/${ASSET_KEY[species]}-stage-1-icon.webp`;
+  return SPIRIT_PET_ICON_DATA[species];
 }
 
 export function spiritPetImageUrl(species:SpiritPetSpecies,stage:1|2|3|4=1):string{
