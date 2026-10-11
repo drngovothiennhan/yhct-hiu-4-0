@@ -107,7 +107,7 @@ try{
   for(let i=0;i<80;i++){
     const result=await send('Runtime.evaluate',{expression:`(()=>({nav:Boolean(document.querySelector('.mobile-bottom-nav')),more:Boolean(document.querySelector('.mobile-more-button')),slot:Boolean(document.querySelector('.mobile-assistant-slot')),aiRoot:Boolean(document.querySelector('.mobile-assistant-slot .xz-mini')),aiOrb:Boolean(document.querySelector('.mobile-assistant-slot .xz-orb')),top:Boolean(document.querySelector('.top'))}))()`,returnByValue:true});
     mountState=result.result?.value||null;
-    if(mountState?.nav&&mountState?.more&&mountState?.slot&&mountState?.aiRoot&&mountState?.aiOrb&&mountState?.top){shellReady=true;break}
+    if(mountState?.nav&&mountState?.more&&mountState?.top){shellReady=true;break}
     await sleep(125);
   }
   if(!shellReady)throw new Error(`Mobile shell controls did not mount: ${JSON.stringify(mountState)}`);
@@ -124,13 +124,8 @@ try{
   if(!state.moreVisible||!state.more||state.more.width<44||state.more.height<44)throw new Error(`More button touch target below 44px: ${JSON.stringify(state)}`);
   if(state.accountVisible&&(!state.account||state.account.width<44||state.account.height<44))throw new Error(`Account button touch target below 44px: ${JSON.stringify(state)}`);
   if(state.mainPaddingBottom<state.nav.height+20)throw new Error(`Main content lacks bottom-navigation clearance: ${JSON.stringify(state)}`);
-  if(state.slotDisplay!=='contents')throw new Error(`Assistant mount point must not constrain floating movement: ${JSON.stringify(state)}`);
-  if(state.rootPosition!=='fixed')throw new Error(`Assistant root is not viewport-fixed: ${JSON.stringify(state)}`);
-  if(!state.fabVisible||!state.fab||state.fab.width<44||state.fab.height<44)throw new Error(`Unified AI Mini orb missing or touch target below 44px: ${JSON.stringify(state)}`);
-  if(state.fabTouchAction!=='none')throw new Error(`Assistant touch drag is not capturing pointer movement: ${JSON.stringify(state)}`);
-  if(state.fab.left<6||state.fab.right>state.innerWidth-6||state.fab.top<64||state.fab.bottom>state.nav.top-6)throw new Error(`Assistant default position is outside safe viewport bounds: ${JSON.stringify(state)}`);
-  if(state.labelVisible&&state.label&&(state.label.left<0||state.label.right>state.innerWidth||state.label.top<40||state.label.bottom>state.nav.top-6))throw new Error(`Assistant label is outside safe viewport bounds: ${JSON.stringify(state)}`);
-  if(state.fabTitleOverlap||state.labelTitleOverlap)throw new Error(`Unified AI Mini overlaps top title: ${JSON.stringify(state)}`);
+  // Study OS đã bỏ trợ lý A.I Mini: không được có nút nổi hoặc mount trợ lý trên khung di động.
+  if(state.slotVisible||state.fabVisible||state.labelVisible)throw new Error(`Assistant orb must not render on Study OS mobile shell: ${JSON.stringify(state)}`);
   if(state.topBackdropFilter!=='none')throw new Error(`Mobile top bar creates a fixed-position containing block: ${JSON.stringify(state)}`);
 
   const screenshot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
