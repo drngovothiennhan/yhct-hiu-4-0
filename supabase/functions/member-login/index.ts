@@ -9,10 +9,17 @@ const WINDOW_MS=10*60*1000
 const BLOCK_MS=10*60*1000
 const MAX_FAILURES=8
 const LOGIN_ID=/^[A-Z0-9][A-Z0-9._-]{3,31}$/
-const explicitOrigins=new Set(['https://hiutmc.com','https://www.hiutmc.com','https://yhct-hiu-4-0.vercel.app','https://yhct-hiu-4-0-hiu-yhct.vercel.app','https://yhct-hiu-final4-stage.vercel.app','https://yhct-hiu-final4-stage-hiu-yhct.vercel.app','https://yhct-hiu-final4-stage-git-main-hiu-yhct.vercel.app','http://localhost:5173','http://localhost:4173'])
+const explicitOrigins=new Set(['https://hiutmc.com','https://www.hiutmc.com','https://yhct-hiu-4-0.vercel.app','https://yhct-hiu-4-0-hiu-yhct.vercel.app','https://yhct-hiu-final4-stage.vercel.app','https://yhct-hiu-final4-stage-hiu-yhct.vercel.app','https://yhct-hiu-final4-stage-git-main-hiu-yhct.vercel.app','https://localhost','http://localhost','capacitor://localhost','http://localhost:5173','http://localhost:4173'])
 function isAllowedOrigin(origin:string){if(explicitOrigins.has(origin))return true;try{const u=new URL(origin);if(u.protocol!=='https:'||!u.hostname.endsWith('.vercel.app'))return false;return u.hostname.startsWith('yhct-hiu-4-0-')||u.hostname.startsWith('yhct-hiu-final4-stage-')}catch{return false}}
 function cors(req:Request){const origin=req.headers.get('origin')||'';const allow=isAllowedOrigin(origin)?origin:'https://yhct-hiu-4-0.vercel.app';return{'Access-Control-Allow-Origin':allow,'Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Max-Age':'86400','Vary':'Origin'}}
 function json(req:Request,body:unknown,status=200,timing=''){const headers:Record<string,string>={...cors(req),'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'};if(timing)headers['Server-Timing']=timing;return new Response(JSON.stringify(body),{status,headers})}
+type AuthErr={code?:string;status?:number;message?:string}|null|undefined
+const errText=(e:AuthErr)=>String(e?.message||'').toLowerCase()
+const errCode=(e:AuthErr)=>String(e?.code||'').toLowerCase()
+// Lỗi do hạ tầng/Auth chặn (CAPTCHA, giới hạn tốc độ, 5xx): KHÔNG phải sai mật khẩu, không được tính vào bộ đếm khóa.
+const isAuthUnavailable=(e:AuthErr)=>!!e&&(errCode(e)==='captcha_failed'||errText(e).includes('captcha')||errCode(e)==='over_request_rate_limit'||errCode(e)==='over_email_send_rate_limit'||Number(e.status||0)>=500)
+const isEmailNotConfirmed=(e:AuthErr)=>!!e&&(errCode(e)==='email_not_confirmed'||errText(e).includes('email not confirmed'))
+const isBadCredentials=(e:AuthErr)=>!!e&&(errCode(e)==='invalid_credentials'||errText(e).includes('invalid login credentials'))
 function clientIp(req:Request){return(req.headers.get('x-forwarded-for')||req.headers.get('x-real-ip')||'unknown').split(',')[0].trim().slice(0,80)}
 async function sha256(value:string){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('')}
 async function throttleKey(req:Request,studentCode:string){return sha256(`${studentCode}|${clientIp(req)}`)}
@@ -54,7 +61,9 @@ Deno.serve(async(req:Request)=>{
     }
     let authResult=await client.auth.signInWithPassword({email,password})
     const mayBootstrap=!member.auth_user_id&&!selfRegistered&&password===studentCode
-    if(authResult.error&&mayBootstrap){const created=await admin.auth.admin.createUser({email,password,email_confirm:true,user_metadata:{full_name:member.full_name,student_code:studentCode},app_metadata:{member_id:member.id,must_change_password:true,provisioned_by:'member-login-bootstrap'}});if(created.error&&!String(created.error.message||'').toLowerCase().includes('already'))throw created.error;authResult=await client.auth.signInWithPassword({email,password})}
+    if(authResult.error&&mayBootstrap&&isBadCredentials(authResult.error)){const created=await admin.auth.admin.createUser({email,password,email_confirm:true,user_metadata:{full_name:member.full_name,student_code:studentCode},app_metadata:{member_id:member.id,must_change_password:true,provisioned_by:'member-login-bootstrap'}});if(created.error&&!String(created.error.message||'').toLowerCase().includes('already'))throw created.error;authResult=await client.auth.signInWithPassword({email,password})}
+    if(authResult.error&&isAuthUnavailable(authResult.error)){console.error('member-login auth unavailable',{code:authResult.error.code,status:authResult.error.status,message:authResult.error.message});return json(req,{error:'Hệ thống xác thực đang tạm thời không nhận đăng nhập. Vui lòng thử lại sau ít phút hoặc báo quản trị viên.',code:'auth_unavailable'},503)}
+    if(authResult.error&&isEmailNotConfirmed(authResult.error)){return json(req,{error:'Tài khoản chưa xác nhận email. Hãy mở email kích hoạt (hoặc yêu cầu gửi lại) rồi đăng nhập lại.',code:'email_not_confirmed'},403)}
     if(authResult.error||!authResult.data.session||!authResult.data.user){await recordFailure();return json(req,{error:'Tên đăng nhập hoặc mật khẩu không đúng'},401)}
     const authUserId=authResult.data.user.id
     if(member.auth_user_id&&member.auth_user_id!==authUserId){await client.auth.signOut();await recordFailure();return json(req,{error:'Tài khoản không khớp hồ sơ thành viên'},403)}
