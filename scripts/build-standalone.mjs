@@ -43,8 +43,21 @@ html = html.replace(/<link rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/g, (_m, hre
 // Manifest và icon nằm trên máy chủ; bản cục bộ không dùng tới.
 html = html.replace(/<link rel="(manifest|icon|apple-touch-icon)"[^>]*>/g, '');
 
+// Tài nguyên public được gọi bằng đường dẫn tuyệt đối (ví dụ /club-yhct-logo.svg) sẽ không tải được khi mở file cục bộ.
+// Nhúng các file đó thành data URI (chỉ file có thật trong public/).
+let inlinedAssets = 0;
+const publicDir = path.resolve('public');
+html = html.replace(/(?<![A-Za-z0-9_.\/:-])\/((?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-]+\.(?:svg|png|webp|jpg|jpeg|gif|ico))(\?[A-Za-z0-9._=&-]*)?/g, (m, rel) => {
+  const file = path.join(publicDir, rel);
+  if (!fs.existsSync(file)) return m;
+  const ext = path.extname(rel).slice(1).toLowerCase();
+  const mime = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+  inlinedAssets += 1;
+  return `data:${mime};base64,${fs.readFileSync(file).toString('base64')}`;
+});
+
 const outFile = path.join(outDir, 'study-os-standalone.html');
 fs.writeFileSync(outFile, html);
 const leftovers = (html.match(/src="\.\/assets\/[^"]+"|href="\.\/assets\/[^"]+"/g) || []).length;
-console.log(`standalone: ${outFile} ${Math.round(html.length / 1024)} KB, external asset refs left: ${leftovers}`);
+console.log(`standalone: ${outFile} ${Math.round(html.length / 1024)} KB, inlined public assets: ${inlinedAssets}, external asset refs left: ${leftovers}`);
 if (leftovers > 0) process.exitCode = 1;
