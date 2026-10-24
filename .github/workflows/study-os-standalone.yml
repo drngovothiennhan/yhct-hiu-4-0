@@ -16,8 +16,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node scripts/build-standalone.mjs
+      - run: npm i --no-save playwright@1.49.1 && npx playwright install --with-deps chromium
+      - run: node scripts/standalone-smoke.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: study-os-standalone
-          path: dist-standalone/study-os-standalone.html
+          path: |
+            dist-standalone/study-os-standalone.html
+            dist-standalone/standalone-phone.png
           retention-days: 14
