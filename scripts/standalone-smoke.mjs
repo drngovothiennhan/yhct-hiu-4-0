@@ -20,6 +20,24 @@ const state = await page.evaluate(() => ({
   title: document.title,
 }));
 await page.screenshot({ path: path.resolve('dist-standalone/standalone-phone.png'), fullPage: false });
+// Đi qua các nút điều hướng (thanh dưới và menu) và ghi lỗi theo từng màn.
+const navLabels = await page.$$eval('nav button, nav a, [role="tab"]', (els) =>
+  [...new Set(els.map((e) => (e.innerText || e.getAttribute('aria-label') || '').trim()).filter((t) => t && t.length < 40))]
+).catch(() => []);
+const screens = [];
+for (const label of navLabels.slice(0, 12)) {
+  const before = pageErrors.length + consoleErrors.length;
+  try {
+    await page.locator('nav button, nav a, [role="tab"]').filter({ hasText: label }).first().click({ timeout: 4000 });
+    await page.waitForTimeout(1200);
+    const len = await page.evaluate(() => (document.body?.innerText || '').trim().length);
+    screens.push(`${label}:ok(${len})${pageErrors.length + consoleErrors.length > before ? ':ERR' : ''}`);
+  } catch (e) {
+    screens.push(`${label}:not-clickable`);
+  }
+}
+console.log(`::notice title=screens::${screens.join(' | ')}`);
+console.log(`::notice title=errors-after-screens::${pageErrors.length} page / ${consoleErrors.length} console`);
 await browser.close();
 
 console.log(`::notice title=state::${JSON.stringify(state)}`);
