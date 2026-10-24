@@ -56,6 +56,11 @@ html = html.replace(/(?<![A-Za-z0-9_.\/:-])\/((?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-
   return `data:${mime};base64,${fs.readFileSync(file).toString('base64')}`;
 });
 
+// Mở bằng file:// thì origin là "null": history.pushState với đường dẫn tuyệt đối (/exam) bị chặn.
+// Chặn lỗi đó: nếu đổi URL lỗi thì giữ nguyên URL, màn hình vẫn đổi theo state của React.
+const historyGuard = '<script>(()=>{for(const k of["pushState","replaceState"]){const o=history[k].bind(history);history[k]=(s,t,u)=>{try{return o(s,t,u)}catch(e){try{return o(s,t,null)}catch(_){}}}}})();</script>';
+html = html.replace('<head>', '<head>' + historyGuard);
+
 const outFile = path.join(outDir, 'study-os-standalone.html');
 fs.writeFileSync(outFile, html);
 const leftovers = (html.match(/src="\.\/assets\/[^"]+"|href="\.\/assets\/[^"]+"/g) || []).length;
