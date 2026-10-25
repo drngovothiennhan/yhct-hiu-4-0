@@ -36,7 +36,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Phase 12 final release QA contract
         run: node scripts/phase12-final-qa-check.mjs
       - run: node scripts/acceptance-check.mjs
