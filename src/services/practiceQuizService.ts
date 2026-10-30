@@ -1,7 +1,7 @@
 import {supabase} from './authService';
 
 export type PracticeQuizConfig={authenticated:boolean;ready:boolean;eligibleCount:number;subjects:string[];pageSize:number;continuous:boolean};
-export type PracticeQuizQuestion={id:string;subject:string;topic:string;stem:string;options:string[];sourceFileName:string;generationMethod:'parsed'|'ai_generated';reviewStatus:'source_verified'|'expert_approved'};
+export type PracticeQuizQuestion={id:string;subject:string;topic:string;stem:string;options:string[];sourceFileName:string;generationMethod:'parsed'|'ai_generated';reviewStatus:'source_verified'|'expert_approved';referenceOnly?:boolean};
 export type PracticeQuizPage={ready:boolean;subject:string;offset:number;pageSize:number;total:number;hasMore:boolean;questions:PracticeQuizQuestion[]};
 export type PracticeQuizReview={id:string;subject:string;topic:string;selectedIndex:number|null;correctIndex:number;correct:boolean;explanation:string;sourceFileName:string;evidenceText:string};
 export type PracticeQuizResult={score:number;correctCount:number;total:number;review:PracticeQuizReview[];submittedAt:string};
