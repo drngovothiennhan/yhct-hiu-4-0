@@ -5,6 +5,11 @@ const path=name=>new URL(name,self.registration.scope).pathname;
 const SHELL=[path('./'),path('yhct-system-mark.svg')];
 const LEGACY_MANIFESTS=[path('manifest.webmanifest'),path('api/manifest')];
 const NAV_TIMEOUT_MS=8000;
+// Vite emits content-hashed, immutable files under assets/. Each release
+// ships new hashes, so old entries are pruned on activate and cached hits are
+// served without a background refetch.
+const ASSETS_PREFIX=path('assets/');
+const isHashedAsset=url=>url.pathname.startsWith(ASSETS_PREFIX);
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
@@ -16,6 +21,8 @@ self.addEventListener('activate',event=>{
     await Promise.all(keys.filter(key=>key!==CACHE&&key.startsWith('yhct-hiu-4-')).map(key=>caches.delete(key)));
     const cache=await caches.open(CACHE);
     await Promise.all(LEGACY_MANIFESTS.map(entry=>cache.delete(entry)));
+    const entries=await cache.keys();
+    await Promise.all(entries.filter(entry=>isHashedAsset(new URL(entry.url))).map(entry=>cache.delete(entry)));
     await self.clients.claim();
   })());
 });
@@ -41,6 +48,7 @@ async function staticResponse(request){
     try{return await fetch(request,{cache:'no-store'})}catch{return Response.error()}
   }
   const cached=await caches.match(request);
+  if(cached&&isHashedAsset(url))return cached;
   const update=fetch(request).then(response=>{
     if(response.ok&&response.type==='basic'){const copy=response.clone();void caches.open(CACHE).then(cache=>cache.put(request,copy))}
     return response;
