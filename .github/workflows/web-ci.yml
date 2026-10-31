@@ -68,6 +68,8 @@ jobs:
         run: node scripts/learning-hub-contract-check.mjs
       - name: Learning cloud sync regression
         run: node scripts/learning-cloud-sync-check.mjs
+      - name: Quiz points anti-farm contract
+        run: node scripts/quiz-points-anti-farm-check.mjs
       - name: Phase 16 trusted quiz and AI chat regression
         run: npm run audit:phase16
       - name: Phase 18D grounded quiz runtime regression
