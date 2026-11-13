@@ -41,3 +41,27 @@ export async function submitPracticeQuiz(questions:PracticeQuizQuestion[],answer
   }
   return{score:total?Math.round(correctCount/total*100):0,correctCount,total,review,submittedAt};
 }
+
+export type PracticeQuizMasterySubject={subject:string;bankCount:number;seen:number;correctNow:number;openMistakes:number;lastSeenAt:string|null};
+export type PracticeQuizMastery={totals:Omit<PracticeQuizMasterySubject,'subject'>;subjects:PracticeQuizMasterySubject[]};
+export type PracticeQuizMistakes={subject:string;total:number;questions:PracticeQuizQuestion[]};
+const masteryRow=(x:Record<string,unknown>)=>({bankCount:Number(x.bankCount||0),seen:Number(x.seen||0),correctNow:Number(x.correctNow||0),openMistakes:Number(x.openMistakes||0),lastSeenAt:x.lastSeenAt?String(x.lastSeenAt):null});
+
+/** Mức nắm bài do máy chủ đếm từ các lượt nộp đã ghi. Trả null khi chưa đăng nhập hoặc máy chủ chưa có hàm này. */
+export async function getPracticeQuizMastery():Promise<PracticeQuizMastery|null>{
+  const {data:{session}}=await supabase.auth.getSession();
+  if(!session?.access_token)return null;
+  const {data,error}=await supabase.rpc('practice_quiz_mastery_v1');
+  if(error)return null;
+  const x=(data||{}) as Record<string,unknown>;
+  return{totals:masteryRow((x.totals||{}) as Record<string,unknown>),subjects:Array.isArray(x.subjects)?(x.subjects as Record<string,unknown>[]).map(row=>({subject:String(row.subject||''),...masteryRow(row)})):[]};
+}
+
+/** Các câu mà lần trả lời gần nhất còn sai, câu sai nhiều lần xếp trước. Không kèm đáp án. */
+export async function getPracticeQuizMistakes(subject:string,limit=20):Promise<PracticeQuizMistakes>{
+  await requireMemberSession();
+  const {data,error}=await supabase.rpc('practice_quiz_mistakes_v1',{p_subject:subject,p_limit:Math.max(1,Math.min(50,Math.trunc(limit)||20))});
+  if(error)throw asError(error,'Không tải được danh sách câu còn sai.');
+  const x=(data||{}) as Record<string,unknown>;
+  return{subject:String(x.subject||''),total:Number(x.total||0),questions:Array.isArray(x.questions)?x.questions as PracticeQuizQuestion[]:[]};
+}
